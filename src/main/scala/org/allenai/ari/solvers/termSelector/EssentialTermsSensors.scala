@@ -51,8 +51,9 @@ object EssentialTermsSensors {
   lazy val questionEssentialTermScores = allQuestions.map { a => a.rawQuestion -> a.essentialTermMap }
 
   lazy val stopWords = {
-    lazy val stopWordsFile = EssentialTermsUtils.getDatastoreFileAsSource("public",
-      "org.allenai.termselector", "stopwords.txt", 1)
+    lazy val stopWordsFile = EssentialTermsUtils.getDatastoreFileAsSource(
+      "public", "org.allenai.termselector", "stopwords.txt", 1
+    )
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
     stopWords
@@ -63,8 +64,9 @@ object EssentialTermsSensors {
   lazy val w2vNoMatchStr = "</s>" // string used by word2vec when there is no match
 
   private lazy val salienceMap = {
-    val salienceCache = EssentialTermsUtils.getDatastoreFileAsSource("public",
-      "org.allenai.termselector", "salienceCache.txt", 1)
+    val salienceCache = EssentialTermsUtils.getDatastoreFileAsSource(
+      "public", "org.allenai.termselector", "salienceCache.txt", 1
+    )
     val lines = salienceCache.getLines
     val cache = lines.grouped(2).map {
       case q :: json :: _ =>
@@ -151,8 +153,9 @@ object EssentialTermsSensors {
   }
 
   private def readAndAnnotateEssentialTermsData(): Seq[EssentialTermsQuestion] = {
-    val salientTermsFile = Datastore("private").filePath("org.allenai.termselector",
-      "turkerSalientTerms.tsv", 1)
+    val salientTermsFile = Datastore("private").filePath(
+      "org.allenai.termselector", "turkerSalientTerms.tsv", 1
+    )
     // Some terms in the turker generated file need ISO-8859 encoding
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile.toFile)(Codec.ISO8859).map {
       line =>
