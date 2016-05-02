@@ -9,9 +9,6 @@ GlobalBuildSettings
 
 ExtraMemJavaSettings
 
-// UIUC Cogcomp software for NLP and ML tools used by solvers/termselector.
-resolvers += "CogcompSoftware" at "http://cogcomp.cs.illinois.edu/m2repo/"
-
 libraryDependencies ++= Seq(
   allenAiCommon exclude("edu.stanford.nlp", "stanford-corenlp"),
   allenAiGuice exclude("edu.stanford.nlp", "stanford-corenlp"),
