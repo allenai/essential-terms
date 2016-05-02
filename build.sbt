@@ -9,17 +9,20 @@ GlobalBuildSettings
 
 ExtraMemJavaSettings
 
+// UIUC Cogcomp software for NLP and ML tools used by solvers/termselector.
+resolvers += "CogcompSoftware" at "http://cogcomp.cs.illinois.edu/m2repo/"
+
 libraryDependencies ++= Seq(
   allenAiCommon exclude("edu.stanford.nlp", "stanford-corenlp"),
   allenAiGuice exclude("edu.stanford.nlp", "stanford-corenlp"),
-  redisClient exclude("edu.stanford.nlp", "stanford-corenlp"),
-  word2VecJava exclude("edu.stanford.nlp", "stanford-corenlp"),
-  wumpusClient exclude("edu.stanford.nlp", "stanford-corenlp"),
-  stanfordCorenlp331,
-  stanfordModels331,
-  illinoisNlpPipeline,
   illinoisEdison,
-  illinoisSaul
+  illinoisNlpPipeline,
+  illinoisSaul,
+  redisClient exclude("edu.stanford.nlp", "stanford-corenlp"),
+  stanfordCorenlp331,  // different version than included in allenAiCommon
+  stanfordModels331,  // different version than included in allenAiCommon
+  word2VecJava exclude("edu.stanford.nlp", "stanford-corenlp"),
+  wumpusClient exclude("edu.stanford.nlp", "stanford-corenlp")
 )
 
 fork := true
