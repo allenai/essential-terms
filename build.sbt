@@ -7,7 +7,7 @@ description := "A pre-processing tool to identify important terms in questions"
 
 GlobalBuildSettings
 
-ExtraMemJavaSettings
+setJvmMemory("10g")
 
 libraryDependencies ++= Seq(
   allenAiCommon exclude("edu.stanford.nlp", "stanford-corenlp"),
@@ -23,5 +23,3 @@ libraryDependencies ++= Seq(
 )
 
 fork := true
-
-javaOptions ++= List("-Xmx10g")
