@@ -1,13 +1,10 @@
-import Dependencies._
 import NativePackagerHelper.directory
 
 name := "termselector"
 
 description := "A pre-processing tool to identify important terms in questions"
 
-serviceProjectSettings
-
-setJvmMemory("8g")
+jvmMemory := "8g"
 
 libraryDependencies ++= Seq(
   allenAiCommon exclude("edu.stanford.nlp", "stanford-corenlp"),
