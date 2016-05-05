@@ -220,7 +220,7 @@ object EssentialTermsApp extends Logging {
 
   def main(args: Array[String]): Unit = {
     /** Choose the experiment you're interested in by changing the following line */
-    val testType = TermSelectionExperimentType.TestWithAristoQuestion
+    val testType = TermSelectionExperimentType.TrainAndTestMainLearner
 
     testType match {
       case TermSelectionExperimentType.TrainAndTestMainLearner =>
