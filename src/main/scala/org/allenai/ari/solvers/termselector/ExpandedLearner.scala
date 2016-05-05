@@ -1,5 +1,7 @@
 package org.allenai.ari.solvers.termselector
 
+import org.allenai.common.Logging
+
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.SparseNetworkLearner
@@ -68,5 +70,25 @@ class ExpandedLearner(
       dataModel.beforeWord("how", view),
       dataModel.twoBeforeWord("how", view)
     )
+  }
+}
+
+object ExpandedLearner extends Logging {
+
+  /** Make a new ExpandedLearner; also return the underlying BaselineLearner and data models.
+    *
+    * @param loadSavedModel whether to load a previously saved model
+    */
+  def makeNewLearner(
+    loadSavedModel: Boolean
+  ): (BaselineDataModel, BaselineLearner, ExpandedDataModel, ExpandedLearner) = {
+    val (baselineDataModel, baselineLearner) = BaselineLearner.makeNewLearner(loadSavedModel)
+    lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearner)
+    lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
+    if (loadSavedModel) {
+      logger.debug("Loading ExpandedLearner model")
+      expandedLearner.load()
+    }
+    (baselineDataModel, baselineLearner, expandedDataModel, expandedLearner)
   }
 }

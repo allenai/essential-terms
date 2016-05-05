@@ -1,5 +1,7 @@
 package org.allenai.ari.solvers.termselector
 
+import org.allenai.common.Logging
+
 /** A baseline learner based on simply counting the label frequency per word */
 class BaselineLearner(
     baselineDataModel: BaselineDataModel
@@ -16,3 +18,20 @@ class BaselineLearner(
   override val loggging = true
 }
 
+object BaselineLearner extends Logging {
+
+  /** Make a new BaselineLearner. Also return the underlying data model.
+    *
+    * @param loadSavedModel whether to load a previously saved model
+    */
+  def makeNewLearner(loadSavedModel: Boolean): (BaselineDataModel, BaselineLearner) = {
+    // create the baseline data model and the corresponding learner object
+    val baselineDataModel = new BaselineDataModel
+    val baselineLearner = new BaselineLearner(baselineDataModel)
+    if (loadSavedModel) {
+      logger.debug("Loading BaselineLearner model")
+      baselineLearner.load()
+    }
+    (baselineDataModel, baselineLearner)
+  }
+}

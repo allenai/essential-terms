@@ -5,7 +5,7 @@ import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.common.Logging
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.lbjava.classify.{ ScoreSet, TestDiscrete }
+import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
 
 import com.redis._
@@ -18,15 +18,36 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-/** TODO(daniel) add description */
-class EssentialTermsApp extends Logging {
-  // create the baseline data model and the corresponding learner object
-  private val baselineDataModel = new BaselineDataModel
-  private val baselineLearner = new BaselineLearner(baselineDataModel)
+/** A sample application to train, test, save, and load essential terms classifiers. */
+class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
+  // lazily create the baseline and expanded data models and learners
+  private lazy val (baselineDataModel, baselineLearner, expandedDataModel, expandedLearner) = {
+    ExpandedLearner.makeNewLearner(loadSavedModel)
+  }
 
-  // lazily create the expanded data model and the corresponding learner object
-  private lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearner)
-  private lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
+  def trainAndTestBaselineLearner(testOnSentences: Boolean = false): Unit = {
+    trainAndTestLearner(baselineLearner, 1, test = true, testOnSentences)
+  }
+
+  def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
+    // since baselineLearner is used in expandedLearner, first train the baseline
+    trainAndTestLearner(baselineLearner, 1, test = false, testOnSentences = false, saveModel = true)
+    trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
+  }
+
+  def loadAndTestExpandedLearner(): Unit = {
+    testLearner(baselineLearner, test = true, testOnSentences = false)
+    testLearner(expandedLearner, test = true, testOnSentences = false)
+  }
+
+  def testLearnerWithSampleAristoQuestion(): Unit = {
+    val q = " What force causes a feather to fall slower than a rock? (A) gravity (B) air resistance (C) magnetism (D) electricity"
+    val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
+    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
+    val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
+    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner)
+    logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
+  }
 
   def cacheSalienceScoresInRedis(): Unit = {
     val r = new RedisClient("localhost", 6379)
@@ -62,23 +83,6 @@ class EssentialTermsApp extends Logging {
     writer.close()
   }
 
-  def trainAndTestBaselineLearner(testOnSentences: Boolean = false): Unit = {
-    trainAndTestLearner(baselineLearner, 1, test = true, testOnSentences)
-  }
-
-  def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
-    // since baselineLearner is used in expandedLearner, first train the baseline
-    trainAndTestLearner(baselineLearner, 1, test = false, testOnSentences = false, saveModel = true)
-    trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
-  }
-
-  def loadAndTestExpandedLearner(): Unit = {
-    baselineLearner.load()
-    expandedLearner.load()
-    testLearner(baselineLearner, test = true, testOnSentences = true)
-    testLearner(expandedLearner, test = true, testOnSentences = true)
-  }
-
   private def trainAndTestLearner(
     learner: EssentialTermsLearner,
     numIterations: Int,
@@ -97,7 +101,7 @@ class EssentialTermsApp extends Logging {
     learner.learn(numIterations)
 
     if (saveModel) {
-      logger.debug(s"Saving the model ${learner.getSimpleName} . . . ")
+      logger.debug(s"Saving model ${learner.getSimpleName}")
       learner.save()
     }
 
@@ -198,42 +202,36 @@ class EssentialTermsApp extends Logging {
     }
     testerExact.printPerformance(System.out)
   }
-
-  def testLearnerWithSampleAristoQuestion(): Unit = {
-    val q = " What force causes a feather to fall slower than a rock? (A) gravity (B) air resistance (C) magnetism (D) electricity"
-    val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
-    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
-    val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
-    baselineLearner.load()
-    expandedLearner.load()
-    println(getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner))
-  }
 }
 
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
-  private val essentialTermsApp = new EssentialTermsApp
-
-  private object TermSelectionExperimentType extends Enumeration {
-    val TrainAndTestBaseline, TrainAndTestMainLearner, LoadAndTestMainLearner, TestWithAristoQuestion, CacheSalienceScores = Value
-  }
-
   def main(args: Array[String]): Unit = {
-    /** Choose the experiment you're interested in by changing the following line */
-    val testType = TermSelectionExperimentType.TrainAndTestMainLearner
-
-    testType match {
-      case TermSelectionExperimentType.TrainAndTestMainLearner =>
-        essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = true)
-      case TermSelectionExperimentType.LoadAndTestMainLearner =>
-        essentialTermsApp.loadAndTestExpandedLearner()
-      case TermSelectionExperimentType.TrainAndTestBaseline =>
-        essentialTermsApp.trainAndTestBaselineLearner(testOnSentences = false)
-      case TermSelectionExperimentType.CacheSalienceScores =>
-        essentialTermsApp.cacheSalienceScoresInRedis()
-      case TermSelectionExperimentType.TestWithAristoQuestion =>
-        essentialTermsApp.testLearnerWithSampleAristoQuestion()
+    val usageStr = "\nUSAGE: run TrainAndTestMainLearner | LoadAndTestMainLearner | " +
+      "TrainAndTestBaseline | TestWithAristoQuestion | CacheSalienceScores"
+    if (args.isEmpty || args.length > 1) {
+      throw new IllegalArgumentException(usageStr)
+    } else {
+      val testType = args(0)
+      testType match {
+        case "TrainAndTestMainLearner" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
+          essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
+        case "TrainAndTestBaseline" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
+          essentialTermsApp.trainAndTestBaselineLearner(testOnSentences = false)
+        case "LoadAndTestMainLearner" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
+          essentialTermsApp.loadAndTestExpandedLearner()
+        case "CacheSalienceScores" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
+          essentialTermsApp.cacheSalienceScoresInRedis()
+        case "TestWithAristoQuestion" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
+          essentialTermsApp.testLearnerWithSampleAristoQuestion()
+        case _ =>
+          throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
+      }
     }
   }
 }
-

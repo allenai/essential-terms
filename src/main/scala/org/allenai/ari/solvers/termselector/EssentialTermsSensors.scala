@@ -293,6 +293,11 @@ object EssentialTermsSensors {
       case (q, termScores) =>
         (q, termScores, Levenshtein.distance(q, aristoQ.rawQuestion))
     }.minBy { case (_, _, distance) => distance }
-    if (minDistance < 5) termMap else throw new Exception("The question not found: " + aristoQ)
+    val DISTANCE_THRESHOLD = 5
+    if (minDistance < DISTANCE_THRESHOLD) {
+      termMap
+    } else {
+      throw new Exception("The question not found: " + aristoQ)
+    }
   }
 }
