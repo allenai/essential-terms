@@ -5,7 +5,7 @@ name := "termselector"
 
 description := "A pre-processing tool to identify important terms in questions"
 
-GlobalBuildSettings
+serviceProjectSettings
 
 setJvmMemory("10g")
 
