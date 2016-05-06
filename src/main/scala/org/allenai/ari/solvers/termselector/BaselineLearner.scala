@@ -29,7 +29,7 @@ object BaselineLearner extends Logging {
     val baselineDataModel = new BaselineDataModel
     val baselineLearner = new BaselineLearner(baselineDataModel)
     if (loadSavedModel) {
-      logger.debug("Loading BaselineLearner model")
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearner.lcFilePath}")
       baselineLearner.load()
     }
     (baselineDataModel, baselineLearner)

@@ -101,7 +101,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     learner.learn(numIterations)
 
     if (saveModel) {
-      logger.debug(s"Saving model ${learner.getSimpleName}")
+      logger.debug(s"Saving model ${learner.getSimpleName} at ${learner.lcFilePath}")
       learner.save()
     }
 
@@ -164,14 +164,14 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   private def convertToZeroOne(label: String): Integer = if (label == "IMPORTANT") 1 else 0
 
-  private def testOverSentences(classifier: EssentialTermsLearner): Unit = {
-    val goldLabel = classifier.dataModel.goldLabel
+  private def testOverSentences(learner: EssentialTermsLearner): Unit = {
+    val goldLabel = learner.dataModel.goldLabel
     val testerExact = new TestDiscrete
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
     testReader.reset()
 
     val hammingDistances = testReader.data.map { consIt =>
-      consIt.map(cons => if (goldLabel(cons) != classifier(cons)) 1 else 0).sum
+      consIt.map(cons => if (goldLabel(cons) != learner(cons)) 1 else 0).sum
     }
     logger.info("Average hamming distance = " + hammingDistances.sum * 1d / hammingDistances.size)
 
@@ -181,7 +181,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
       val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
       val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
-      val predicted = consIt.map(cons => convertToZeroOne(classifier(cons))).toSeq
+      val predicted = consIt.map(cons => convertToZeroOne(learner(cons))).toSeq
       val goldStr = gold.mkString("")
       val predictedStr = predicted.mkString("")
       val hammingDistance = (gold diff predicted).size * 1d / predicted.size
@@ -195,7 +195,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     logger.info("===  exact prediction ")
     testReader.data.foreach { consIt =>
       val gold = consIt.map(goldLabel(_)).mkString
-      val predicted = consIt.map(classifier(_)).mkString
+      val predicted = consIt.map(learner(_)).mkString
 
       val fakePred = if (gold == predicted) "same" else "different"
       testerExact.reportPrediction(fakePred, "same")

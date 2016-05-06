@@ -18,7 +18,6 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
 }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
-import edu.illinois.cs.cogcomp.lbjava.classify.ScoreSet
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
 
@@ -56,7 +55,7 @@ object EssentialTermsSensors {
     )
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
-    stopWords
+    stopWords.toSet
   }
 
   private lazy val word2vecFile = new File("/Users/daniel/ideaProjects/convertvec/GoogleNews-vectors-negative300-length=200000.bin")
@@ -258,33 +257,31 @@ object EssentialTermsSensors {
   }
 
   private def getSentence(qs: Seq[EssentialTermsQuestion]): Iterable[Iterable[Constituent]] = {
-    qs.map { _.questionTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala }
+    qs.map(_.questionTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala)
   }
 
-  def getScoreSetForAristoQuestion(aristoQ: Question, learner: EssentialTermsLearner): Seq[(Constituent, ScoreSet)] = {
+  def getEssentialTermProbForAristoQuestion(
+    aristoQ: Question,
+    learner: EssentialTermsLearner
+  ): Map[Constituent, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None)
-
-    val constituents = questionStruct.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.filterNot {
-      c => stopWords.contains(c.getSurfaceForm.toLowerCase())
-    }
-
-    // updating the inverse map with the new constituents
+    val constituents = questionStruct.getConstituents(stopWords)
+    // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
-
-    val dataModel = learner.dataModel
-    dataModel.tokens.populate(constituents)
-    constituents.map { c => (c, learner.classifier.scores(c)) }.toSeq
+    learner.dataModel.tokens.populate(constituents)
+    constituents.map { c => (c, learner.predictProbOfBeingEssential(c)) }.toMap
   }
 
-  def getEssentialTermsForAristoQuestion(aristoQ: Question, learner: EssentialTermsLearner): Seq[Constituent] = {
+  def getEssentialTermsForAristoQuestion(
+    aristoQ: Question,
+    learner: EssentialTermsLearner
+  ): Seq[Constituent] = {
     val questionStruct = annotateQuestion(aristoQ, None)
-    val constituents = questionStruct.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.filterNot {
-      c => stopWords.contains(c.getSurfaceForm.toLowerCase())
-    }
+    val constituents = questionStruct.getConstituents(stopWords)
+    // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
-    val dataModel = learner.dataModel
-    dataModel.tokens.populate(constituents)
-    constituents.toList.filter { c => learner(c) == EssentialTermsConstants.IMPORTANT_LABEL }
+    learner.dataModel.tokens.populate(constituents)
+    constituents.filter(learner.predictIsEssential)
   }
 
   /** a convenient function to access the mturk annotated data, given an aristo question */
@@ -297,7 +294,7 @@ object EssentialTermsSensors {
     if (minDistance < DISTANCE_THRESHOLD) {
       termMap
     } else {
-      throw new Exception("The question not found: " + aristoQ)
+      throw new Exception("Annotation not found for question: " + aristoQ)
     }
   }
 }
