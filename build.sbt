@@ -1,5 +1,3 @@
-import NativePackagerHelper.directory
-
 name := "termselector"
 
 description := "A pre-processing tool to identify important terms in questions"
