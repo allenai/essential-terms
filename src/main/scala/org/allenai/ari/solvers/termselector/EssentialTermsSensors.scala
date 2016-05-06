@@ -4,7 +4,6 @@ import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
-import org.allenai.ari.solvers.termselector.EssentialTermsUtils.Levenshtein
 import org.allenai.common.FileUtils
 
 import org.allenai.common.guice.ActorSystemModule
@@ -45,9 +44,6 @@ protected case object EssentialTermsConstants {
 object EssentialTermsSensors {
 
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
-
-  // a convenient way to access essential term scores, given a question surface form
-  lazy val questionEssentialTermScores = allQuestions.map { a => a.rawQuestion -> a.essentialTermMap }
 
   lazy val stopWords = {
     lazy val stopWordsFile = EssentialTermsUtils.getDatastoreFileAsSource(
@@ -263,38 +259,24 @@ object EssentialTermsSensors {
   def getEssentialTermProbForAristoQuestion(
     aristoQ: Question,
     learner: EssentialTermsLearner
-  ): Map[Constituent, Double] = {
+  ): Map[String, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val constituents = questionStruct.getConstituents(stopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.tokens.populate(constituents)
-    constituents.map { c => (c, learner.predictProbOfBeingEssential(c)) }.toMap
+    constituents.map { c => (c.getSurfaceForm, learner.predictProbOfBeingEssential(c)) }.toMap
   }
 
   def getEssentialTermsForAristoQuestion(
     aristoQ: Question,
     learner: EssentialTermsLearner
-  ): Seq[Constituent] = {
+  ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val constituents = questionStruct.getConstituents(stopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.tokens.populate(constituents)
-    constituents.filter(learner.predictIsEssential)
-  }
-
-  /** a convenient function to access the mturk annotated data, given an aristo question */
-  def getMturkEssentialTermsScoresForAristoQuestion(aristoQ: Question): Option[Map[String, Double]] = {
-    val (_, termMap, minDistance) = questionEssentialTermScores.map {
-      case (q, termScores) =>
-        (q, termScores, Levenshtein.distance(q, aristoQ.rawQuestion))
-    }.minBy { case (_, _, distance) => distance }
-    val DISTANCE_THRESHOLD = 5
-    if (minDistance < DISTANCE_THRESHOLD) {
-      termMap
-    } else {
-      throw new Exception("Annotation not found for question: " + aristoQ)
-    }
+    constituents.collect { case c if learner.predictIsEssential(c) => c.getSurfaceForm }
   }
 }

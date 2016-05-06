@@ -1,11 +1,12 @@
 package org.allenai.ari.solvers.termselector
 
+import org.allenai.ari.models.Question
 import org.allenai.common.Logging
 
 /** A baseline learner based on simply counting the label frequency per word */
 class BaselineLearner(
     baselineDataModel: BaselineDataModel
-) extends EssentialTermsLearner(baselineDataModel) {
+) extends EssentialTermsLearner(baselineDataModel) with GenericLearner {
 
   // implement for trait EssentialTermsLearner
   override def dataModel = baselineDataModel
