@@ -16,6 +16,9 @@ abstract class EssentialTermsLearner(
   /** Short name for the learner */
   def getSimpleName: String = getClass.getSimpleName
 
+  /** Predict the class label of a given term. */
+  def predictLabel(c: Constituent): String = classifier.discreteValue(c)
+
   /** Predict whether a given term is essential. */
   def predictIsEssential(c: Constituent): Boolean = {
     classifier.discreteValue(c) == EssentialTermsConstants.IMPORTANT_LABEL

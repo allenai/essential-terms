@@ -171,7 +171,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     testReader.reset()
 
     val hammingDistances = testReader.data.map { consIt =>
-      consIt.map(cons => if (goldLabel(cons) != learner(cons)) 1 else 0).sum
+      consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons)) 1 else 0).sum
     }
     logger.info("Average hamming distance = " + hammingDistances.sum * 1d / hammingDistances.size)
 
@@ -181,7 +181,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
       val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
       val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
-      val predicted = consIt.map(cons => convertToZeroOne(learner(cons))).toSeq
+      val predicted = consIt.map(cons => convertToZeroOne(learner.predictLabel(cons))).toSeq
       val goldStr = gold.mkString("")
       val predictedStr = predicted.mkString("")
       val hammingDistance = (gold diff predicted).size * 1d / predicted.size
