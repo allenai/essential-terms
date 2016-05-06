@@ -25,9 +25,6 @@ abstract class EssentialTermsLearner(
     EssentialTermsSensors.getEssentialTermsForAristoQuestion(aristoQuestion, this)
   }
 
-  /** Short name for the learner */
-  def getSimpleName: String = getClass.getSimpleName
-
   /** Predict the class label of a given term. */
   def predictLabel(c: Constituent): String = classifier.discreteValue(c)
 

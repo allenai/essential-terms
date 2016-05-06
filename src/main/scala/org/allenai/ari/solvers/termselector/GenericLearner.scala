@@ -4,6 +4,9 @@ import org.allenai.ari.models.Question
 
 /** A generic trait for an essential terms learner for Aristo questions. */
 trait GenericLearner {
+  /** Short name for the learner */
+  def getSimpleName: String = getClass.getSimpleName
+
   /** Get essential term scores for a given question. */
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double]
 
