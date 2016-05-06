@@ -86,7 +86,7 @@ object ExpandedLearner extends Logging {
     lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearner)
     lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
     if (loadSavedModel) {
-      logger.debug("Loading ExpandedLearner model")
+      logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
       expandedLearner.load()
     }
     (baselineDataModel, baselineLearner, expandedDataModel, expandedLearner)
