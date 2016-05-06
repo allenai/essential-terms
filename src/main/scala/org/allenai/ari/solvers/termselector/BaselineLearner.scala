@@ -16,7 +16,7 @@ class BaselineLearner(
   override lazy val classifier = new CountClassifier
 
   override def feature = using(List(baselineDataModel.wordForm))
-  override val loggging = true
+  override val logging = true
 }
 
 object BaselineLearner extends Logging {
@@ -30,7 +30,7 @@ object BaselineLearner extends Logging {
     val baselineDataModel = new BaselineDataModel
     val baselineLearner = new BaselineLearner(baselineDataModel)
     if (loadSavedModel) {
-      logger.debug(s"Loading BaselineLearner model from ${baselineLearner.lcFilePath}")
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearner.lcFilePath()}")
       baselineLearner.load()
     }
     (baselineDataModel, baselineLearner)
