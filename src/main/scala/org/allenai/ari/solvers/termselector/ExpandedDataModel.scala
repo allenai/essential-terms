@@ -17,7 +17,7 @@ class ExpandedDataModel(
   NODES ++= baselineDataModel.NODES
   EDGES ++= baselineDataModel.EDGES
   PROPERTIES ++= baselineDataModel.PROPERTIES
-  propertyCacheList ++= baselineDataModel.propertyCacheList
+  //propertyCacheList ++= baselineDataModel.propertyCacheList
   override val tokens = baselineDataModel.tokens
   override val goldLabel = baselineDataModel.goldLabel
   val wordForm = baselineDataModel.wordForm
@@ -35,11 +35,11 @@ class ExpandedDataModel(
   val constituentTwoBefore = edge(tokens, tokens)
   constituentTwoBefore.addSensor(getConstituentTwoBefore _)
 
-  val baselineTarget = property(tokens, "baselineTarget", cache = true) { x: Constituent =>
+  val baselineTarget = property(tokens, cache = true) { x: Constituent =>
     baselineClassifier(x)
   }
 
-  val labelOrBaseline = property(tokens, "labelOrBaseline", cache = true) { x: Constituent =>
+  val labelOrBaseline = property(tokens, cache = true) { x: Constituent =>
     if (baselineClassifier.isTraining) {
       goldLabel(x)
     } else if (baselineClassifier.classifier.observed(wordForm(x))) {
@@ -49,7 +49,7 @@ class ExpandedDataModel(
     }
   }
 
-  val labelOneBefore = property(tokens, "labelOneBefore", cache = true) { x: Constituent =>
+  val labelOneBefore = property(tokens, cache = true) { x: Constituent =>
     val cons = (tokens(x) ~> constituentBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -59,7 +59,7 @@ class ExpandedDataModel(
     }
   }
 
-  val labelTwoBefore = property(tokens, "labelTwoBefore", cache = true) { x: Constituent =>
+  val labelTwoBefore = property(tokens, cache = true) { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -69,28 +69,31 @@ class ExpandedDataModel(
     }
   }
 
-  val labelOneAfter = property(tokens, "labelOneAfter", cache = true) {
+  val labelOneAfter = property(tokens, cache = true) {
     x: Constituent =>
       val cons = (tokens(x) ~> constituentAfter).head
       // make sure the spans are different. Otherwise it is not valid
       if (cons.getSpan != x.getSpan) labelOrBaseline(cons) else ""
   }
 
-  val labelTwoAfter = property(tokens, "labelTwoAfter", cache = true) { x: Constituent =>
+  val labelTwoAfter = property(tokens, cache = true) { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoAfter).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) labelOrBaseline(cons) else ""
   }
 
-  val L2bL1b = property(tokens, "label2beforeLabel1beforeConjunction") { x: Constituent =>
+  // label 2-before conjunction with label 1-before
+  val L2bL1b = property(tokens) { x: Constituent =>
     labelTwoBefore(x) + "-" + labelOneBefore(x)
   }
 
-  val L1bL1a = property(tokens, "label1beforeLabel1afterConjunction") { x: Constituent =>
+  // label 1-before conjunction with label 1-after
+  val L1bL1a = property(tokens) { x: Constituent =>
     labelOneBefore(x) + "-" + labelOneAfter(x)
   }
 
-  val L1aL2a = property(tokens, "labelfterLabel2AfterConjunction") { x: Constituent =>
+  // label 1-after conjunction with label 2-after
+  val L1aL2a = property(tokens) { x: Constituent =>
     labelOneAfter(x) + "-" + labelTwoAfter(x)
   }
 

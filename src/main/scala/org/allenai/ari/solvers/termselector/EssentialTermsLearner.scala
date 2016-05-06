@@ -6,7 +6,7 @@ import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 /** A parameterized abstract class for learners for essential terms detection. */
 abstract class EssentialTermsLearner(
     essentialTermsDataModel: EssentialTermsDataModel
-) extends Learnable[Constituent](essentialTermsDataModel) {
+) extends Learnable[Constituent](essentialTermsDataModel.tokens) {
 
   /** This allows access to sub-classes of EssentialTermsDataModel if set appropriately by
     * inheriting classes.

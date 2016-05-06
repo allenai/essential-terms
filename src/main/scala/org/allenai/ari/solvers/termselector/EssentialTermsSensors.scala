@@ -82,6 +82,9 @@ object EssentialTermsSensors {
     val (train, test) = allQuestions.partition(_ => Random.nextDouble() < trainProb)
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
+    // add a train attribute to the training constituents, in order to make sure they will have different hashcode than
+    // the test constituents
+    trainSen.flatten.foreach { cons => cons.addAttribute("train", "true") }
     (trainSen.flatten, testSen.flatten, trainSen, testSen)
   }
 
