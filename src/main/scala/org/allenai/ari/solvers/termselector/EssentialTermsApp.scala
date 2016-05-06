@@ -101,7 +101,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     learner.learn(numIterations)
 
     if (saveModel) {
-      logger.debug(s"Saving model ${learner.getSimpleName} at ${learner.lcFilePath}")
+      logger.debug(s"Saving model ${learner.getSimpleName} at ${learner.lcFilePath()}")
       learner.save()
     }
 
@@ -207,26 +207,26 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
-    val usageStr = "\nUSAGE: run TrainAndTestMainLearner | LoadAndTestMainLearner | " +
-      "TrainAndTestBaseline | TestWithAristoQuestion | CacheSalienceScores"
+    val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
+      "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (CacheSalienceScores)"
     if (args.isEmpty || args.length > 1) {
       throw new IllegalArgumentException(usageStr)
     } else {
       val testType = args(0)
       testType match {
-        case "TrainAndTestMainLearner" =>
+        case "1" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
           essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
-        case "TrainAndTestBaseline" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
-          essentialTermsApp.trainAndTestBaselineLearner(testOnSentences = false)
-        case "LoadAndTestMainLearner" =>
+        case "2" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
           essentialTermsApp.loadAndTestExpandedLearner()
-        case "CacheSalienceScores" =>
+        case "3" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
+          essentialTermsApp.trainAndTestBaselineLearner(testOnSentences = false)
+        case "4" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
           essentialTermsApp.cacheSalienceScoresInRedis()
-        case "TestWithAristoQuestion" =>
+        case "5" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
           essentialTermsApp.testLearnerWithSampleAristoQuestion()
         case _ =>
