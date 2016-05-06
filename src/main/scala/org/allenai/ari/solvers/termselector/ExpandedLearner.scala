@@ -45,7 +45,7 @@ class ExpandedLearner(
     beforeAfterProperties(ViewNames.TOKENS) ++ beforeAfterProperties(ViewNames.POS) ++
     beforeAfterProperties(EssentialTermsConstants.VIEW_NAME) ++
     beforeAfterProperties(ViewNames.LEMMA)
-  override val loggging = true
+  override val logging = true
 
   private def beforeAfterProperties(view: String): List[Property[Constituent]] = {
     List(
@@ -86,7 +86,7 @@ object ExpandedLearner extends Logging {
     lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearner)
     lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
     if (loadSavedModel) {
-      logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
+      logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath()}")
       expandedLearner.load()
     }
     (baselineDataModel, baselineLearner, expandedDataModel, expandedLearner)
