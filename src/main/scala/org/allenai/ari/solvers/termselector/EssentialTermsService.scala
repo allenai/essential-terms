@@ -42,4 +42,18 @@ class EssentialTermsService @Inject() (
         learner.getEssentialTerms(aristoQ)
     }
   }
+
+  /** Get essential terms for a given question (selected via confidenceThreshold, if provided), as well as essential
+    * term scores for a given question.
+    */
+  def getEssentialTermsAndScores(aristoQ: Question): (Map[String, Double], Seq[String]) = {
+    val termsWithScores = getEssentialTermScores(aristoQ)
+    val essentialTerms = confidenceThreosholdOpt match {
+      case Some(confidenceThreshold) =>
+        termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
+      case None =>
+        learner.getEssentialTerms(aristoQ)
+    }
+    (termsWithScores, essentialTerms)
+  }
 }
