@@ -5,15 +5,15 @@ import org.allenai.ari.models.Question
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 
-/** A parameterized abstract class for learners for essential terms detection. */
-abstract class EssentialTermsLearner(
-    essentialTermsDataModel: EssentialTermsDataModel
+/** A parameterized abstract class for UIUC learners for essential terms detection. */
+abstract class IllinoisLearner(
+    essentialTermsDataModel: IllinoisDataModel
 ) extends Learnable[Constituent](essentialTermsDataModel.tokens) with GenericLearner {
 
   /** This allows access to sub-classes of EssentialTermsDataModel if set appropriately by
     * inheriting classes.
     */
-  def dataModel: EssentialTermsDataModel
+  def dataModel: IllinoisDataModel
 
   // implement for trait MyLearner
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {

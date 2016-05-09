@@ -10,7 +10,7 @@ import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 /** An expanded learner with a number of syntactic and semantic features. */
 class ExpandedLearner(
     expandedDataModel: ExpandedDataModel
-) extends EssentialTermsLearner(expandedDataModel) {
+) extends IllinoisLearner(expandedDataModel) {
 
   // implement for trait EssentialTermsLearner
   override def dataModel = expandedDataModel

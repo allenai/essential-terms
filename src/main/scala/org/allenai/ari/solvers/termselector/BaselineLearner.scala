@@ -6,7 +6,7 @@ import org.allenai.common.Logging
 /** A baseline learner based on simply counting the label frequency per word */
 class BaselineLearner(
     baselineDataModel: BaselineDataModel
-) extends EssentialTermsLearner(baselineDataModel) with GenericLearner {
+) extends IllinoisLearner(baselineDataModel) with GenericLearner {
 
   // implement for trait EssentialTermsLearner
   override def dataModel = baselineDataModel

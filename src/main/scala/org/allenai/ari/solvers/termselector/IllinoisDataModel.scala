@@ -6,7 +6,7 @@ import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
 import edu.illinois.cs.cogcomp.saul.datamodel.property.features.discrete.DiscreteProperty
 
 /** A generic trait for data models for essential terms detection. */
-trait EssentialTermsDataModel extends DataModel {
+trait IllinoisDataModel extends DataModel {
 
   /** A node containing all the constituents in the input data */
   def tokens: Node[Constituent]

@@ -3,7 +3,7 @@ package org.allenai.ari.solvers.termselector
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 
 /** TODO: add description */
-class BaselineDataModel extends EssentialTermsDataModel {
+class BaselineDataModel extends IllinoisDataModel {
   override val tokens = node[Constituent]
 
   override val goldLabel = property(tokens) { x: Constituent =>

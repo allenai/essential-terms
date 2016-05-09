@@ -163,14 +163,14 @@ object EssentialTermsSensors {
         val numAnnotators = fields(1).toDouble
         val wordCounts = fields(2).split("\\|")
         val wordImportance = wordCounts.map(_.split(",")).map { arr =>
-          assert(arr.size >= 2, "Expected at least elements. Found: " + arr.mkString("-") + " in " +
-            line)
+          assert(arr.size >= 2, s"Expected at least 2 elements. Found ${arr.mkString("-")} in line")
           (arr.head.stripSuffix("?").stripSuffix("."), arr.last.toDouble / numAnnotators)
         }
 
         val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
         val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
-        val aristoQuestion = Question(question, Some(maybeSplitQuestion.question), multipleChoiceSelection)
+        val aristoQuestion = Question(question, Some(maybeSplitQuestion.question),
+          multipleChoiceSelection)
         val essentialTermMap = wordImportance.groupBy(_._1).mapValues(_.maxBy(_._2)._2)
         annotateQuestion(aristoQuestion: Question, Some(essentialTermMap))
     }
@@ -261,7 +261,7 @@ object EssentialTermsSensors {
 
   def getEssentialTermProbForAristoQuestion(
     aristoQ: Question,
-    learner: EssentialTermsLearner
+    learner: IllinoisLearner
   ): Map[String, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val constituents = questionStruct.getConstituents(stopWords)
@@ -273,7 +273,7 @@ object EssentialTermsSensors {
 
   def getEssentialTermsForAristoQuestion(
     aristoQ: Question,
-    learner: EssentialTermsLearner
+    learner: IllinoisLearner
   ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val constituents = questionStruct.getConstituents(stopWords)

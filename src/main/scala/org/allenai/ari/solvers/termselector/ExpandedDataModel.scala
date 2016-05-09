@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 class ExpandedDataModel(
     baselineDataModel: BaselineDataModel,
     baselineClassifier: BaselineLearner
-) extends EssentialTermsDataModel {
+) extends IllinoisDataModel {
 
   // first copy relevant fields from BaselineDataModel and the underlying (mutable) DataModel
   NODES ++= baselineDataModel.NODES

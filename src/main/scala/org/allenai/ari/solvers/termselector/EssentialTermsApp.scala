@@ -84,7 +84,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   }
 
   private def trainAndTestLearner(
-    learner: EssentialTermsLearner,
+    learner: IllinoisLearner,
     numIterations: Int,
     test: Boolean = true,
     testOnSentences: Boolean = false,
@@ -109,7 +109,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   }
 
   private def testLearner(
-    learner: EssentialTermsLearner,
+    learner: IllinoisLearner,
     test: Boolean,
     testOnSentences: Boolean
   ): Unit = {
@@ -130,7 +130,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     }
   }
 
-  private def microAvgTest(learner: EssentialTermsLearner): Unit = {
+  private def microAvgTest(learner: IllinoisLearner): Unit = {
     logger.info("Micro-average = ")
     val results = testSentences.map { sentenceCons =>
       learner.test(sentenceCons)
@@ -164,7 +164,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   private def convertToZeroOne(label: String): Integer = if (label == "IMPORTANT") 1 else 0
 
-  private def testOverSentences(learner: EssentialTermsLearner): Unit = {
+  private def testOverSentences(learner: IllinoisLearner): Unit = {
     val goldLabel = learner.dataModel.goldLabel
     val testerExact = new TestDiscrete
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
