@@ -4,7 +4,7 @@ import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.EssentialTermsUtils.Levenshtein
 
 /** A learner that simply looks up essential terms as annotated in MTurk data, if available. */
-class LookupLearner(confidenceThresholdOpt: Option[Double]) extends GenericLearner {
+class LookupLearner(confidenceThresholdOpt: Option[Double]) extends EssentialTermsLearner {
 
   private val DEFAULT_CONFIDENCE_THRESHOLD = 0.9
   private val confidenceThreshold = confidenceThresholdOpt.getOrElse(DEFAULT_CONFIDENCE_THRESHOLD)

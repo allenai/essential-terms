@@ -12,7 +12,7 @@ class EssentialTermsService(
   logger.info(s"Initializing essential terms service with learner type: $learnerType")
 
   /** Create a learner object. */
-  private val learner: GenericLearner = learnerType match {
+  private val learner: EssentialTermsLearner = learnerType match {
     case "Lookup" => new LookupLearner(None)
     case "Baseline" => BaselineLearner.makeNewLearner(loadSavedModel = true)._2
     case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true)._4
