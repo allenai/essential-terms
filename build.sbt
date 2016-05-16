@@ -5,8 +5,6 @@ description := "A pre-processing tool to identify important terms in questions"
 jvmMemory := "8g"
 
 libraryDependencies ++= Seq(
-  akkaActor,
-  akkaLogging,
   allenAiCommon exclude("edu.stanford.nlp", "stanford-corenlp"),
   allenAiGuice exclude("edu.stanford.nlp", "stanford-corenlp"),
   illinoisEdison,
