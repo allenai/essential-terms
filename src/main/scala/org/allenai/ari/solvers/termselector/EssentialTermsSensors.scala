@@ -54,7 +54,10 @@ object EssentialTermsSensors {
     stopWords.toSet
   }
 
-  private lazy val word2vecFile = new File("/Users/daniel/ideaProjects/convertvec/GoogleNews-vectors-negative300-length=200000.bin")
+  // TODO(danm): This path should come from config so anyone can run the code.
+  private lazy val word2vecFile = new File(
+    "/Users/daniel/ideaProjects/convertvec/GoogleNews-vectors-negative300-length=200000.bin"
+  )
   lazy val w2vModel = Word2VecModel.fromBinFile(word2vecFile)
   lazy val w2vNoMatchStr = "</s>" // string used by word2vec when there is no match
 
@@ -78,8 +81,8 @@ object EssentialTermsSensors {
     val (train, test) = allQuestions.partition(_ => Random.nextDouble() < trainProb)
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
-    // add a train attribute to the training constituents, in order to make sure they will have different hashcode than
-    // the test constituents
+    // add a train attribute to the training constituents, in order to make sure they will have
+    // different hashcode than the test constituents
     trainSen.flatten.foreach(_.addAttribute("train", "true"))
     (trainSen.flatten, testSen.flatten, trainSen, testSen)
   }
@@ -92,16 +95,20 @@ object EssentialTermsSensors {
   // the annotations of the question containing it.
   // TODO: make this immutable
   lazy val constituentToAnnotationMap = collection.mutable.Map(allQuestions.flatMap { q =>
-    val constituents = q.questionTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+    val constituents =
+      q.questionTextAnnotation
+        .getView(EssentialTermsConstants.VIEW_NAME)
+        .getConstituents
+        .asScala
     constituents.map(_ -> q)
   }: _*)
 
   lazy val (salienceScorer, actorSystem) = {
     implicit val system = ActorSystem("ari-http-solver")
-    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load())
     val localConfig = rootConfig.getConfig("ari.solvers.common").withValue(
       "wumpus-overrides",
-      ConfigValueFactory.fromMap(Map("redisTimeoutMillis" -> Int.MaxValue).asJava)
+      ConfigValueFactory.fromMap(Map("redisTimeoutMillis" -> Int.MaxValue.toString).asJava)
     )
     val injector = Guice.createInjector(
       new ActorSystemModule,
@@ -158,12 +165,15 @@ object EssentialTermsSensors {
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile.toFile)(Codec.ISO8859).map {
       line =>
         val fields = line.split("\t")
-        assert(fields.size == 3, "Expected format: question numAnnotators word-counts. Got: " + line)
+        assert(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
         val question = fields(0)
         val numAnnotators = fields(1).toDouble
         val wordCounts = fields(2).split("\\|")
         val wordImportance = wordCounts.map(_.split(",")).map { arr =>
-          assert(arr.size >= 2, s"Expected at least 2 elements. Found ${arr.mkString("-")} in line")
+          assert(
+            arr.length >= 2,
+            s"Expected at least 2 elements. Found ${arr.mkString("-")} in line"
+          )
           (arr.head.stripSuffix("?").stripSuffix("."), arr.last.toDouble / numAnnotators)
         }
 
@@ -178,7 +188,10 @@ object EssentialTermsSensors {
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
   }
 
-  def annotateQuestion(aristoQuestion: Question, essentialTermMapOpt: Option[Map[String, Double]]): EssentialTermsQuestion = {
+  def annotateQuestion(
+    aristoQuestion: Question,
+    essentialTermMapOpt: Option[Map[String, Double]]
+  ): EssentialTermsQuestion = {
     val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
     val taWithEssentialTermsView = populateEssentialTermView(ta, essentialTermMapOpt)
 
@@ -194,16 +207,29 @@ object EssentialTermsSensors {
           }
           // max-ing the salience scores for different options
           val maxMap = listOfMaps.foldRight(Map[String, Double]()) { (singleMap, combinedMap) =>
-            val maxMap1 = combinedMap.map { case (k, v) => k -> Math.max(v, singleMap.getOrElse(k, v)) }
-            val maxMap2 = singleMap.map { case (k, v) => k -> Math.max(v, combinedMap.getOrElse(k, v)) }
+            val maxMap1 = combinedMap.map {
+              case (k, v) =>
+                k -> Math.max(v, singleMap.getOrElse(k, v))
+            }
+            val maxMap2 = singleMap.map {
+              case (k, v) =>
+                k -> Math.max(v, combinedMap.getOrElse(k, v))
+            }
             maxMap1 ++ maxMap2
           }
           (Some(avgMap), Some(maxMap))
         case None => (None, None)
       }
     }
-    EssentialTermsQuestion(aristoQuestion.rawQuestion, essentialTermMapOpt, aristoQuestion, taWithEssentialTermsView,
-      salienceResultOpt, avgSalienceOpt, maxSalienceOpt)
+    EssentialTermsQuestion(
+      aristoQuestion.rawQuestion,
+      essentialTermMapOpt,
+      aristoQuestion,
+      taWithEssentialTermsView,
+      salienceResultOpt,
+      avgSalienceOpt,
+      maxSalienceOpt
+    )
   }
 
   private lazy val annotatorService = {
@@ -216,7 +242,9 @@ object EssentialTermsSensors {
     nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_DEP.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_PARSE.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SHALLOW_PARSE.key, Configurator.FALSE)
-    IllinoisPipelineFactory.buildPipeline(new CuratorConfigurator().getConfig(new ResourceManager(nonDefaultProps)))
+    IllinoisPipelineFactory.buildPipeline(
+      new CuratorConfigurator().getConfig(new ResourceManager(nonDefaultProps))
+    )
   }
 
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL).asJava //,
@@ -224,7 +252,10 @@ object EssentialTermsSensors {
   //, ViewNames.SRL_VERB, ).asJava
   // ViewNames.CHUNK, ViewNames.NER_CONLL
 
-  private def populateEssentialTermView(ta: TextAnnotation, tokenScoreMapOpt: Option[Map[String, Double]]): TextAnnotation = {
+  private def populateEssentialTermView(
+    ta: TextAnnotation,
+    tokenScoreMapOpt: Option[Map[String, Double]]
+  ): TextAnnotation = {
     val view = new TokenLabelView(EssentialTermsConstants.VIEW_NAME, ta)
     tokenScoreMapOpt match {
       case Some(tokenScoreMap) =>
@@ -240,10 +271,19 @@ object EssentialTermsSensors {
 
         ta.getView(ViewNames.TOKENS).getConstituents.asScala.foreach { cons =>
           if (validTokens.get(cons.getSurfaceForm.toLowerCase()).exists(_ > 0.9)) {
-            view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, EssentialTermsConstants.IMPORTANT_LABEL,
-              validTokens(cons.getSurfaceForm.toLowerCase))
+            view.addSpanLabel(
+              cons.getStartSpan,
+              cons.getEndSpan,
+              EssentialTermsConstants.IMPORTANT_LABEL,
+              validTokens(cons.getSurfaceForm.toLowerCase)
+            )
           } else if (!stopWords.contains(cons.getSurfaceForm.toLowerCase())) {
-            view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, EssentialTermsConstants.UNIMPORTANT_LABEL, -1)
+            view.addSpanLabel(
+              cons.getStartSpan,
+              cons.getEndSpan,
+              EssentialTermsConstants.UNIMPORTANT_LABEL,
+              -1
+            )
           }
         }
       case None =>
@@ -256,7 +296,12 @@ object EssentialTermsSensors {
   }
 
   private def getSentence(qs: Seq[EssentialTermsQuestion]): Iterable[Iterable[Constituent]] = {
-    qs.map(_.questionTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala)
+    qs.map(
+      _.questionTextAnnotation
+      .getView(EssentialTermsConstants.VIEW_NAME)
+      .getConstituents
+      .asScala
+    )
   }
 
   def getEssentialTermProbForAristoQuestion(

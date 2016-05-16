@@ -7,7 +7,6 @@ import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
-
 import com.redis._
 import spray.json._
 import DefaultJsonProtocol._
@@ -41,7 +40,8 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   }
 
   def testLearnerWithSampleAristoQuestion(): Unit = {
-    val q = " What force causes a feather to fall slower than a rock? (A) gravity (B) air resistance (C) magnetism (D) electricity"
+    val q = " What force causes a feather to fall slower than a rock? " +
+      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
     val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
     val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
@@ -66,7 +66,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
         logger.debug(q.aristoQuestion.toString)
       }
     }
-    actorSystem.shutdown()
+    actorSystem.terminate()
   }
 
   def saveSalienceCacheOnDisk(): Unit = {
@@ -147,7 +147,10 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     })
   }
 
-  private def sumTuple(a: (Double, Double, Double), b: (Double, Double, Double)): (Double, Double, Double) = {
+  private def sumTuple(
+    a: (Double, Double, Double),
+    b: (Double, Double, Double)
+  ): (Double, Double, Double) = {
     (a._1 + b._1, a._2 + b._2, a._3 + b._3)
   }
 
@@ -177,7 +180,8 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
     testReader.data.slice(0, 30).foreach { consIt =>
       val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
-      (0 until numSen).foreach(id => logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
+      (0 until numSen).foreach(id =>
+        logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
 
       val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
       val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
