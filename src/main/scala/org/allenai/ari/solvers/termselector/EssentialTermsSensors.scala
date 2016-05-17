@@ -105,7 +105,7 @@ object EssentialTermsSensors {
 
   lazy val (salienceScorer, actorSystem) = {
     implicit val system = ActorSystem("ari-http-solver")
-    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load())
+    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
     val localConfig = rootConfig.getConfig("ari.solvers.common").withValue(
       "wumpus-overrides",
       ConfigValueFactory.fromMap(Map("redisTimeoutMillis" -> Int.MaxValue.toString).asJava)
