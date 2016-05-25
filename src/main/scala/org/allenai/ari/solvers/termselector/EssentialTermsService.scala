@@ -48,10 +48,10 @@ class EssentialTermsService @Inject() (
     */
   def getEssentialTermsAndScores(aristoQ: Question): (Map[String, Double], Seq[String]) = {
     val termsWithScores = getEssentialTermScores(aristoQ)
-    val essentialTerms = confidenceThreosholdOpt match {
-      case Some(confidenceThreshold) =>
-        termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
-      case None =>
+    val essentialTerms = confidenceThreshold match {
+      case threshold if threshold >= 0 =>
+        termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
+      case _ =>
         learner.getEssentialTerms(aristoQ)
     }
     (termsWithScores, essentialTerms)
