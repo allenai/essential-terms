@@ -4,7 +4,7 @@ import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
-import org.allenai.common.FileUtils
+import org.allenai.common.{ Logging, FileUtils }
 
 import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
@@ -41,7 +41,7 @@ protected case object EssentialTermsConstants {
   val UNIMPORTANT_LABEL = "NOT-IMPORTANT"
 }
 
-object EssentialTermsSensors {
+object EssentialTermsSensors extends Logging {
 
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
 
@@ -162,28 +162,49 @@ object EssentialTermsSensors {
       "org.allenai.termselector", "turkerSalientTerms.tsv", 1
     )
     // Some terms in the turker generated file need ISO-8859 encoding
-    val allQuestions = FileUtils.getFileAsLines(salientTermsFile.toFile)(Codec.ISO8859).map {
-      line =>
-        val fields = line.split("\t")
-        assert(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
-        val question = fields(0)
-        val numAnnotators = fields(1).toDouble
-        val wordCounts = fields(2).split("\\|")
-        val wordImportance = wordCounts.map(_.split(",")).map { arr =>
-          assert(
-            arr.length >= 2,
-            s"Expected at least 2 elements. Found ${arr.mkString("-")} in line"
-          )
-          (arr.head.stripSuffix("?").stripSuffix("."), arr.last.toDouble / numAnnotators)
+    val allQuestions = FileUtils.getFileAsLines(salientTermsFile.toFile)(Codec.ISO8859).map { line =>
+      val fields = line.split("\t")
+      assert(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
+      val question = fields(0)
+      val numAnnotators = fields(1).toDouble
+      val wordCounts = fields(2).split("\\|")
+      val wordImportance = wordCounts.map(_.split(",")).map { arr =>
+        assert(
+          arr.length >= 2,
+          s"Expected at least 2 elements. Found ${arr.mkString("-")} in line"
+        )
+        (arr.head.stripSuffix("?").stripSuffix("."), arr.last.toDouble / numAnnotators)
+      }
+      (wordImportance, numAnnotators, question)
+    }.groupBy {
+      // merging repeated annotations, if they have the same question string
+      case (_, _, question) => question
+    }.map {
+      // merging statistics of the same questions
+      case (question, arrayOfCollapsedQuestions) =>
+        arrayOfCollapsedQuestions.reduceRight[(Array[(String, Double)], Double, String)] {
+          case ((wordImportance, numAnnotator, _), (wordImportanceOverall, numAnnotatorsOverall, _)) =>
+            assert(wordImportance.length == wordImportanceOverall.length)
+            val wordImportanceMap = wordImportance.toMap
+            val mergedWordImportance = wordImportanceOverall.map {
+              case (token, importanceOverall) =>
+                val totalCount = numAnnotatorsOverall + numAnnotator
+                val averageImportance = (importanceOverall * numAnnotatorsOverall +
+                  wordImportanceMap(token) * numAnnotator) / totalCount
+                (token, averageImportance)
+            }
+            (mergedWordImportance, numAnnotator + numAnnotatorsOverall, question)
         }
-
+    }.map {
+      case (wordImportance, _, question) =>
+        logger.info(s"Question: $question // Scores: ${wordImportance.toList}")
         val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
         val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
         val aristoQuestion = Question(question, Some(maybeSplitQuestion.question),
           multipleChoiceSelection)
         val essentialTermMap = wordImportance.groupBy(_._1).mapValues(_.maxBy(_._2)._2)
         annotateQuestion(aristoQuestion: Question, Some(essentialTermMap))
-    }
+    }.toSeq
     // getting rid of invalid questions
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
   }
