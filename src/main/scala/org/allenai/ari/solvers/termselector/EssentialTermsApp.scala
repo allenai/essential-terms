@@ -4,18 +4,19 @@ import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.common.Logging
 
+import com.redis._
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
-import com.redis._
 import spray.json._
 import DefaultJsonProtocol._
 
-import java.io.{ File, PrintWriter }
-
+import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
+
+import java.io.{ File, PrintWriter }
 
 /** A sample application to train, test, save, and load essential terms classifiers. */
 class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
@@ -36,7 +37,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   def loadAndTestExpandedLearner(): Unit = {
     testLearner(baselineLearner, test = true, testOnSentences = false)
-    testLearner(expandedLearner, test = true, testOnSentences = false)
+    testLearner(expandedLearner, test = true, testOnSentences = true)
   }
 
   def testLearnerWithSampleAristoQuestion(): Unit = {
@@ -205,6 +206,48 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       testerExact.reportPrediction(fakePred, "same")
     }
     testerExact.printPerformance(System.out)
+
+    // ranking-based measures
+    val averagePrecisionList = testReader.data.map { consIt =>
+      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+      val goldLabelList = consIt.toList.map { cons =>
+        if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+      }
+      if (goldLabelList.sum <= 0) {
+        logger.warn("no essential term in gold found in the gold annotation of this question .... ")
+        logger.warn(s"question: ${consIt.head.getTextAnnotation.sentences().asScala.mkString("*")}")
+        0.5
+      } else {
+        val scoreLabelPairs = consIt.toList.map { cons =>
+          val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+          val predScore = learner.predictProbOfBeingEssential(cons)
+          (predScore, goldBinaryLabel)
+        }
+        val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+        meanAverageRank(rankedGold)
+      }
+    }
+    logger.info(s"Average precision: ${averagePrecisionList.sum / averagePrecisionList.size}")
+  }
+
+  /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
+    * The higher the score is, the earlier the element shows up in the gold list
+    */
+  def meanAverageRank(gold: Seq[Int]): Double = {
+    if (gold.sum <= 0) throw new Exception("There is no essential term in this sentence! ")
+    val totalPrecisionScore = gold.zipWithIndex.collect {
+      case (g, idx) if g == 1 => gold.slice(0, idx + 1).sum * 1.0 / (idx + 1)
+    }
+    totalPrecisionScore.sum * 1.0 / totalPrecisionScore.size
+  }
+
+  def rankedPrecisionRecall(gold: Seq[Int]): Seq[(Int, Double, Double)] = {
+    val totalPrecisionScore = gold.zipWithIndex.map {
+      case (g, idx) =>
+        val precision = gold.slice(0, idx + 1).sum * 1.0 / (1 + idx)
+        (idx, precision, 1 - precision)
+    }
+    totalPrecisionScore
   }
 }
 
@@ -228,11 +271,11 @@ object EssentialTermsApp extends Logging {
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
           essentialTermsApp.trainAndTestBaselineLearner(testOnSentences = false)
         case "4" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
-          essentialTermsApp.cacheSalienceScoresInRedis()
-        case "5" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
           essentialTermsApp.testLearnerWithSampleAristoQuestion()
+        case "5" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
+          essentialTermsApp.cacheSalienceScoresInRedis()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }
