@@ -16,6 +16,7 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
   TokenLabelView
 }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
+import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
@@ -23,6 +24,7 @@ import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
 import akka.actor.ActorSystem
 import com.google.inject.Guice
 import com.medallia.word2vec.Word2VecModel
+import com.redis._
 import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
 import spray.json._
@@ -54,6 +56,25 @@ object EssentialTermsSensors extends Logging {
     stopWords.toSet
   }
 
+  // a hashmap from sentences to [[TextAnnotation]]s
+  // TODO(daniel): this is not used currently; decide if you want to use this file, or use redis
+  lazy val annotationFileCache = {
+    val annotationCacheFile = EssentialTermsUtils.getDatastoreFileAsSource(
+      "private", "org.allenai.termselector", "annotationCache.json", 1
+    )
+    val lines = annotationCacheFile.getLines().toList
+    val sentenceAnnnotationMap = lines.map { singleLine =>
+      val splitted = singleLine.split("\t")
+      splitted(0) -> SerializationHelper.deserializeFromJson(splitted(1))
+    }.toMap
+    annotationCacheFile.close()
+    sentenceAnnnotationMap
+  }
+
+  // redis cache for annotations
+  // TODO(daniel): create a key in application.conf for activating this feature
+  lazy val annotationRedisCache = new RedisClient("localhost", 6379)
+
   // TODO(danm): This path should come from config so anyone can run the code.
   private lazy val word2vecFile = new File(
     "/Users/daniel/ideaProjects/convertvec/GoogleNews-vectors-negative300-length=200000.bin"
@@ -76,7 +97,7 @@ object EssentialTermsSensors extends Logging {
 
   lazy val (trainConstiuents, testConstituents, trainSentences, testSentences) = {
     val trainProb = 0.7
-    // just to make sure across runs we are consistent
+    // in order to be consistent across runs
     Random.setSeed(10)
     val (train, test) = allQuestions.partition(_ => Random.nextDouble() < trainProb)
     val trainSen = getSentence(train)
@@ -197,7 +218,7 @@ object EssentialTermsSensors extends Logging {
         }
     }.map {
       case (wordImportance, _, question) =>
-        logger.info(s"Question: $question // Scores: ${wordImportance.toList}")
+        // logger.info(s"Question: $question // Scores: ${wordImportance.toList}")
         val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
         val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
         val aristoQuestion = Question(question, Some(maybeSplitQuestion.question),
@@ -213,8 +234,19 @@ object EssentialTermsSensors extends Logging {
     aristoQuestion: Question,
     essentialTermMapOpt: Option[Map[String, Double]]
   ): EssentialTermsQuestion = {
-    val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
-    val taWithEssentialTermsView = populateEssentialTermView(ta, essentialTermMapOpt)
+
+    // if the annotation cache already contains it, skip it; otherwise extract the annotation
+    val cacheKey = aristoQuestion.text.get + views.asScala.mkString
+    val redisAnnotation = annotationRedisCache.get(cacheKey)
+    val annotation = if (redisAnnotation.isDefined) {
+      SerializationHelper.deserializeFromJson(redisAnnotation.get)
+    } else {
+      val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
+      annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+      ta
+    }
+    val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
+    logger.info(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
 
     // salience
     val salienceResultOpt = salienceMap.get(aristoQuestion.rawQuestion)
@@ -256,7 +288,6 @@ object EssentialTermsSensors extends Logging {
   private lazy val annotatorService = {
     val nonDefaultProps = new Properties()
     nonDefaultProps.setProperty(PipelineConfigurator.USE_POS.key, Configurator.TRUE)
-    //    nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_CONLL.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_VERB.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_NOM.key, Configurator.FALSE)
@@ -268,10 +299,9 @@ object EssentialTermsSensors extends Logging {
     )
   }
 
-  val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL).asJava //,
-  //      ViewNames.DEPENDENCY_STANFORD, ViewNames.PARSE_STANFORD).asJava
-  //, ViewNames.SRL_VERB, ).asJava
-  // ViewNames.CHUNK, ViewNames.NER_CONLL
+  val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
+    ViewNames.SHALLOW_PARSE).asJava
+  //    ViewNames.DEPENDENCY_STANFORD, ViewNames.PARSE_STANFORD, ViewNames.SRL_VERB*/).asJava
 
   private def populateEssentialTermView(
     ta: TextAnnotation,
@@ -282,8 +312,14 @@ object EssentialTermsSensors extends Logging {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 =>
-            val ta = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
-              Set(ViewNames.TOKENS).asJava)
+            val cacheKey = "**onlyTokens:" + tokenString
+            val redisAnnotation = annotationRedisCache.get(cacheKey)
+            val ta = if (redisAnnotation.isDefined) {
+              SerializationHelper.deserializeFromJson(redisAnnotation.get)
+            } else {
+              annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
+                Set(ViewNames.TOKENS).asJava)
+            }
             val constituents = ta.getView(ViewNames.TOKENS).getConstituents.asScala
               .filter(_.getSurfaceForm.length > 2)
             constituents.map(cons => (cons.getSurfaceForm.toLowerCase(), score))
