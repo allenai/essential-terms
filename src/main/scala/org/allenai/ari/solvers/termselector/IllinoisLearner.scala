@@ -35,8 +35,8 @@ abstract class IllinoisLearner(
 
   /** Predict the probability of a given term being essential. */
   def predictProbOfBeingEssential(c: Constituent): Double = {
-    classifier.scores(c).toArray.collect {
-      case score if score.value == EssentialTermsConstants.IMPORTANT_LABEL => score
-    }.head.score
+    classifier.scores(c).toArray.find {
+      case score => score.value == EssentialTermsConstants.IMPORTANT_LABEL
+    }.get.score
   }
 }

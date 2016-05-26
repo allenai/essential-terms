@@ -177,7 +177,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     val hammingDistances = testReader.data.map { consIt =>
       consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons)) 1 else 0).sum
     }
-    logger.info("Average hamming distance = " + hammingDistances.sum * 1d / hammingDistances.size)
+    logger.info("Average hamming distance = " + hammingDistances.sum.toDouble / hammingDistances.size)
 
     testReader.data.slice(0, 30).foreach { consIt =>
       val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
@@ -189,7 +189,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       val predicted = consIt.map(cons => convertToZeroOne(learner.predictLabel(cons))).toSeq
       val goldStr = gold.mkString("")
       val predictedStr = predicted.mkString("")
-      val hammingDistance = (gold diff predicted).size * 1d / predicted.size
+      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
       logger.info(goldImportantSentence)
       logger.info(goldStr)
       logger.info(predictedStr)
@@ -234,17 +234,17 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     * The higher the score is, the earlier the element shows up in the gold list
     */
   def meanAverageRank(gold: Seq[Int]): Double = {
-    if (gold.sum <= 0) throw new Exception("There is no essential term in this sentence! ")
+    require(gold.sum > 0, "There is no essential term in this sentence! ")
     val totalPrecisionScore = gold.zipWithIndex.collect {
-      case (g, idx) if g == 1 => gold.slice(0, idx + 1).sum * 1.0 / (idx + 1)
+      case (1, idx) => gold.slice(0, idx + 1).sum.toDouble / (idx + 1)
     }
-    totalPrecisionScore.sum * 1.0 / totalPrecisionScore.size
+    totalPrecisionScore.sum.toDouble / totalPrecisionScore.size
   }
 
   def rankedPrecisionRecall(gold: Seq[Int]): Seq[(Int, Double, Double)] = {
     val totalPrecisionScore = gold.zipWithIndex.map {
       case (g, idx) =>
-        val precision = gold.slice(0, idx + 1).sum * 1.0 / (1 + idx)
+        val precision = gold.slice(0, idx + 1).sum.toDouble / (1 + idx)
         (idx, precision, 1 - precision)
     }
     totalPrecisionScore

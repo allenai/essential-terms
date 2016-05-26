@@ -164,12 +164,12 @@ object EssentialTermsSensors extends Logging {
     // Some terms in the turker generated file need ISO-8859 encoding
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile.toFile)(Codec.ISO8859).map { line =>
       val fields = line.split("\t")
-      assert(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
+      require(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
       val question = fields(0)
       val numAnnotators = fields(1).toDouble
       val wordCounts = fields(2).split("\\|")
       val wordImportance = wordCounts.map(_.split(",")).map { arr =>
-        assert(
+        require(
           arr.length >= 2,
           s"Expected at least 2 elements. Found ${arr.mkString("-")} in line"
         )
