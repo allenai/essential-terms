@@ -5,7 +5,6 @@ import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIden
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
 import org.allenai.common.{ Logging, FileUtils }
-
 import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
 
@@ -179,6 +178,9 @@ object EssentialTermsSensors extends Logging {
   }
 
   private def readAndAnnotateEssentialTermsData(): Seq[EssentialTermsQuestion] = {
+    // only master train: turkerSalientTerms.tsv
+    // only omnibus: turkerSalientTermsOnlyOmnibus.tsv
+    // combined: turkerSalientTermsWithOmnibus.tsv
     val salientTermsFile = Datastore("private").filePath(
       "org.allenai.termselector", "turkerSalientTermsWithOmnibus.tsv", 1
     ).toFile
@@ -244,15 +246,14 @@ object EssentialTermsSensors extends Logging {
       val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
       ta.getAvailableViews.asScala.foreach { vu =>
         if (ta.getView(vu) == null) {
-          println("******************************")
-          println(aristoQuestion.text.get)
+          logger.error(s">>>>>>>>>>>>>>>>>>>>> ${aristoQuestion.text.get}")
         }
       }
       annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
       ta
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
-    logger.info(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
+    // logger.info(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
 
     // salience
     val salienceResultOpt = salienceMap.get(aristoQuestion.rawQuestion)
@@ -318,8 +319,10 @@ object EssentialTermsSensors extends Logging {
             val ta = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
-              annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
+              val ta = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 Set(ViewNames.TOKENS).asJava)
+              annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+              ta
             }
             val constituents = ta.getView(ViewNames.TOKENS).getConstituents.asScala
               .filter(_.getSurfaceForm.length > 2)
