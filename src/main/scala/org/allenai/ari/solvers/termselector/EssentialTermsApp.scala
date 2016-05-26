@@ -238,7 +238,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     val totalPrecisionScore = gold.zipWithIndex.collect {
       case (1, idx) => gold.slice(0, idx + 1).sum.toDouble / (idx + 1)
     }
-    totalPrecisionScore.sum.toDouble / totalPrecisionScore.size
+    totalPrecisionScore.sum / totalPrecisionScore.size
   }
 
   def rankedPrecisionRecall(gold: Seq[Int]): Seq[(Int, Double, Double)] = {
