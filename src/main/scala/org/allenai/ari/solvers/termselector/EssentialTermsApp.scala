@@ -263,7 +263,7 @@ object EssentialTermsApp extends Logging {
       testType match {
         case "1" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
-          essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
+          essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = true)
         case "2" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
           essentialTermsApp.loadAndTestExpandedLearner()

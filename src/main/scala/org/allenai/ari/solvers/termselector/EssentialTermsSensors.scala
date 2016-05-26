@@ -180,10 +180,10 @@ object EssentialTermsSensors extends Logging {
 
   private def readAndAnnotateEssentialTermsData(): Seq[EssentialTermsQuestion] = {
     val salientTermsFile = Datastore("private").filePath(
-      "org.allenai.termselector", "turkerSalientTerms.tsv", 1
-    )
+      "org.allenai.termselector", "turkerSalientTermsWithOmnibus.tsv", 1
+    ).toFile
     // Some terms in the turker generated file need ISO-8859 encoding
-    val allQuestions = FileUtils.getFileAsLines(salientTermsFile.toFile)(Codec.ISO8859).map { line =>
+    val allQuestions = FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
       val fields = line.split("\t")
       require(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
       val question = fields(0)
@@ -242,6 +242,12 @@ object EssentialTermsSensors extends Logging {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
       val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
+      ta.getAvailableViews.asScala.foreach { vu =>
+        if (ta.getView(vu) == null) {
+          println("******************************")
+          println(aristoQuestion.text.get)
+        }
+      }
       annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
       ta
     }
@@ -287,21 +293,16 @@ object EssentialTermsSensors extends Logging {
 
   private lazy val annotatorService = {
     val nonDefaultProps = new Properties()
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_POS.key, Configurator.TRUE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_VERB.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_NOM.key, Configurator.FALSE)
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_DEP.key, Configurator.FALSE)
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_PARSE.key, Configurator.FALSE)
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_SHALLOW_PARSE.key, Configurator.FALSE)
+    nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_VERB.key, Configurator.FALSE)
     IllinoisPipelineFactory.buildPipeline(
       new CuratorConfigurator().getConfig(new ResourceManager(nonDefaultProps))
     )
   }
 
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
-    ViewNames.SHALLOW_PARSE).asJava
-  //    ViewNames.DEPENDENCY_STANFORD, ViewNames.PARSE_STANFORD, ViewNames.SRL_VERB*/).asJava
+    ViewNames.SHALLOW_PARSE, ViewNames.DEPENDENCY_STANFORD, ViewNames.PARSE_STANFORD).asJava
 
   private def populateEssentialTermView(
     ta: TextAnnotation,
