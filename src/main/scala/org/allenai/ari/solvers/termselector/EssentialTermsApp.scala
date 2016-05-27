@@ -4,6 +4,7 @@ import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.common.Logging
 
+import com.quantifind.charts.Highcharts._
 import com.redis._
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
@@ -231,6 +232,21 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       testerExact.reportPrediction(fakePred, "same")
     }
     testerExact.printPerformance(System.out)
+
+    // precision recall curve
+    if (!learner.isInstanceOf[BaselineLearner]) {
+      // for BaselineLearner, "predictProbOfBeingEssential" is not defined
+      val scoreLabelPairs = testReader.data.flatMap { consIt =>
+        consIt.toList.map { cons =>
+          val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+          val predScore = learner.predictProbOfBeingEssential(cons)
+          (predScore, goldBinaryLabel)
+        }
+      }.toList
+      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+      val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
+      areaspline(recall, precision)
+    }
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
@@ -244,11 +260,12 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     totalPrecisionScore.sum / totalPrecisionScore.size
   }
 
-  def rankedPrecisionRecall(gold: Seq[Int]): Seq[(Int, Double, Double)] = {
+  def rankedPrecisionRecall(gold: Seq[Int]): Seq[(Double, Double)] = {
     val totalPrecisionScore = gold.zipWithIndex.map {
       case (g, idx) =>
         val precision = gold.slice(0, idx + 1).sum.toDouble / (1 + idx)
-        (idx, precision, 1 - precision)
+        val recall = gold.slice(0, idx + 1).sum.toDouble / gold.sum.toDouble
+        (precision, recall)
     }
     totalPrecisionScore
   }

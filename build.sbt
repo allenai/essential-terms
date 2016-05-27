@@ -15,5 +15,6 @@ libraryDependencies ++= Seq(
   stanfordModels331,  // different version than included in allenAiCommon
   word2VecJava exclude("edu.stanford.nlp", "stanford-corenlp"),
   wumpusClient exclude("edu.stanford.nlp", "stanford-corenlp"),
-  redisClient
+  redisClient,
+  wispPotting
 )
