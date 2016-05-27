@@ -182,7 +182,7 @@ object EssentialTermsSensors extends Logging {
     // only omnibus: turkerSalientTermsOnlyOmnibus.tsv
     // combined: turkerSalientTermsWithOmnibus.tsv
     val salientTermsFile = Datastore("private").filePath(
-      "org.allenai.termselector", "turkerSalientTermsWithOmnibus.tsv", 1
+      "org.allenai.termselector", "turkerSalientTermsWithOmnibus.tsv", 3
     ).toFile
     // Some terms in the turker generated file need ISO-8859 encoding
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
@@ -309,12 +309,14 @@ object EssentialTermsSensors extends Logging {
     ta: TextAnnotation,
     tokenScoreMapOpt: Option[Map[String, Double]]
   ): TextAnnotation = {
+    // since the annotated questions have different tokenizations, we first tokenize then asign essentiality scores
+    // to tokens of spans
     val view = new TokenLabelView(EssentialTermsConstants.VIEW_NAME, ta)
     tokenScoreMapOpt match {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
-          case (tokenString, score) if tokenString.length > 2 =>
-            val cacheKey = "**onlyTokens:" + tokenString
+          case (tokenString, score) if tokenString.length > 2 => // ignore short spans
+            val cacheKey = "**essentialTermTokenization:" + tokenString
             val redisAnnotation = annotationRedisCache.get(cacheKey)
             val ta = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
@@ -325,7 +327,7 @@ object EssentialTermsSensors extends Logging {
               ta
             }
             val constituents = ta.getView(ViewNames.TOKENS).getConstituents.asScala
-              .filter(_.getSurfaceForm.length > 2)
+              .filter(_.getSurfaceForm.length > 2) // ignore constituents of short span
             constituents.map(cons => (cons.getSurfaceForm.toLowerCase(), score))
           case _ => List.empty
         }
