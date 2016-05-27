@@ -54,6 +54,8 @@ object EssentialTermsSensors extends Logging {
     stopWordsFile.close()
     stopWords.toSet
   }
+  // since we never to learning on the above stopwords, we choose a subset of the stopwords to ALWAYS be essential
+  lazy val essentialStopWords = List("all", "any", "because", "before", "both", "but")
 
   // a hashmap from sentences to [[TextAnnotation]]s
   // TODO(daniel): this is not used currently; decide if you want to use this file, or use redis

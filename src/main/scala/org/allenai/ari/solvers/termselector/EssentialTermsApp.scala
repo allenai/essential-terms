@@ -21,22 +21,25 @@ import java.io.{ File, PrintWriter }
 /** A sample application to train, test, save, and load essential terms classifiers. */
 class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   // lazily create the baseline and expanded data models and learners
-  private lazy val (baselineDataModel, baselineLearner, expandedDataModel, expandedLearner) = {
+  private lazy val (baselineDataModel, baselineLearners, expandedDataModel, expandedLearner) = {
     ExpandedLearner.makeNewLearner(loadSavedModel)
   }
 
-  def trainAndTestBaselineLearner(testOnSentences: Boolean = false): Unit = {
-    trainAndTestLearner(baselineLearner, 1, test = true, testOnSentences)
+  def trainAndTestBaselineLearners(testOnSentences: Boolean = false): Unit = {
+    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences)
+    //    trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences)
   }
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearner is used in expandedLearner, first train the baseline
-    trainAndTestLearner(baselineLearner, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences = true, saveModel = true)
+    //trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences = true, saveModel = true)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearner, test = true, testOnSentences = true)
+    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = true)
+    //testLearner(baselineLearners.lemma, test = true, testOnSentences = true)
     testLearner(expandedLearner, test = true, testOnSentences = true)
   }
 
@@ -252,13 +255,47 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     }
     totalPrecisionScore
   }
-}
 
+  private def printMistakesWithProperyPredictions(): Unit = {
+    val dataModel = expandedLearner.dataModel
+    dataModel.tokens.populate(testConstituents, train = false)
+    val goldLabel = expandedLearner.dataModel.goldLabel
+    val testerExact = new TestDiscrete
+    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
+    testReader.reset()
+
+    testReader.data.slice(0, 5).foreach { consIt =>
+      val consList = consIt.toList
+      val numSen = consList.head.getTextAnnotation.getNumberOfSentences
+      (0 until numSen).foreach(id =>
+        logger.info(consList.head.getTextAnnotation.getSentence(id).toString))
+      val goldImportantSentence = consList.map { cons => cons.getSurfaceForm }.mkString("//")
+      val gold = consList.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
+      val predicted = consList.map(cons => convertToZeroOne(expandedLearner.predictLabel(cons))).toSeq
+      val goldStr = gold.mkString("")
+      val predictedStr = predicted.mkString("")
+      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
+      logger.info(goldImportantSentence)
+      logger.info(goldStr)
+      logger.info(predictedStr)
+      logger.info("Mistakes: ")
+      consIt.toList.foreach { cons =>
+        if (expandedLearner.predictLabel(cons) != goldLabel(cons)) {
+          logger.info(cons.toString)
+          logger.info(expandedLearner.combinedProperties(cons).toString())
+          logger.info("-------")
+        }
+      }
+      logger.info("=====")
+    }
+  }
+}
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
     val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
-      "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (CacheSalienceScores)"
+      "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (CacheSalienceScores) |" +
+      " 6 (PrintMistakesAndPropertyValues) "
     if (args.isEmpty || args.length > 1) {
       throw new IllegalArgumentException(usageStr)
     } else {
@@ -272,13 +309,16 @@ object EssentialTermsApp extends Logging {
           essentialTermsApp.loadAndTestExpandedLearner()
         case "3" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
-          essentialTermsApp.trainAndTestBaselineLearner(testOnSentences = false)
+          essentialTermsApp.trainAndTestBaselineLearners(testOnSentences = false)
         case "4" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
           essentialTermsApp.testLearnerWithSampleAristoQuestion()
         case "5" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
           essentialTermsApp.cacheSalienceScoresInRedis()
+        case "6" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
+          essentialTermsApp.printMistakesWithProperyPredictions()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }

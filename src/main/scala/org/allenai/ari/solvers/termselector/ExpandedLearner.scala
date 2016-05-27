@@ -21,31 +21,38 @@ class ExpandedLearner(
 
   override def feature = List(
     dataModel.wordForm,
-    dataModel.baselineTarget,
-    dataModel.labelTwoBefore,
-    dataModel.labelOneBefore,
-    dataModel.labelOneAfter,
-    dataModel.labelTwoAfter,
-    dataModel.L2bL1b,
-    dataModel.L1bL1a,
-    dataModel.L1aL2a,
     dataModel.afterWHword,
     dataModel.twoAfterWHword,
     dataModel.isAScienceTerm,
-    dataModel.posLabel,
+    dataModel.pos,
     dataModel.isItCapitalized,
     dataModel.lemma,
     dataModel.isItLastSentence,
     dataModel.isItCloseToEnd,
     dataModel.isItCloseToBeginning,
-    dataModel.nerLabel,
+    dataModel.ner,
     dataModel.maxSalience,
-    dataModel.sumSalience
+    dataModel.sumSalience,
+    dataModel.chunkLabel
   ) ++
     beforeAfterProperties(ViewNames.TOKENS) ++ beforeAfterProperties(ViewNames.POS) ++
     beforeAfterProperties(EssentialTermsConstants.VIEW_NAME) ++
-    beforeAfterProperties(ViewNames.LEMMA)
+    beforeAfterProperties(ViewNames.LEMMA) ++
+    baselineProperties(expandedDataModel.baselineClassifiers.surfaceForm)
   override val logging = true
+
+  private def baselineProperties(b: BaselineLearner): List[Property[Constituent]] = {
+    List(
+      dataModel.baselineTarget(b),
+      dataModel.labelTwoBefore(b),
+      dataModel.labelOneBefore(b),
+      dataModel.labelOneAfter(b),
+      dataModel.labelTwoAfter(b),
+      dataModel.L2bL1b(b),
+      dataModel.L1bL1a(b),
+      dataModel.L1aL2a(b)
+    )
+  }
 
   private def beforeAfterProperties(view: String): List[Property[Constituent]] = {
     List(
@@ -81,14 +88,14 @@ object ExpandedLearner extends Logging {
     */
   def makeNewLearner(
     loadSavedModel: Boolean
-  ): (BaselineDataModel, BaselineLearner, ExpandedDataModel, ExpandedLearner) = {
-    val (baselineDataModel, baselineLearner) = BaselineLearner.makeNewLearner(loadSavedModel)
-    lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearner)
+  ): (BaselineDataModel, BaselineLearners, ExpandedDataModel, ExpandedLearner) = {
+    val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearner(loadSavedModel)
+    lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners)
     lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
     if (loadSavedModel) {
       logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath()}")
       expandedLearner.load()
     }
-    (baselineDataModel, baselineLearner, expandedDataModel, expandedLearner)
+    (baselineDataModel, baselineLearners, expandedDataModel, expandedLearner)
   }
 }

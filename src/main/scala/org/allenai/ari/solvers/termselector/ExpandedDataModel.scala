@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 /** TODO(daniel) add description */
 class ExpandedDataModel(
     baselineDataModel: BaselineDataModel,
-    baselineClassifier: BaselineLearner
+    val baselineClassifiers: BaselineLearners
 ) extends IllinoisDataModel {
 
   // first copy relevant fields from BaselineDataModel and the underlying (mutable) DataModel
@@ -21,6 +21,9 @@ class ExpandedDataModel(
   override val tokens = baselineDataModel.tokens
   override val goldLabel = baselineDataModel.goldLabel
   val wordForm = baselineDataModel.wordForm
+  val lemma = baselineDataModel.lemma
+  val ner = baselineDataModel.ner
+  val pos = baselineDataModel.pos
 
   // now populate additional fields
   val constituentAfter = edge(tokens, tokens)
@@ -35,87 +38,70 @@ class ExpandedDataModel(
   val constituentTwoBefore = edge(tokens, tokens)
   constituentTwoBefore.addSensor(getConstituentTwoBefore _)
 
-  val baselineTarget = property(tokens, cache = true) { x: Constituent =>
-    baselineClassifier(x)
-  }
+  val baselineTarget = (b: BaselineLearner) => property(tokens, cache = true) { x: Constituent => b(x) }
 
-  val labelOrBaseline = property(tokens, cache = true) { x: Constituent =>
-    if (baselineClassifier.isTraining) {
+  val labelOrBaseline = (b: BaselineLearner) => property(tokens, cache = true) { x: Constituent =>
+    if (b.isTraining) {
       goldLabel(x)
-    } else if (baselineClassifier.classifier.observed(wordForm(x))) {
-      baselineClassifier.classifier.discreteValue(x)
+    } else if (b.classifier.observed(wordForm(x))) {
+      b(x)
     } else {
       ""
     }
   }
 
-  val labelOneBefore = property(tokens, cache = true) { x: Constituent =>
+  val labelOneBefore = (b: BaselineLearner) => property(tokens, cache = true) { x: Constituent =>
     val cons = (tokens(x) ~> constituentBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
-      if (baselineClassifier.isTraining) goldLabel(cons) else baselineClassifier(cons)
+      if (b.isTraining) goldLabel(cons) else b(cons)
     } else {
       ""
     }
   }
 
-  val labelTwoBefore = property(tokens, cache = true) { x: Constituent =>
+  val labelTwoBefore = (b: BaselineLearner) => property(tokens, cache = true) { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
-      if (baselineClassifier.isTraining) goldLabel(cons) else baselineClassifier(cons)
+      if (b.isTraining) goldLabel(cons) else b(cons)
     } else {
       ""
     }
   }
 
-  val labelOneAfter = property(tokens, cache = true) {
+  val labelOneAfter = (b: BaselineLearner) => property(tokens, cache = true) {
     x: Constituent =>
       val cons = (tokens(x) ~> constituentAfter).head
       // make sure the spans are different. Otherwise it is not valid
-      if (cons.getSpan != x.getSpan) labelOrBaseline(cons) else ""
+      if (cons.getSpan != x.getSpan) labelOrBaseline(b)(cons) else ""
   }
 
-  val labelTwoAfter = property(tokens, cache = true) { x: Constituent =>
+  val labelTwoAfter = (b: BaselineLearner) => property(tokens, cache = true) { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoAfter).head
     // make sure the spans are different. Otherwise it is not valid
-    if (cons.getSpan != x.getSpan) labelOrBaseline(cons) else ""
+    if (cons.getSpan != x.getSpan) labelOrBaseline(b)(cons) else ""
   }
 
   // label 2-before conjunction with label 1-before
-  val L2bL1b = property(tokens) { x: Constituent =>
-    labelTwoBefore(x) + "-" + labelOneBefore(x)
+  val L2bL1b = (b: BaselineLearner) => property(tokens) { x: Constituent =>
+    labelTwoBefore(b)(x) + "-" + labelOneBefore(b)(x)
   }
 
   // label 1-before conjunction with label 1-after
-  val L1bL1a = property(tokens) { x: Constituent =>
-    labelOneBefore(x) + "-" + labelOneAfter(x)
+  val L1bL1a = (b: BaselineLearner) => property(tokens) { x: Constituent =>
+    labelOneBefore(b)(x) + "-" + labelOneAfter(b)(x)
   }
 
   // label 1-after conjunction with label 2-after
-  val L1aL2a = property(tokens) { x: Constituent =>
-    labelOneAfter(x) + "-" + labelTwoAfter(x)
+  val L1aL2a = (b: BaselineLearner) => property(tokens) { x: Constituent =>
+    labelOneAfter(b)(x) + "-" + labelTwoAfter(b)(x)
   }
 
   val isAScienceTerm = property(tokens) { x: Constituent =>
     //if (scienceTerms.contains(wordForm(x)))
     //  println(s"${wordForm(x)} is science term! ")
     scienceTerms.contains(wordForm(x))
-  }
-
-  val posLabel = property(tokens) { x: Constituent =>
-    val y = x.getTextAnnotation.getView(ViewNames.POS).getConstituentsCovering(x)
-    y.asScala.map(_.getLabel).mkString("*")
-  }
-
-  val lemma = property(tokens) { x: Constituent =>
-    val y = x.getTextAnnotation.getView(ViewNames.LEMMA).getConstituentsCovering(x)
-    y.asScala.map(_.getLabel).mkString("*")
-  }
-
-  val nerLabel = property(tokens) { x: Constituent =>
-    val y = x.getTextAnnotation.getView(ViewNames.NER_CONLL).getConstituentsCovering(x)
-    y.asScala.map(_.getLabel).mkString("*")
   }
 
   val srlLabel = property(tokens) { x: Constituent =>
@@ -213,5 +199,10 @@ class ExpandedDataModel(
       case Some(s) => s.getOrElse(wordForm(x), 0d)
       case None => 0d
     }
+  }
+
+  val chunkLabel = property(tokens) { x: Constituent =>
+    val chunkView = constituentToAnnotationMap(x).questionTextAnnotation.getView(ViewNames.SHALLOW_PARSE)
+    chunkView.getLabelsCovering(x).asScala.toList
   }
 }

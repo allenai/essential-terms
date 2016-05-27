@@ -21,7 +21,7 @@ class EssentialTermsService @Inject() (
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
       case "Lookup" => new LookupLearner(None)
-      case "Baseline" => BaselineLearner.makeNewLearner(loadSavedModel = true)._2
+      case "Baseline" => BaselineLearner.makeNewLearner(loadSavedModel = true)._2.surfaceForm
       case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true)._4
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
