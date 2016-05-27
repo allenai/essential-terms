@@ -31,12 +31,12 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearner is used in expandedLearner, first train the baseline
-    trainAndTestLearner(baselineLearner, 1, test = false, testOnSentences = false, saveModel = true)
+    trainAndTestLearner(baselineLearner, 1, test = true, testOnSentences = true, saveModel = true)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearner, test = true, testOnSentences = false)
+    testLearner(baselineLearner, test = true, testOnSentences = true)
     testLearner(expandedLearner, test = true, testOnSentences = true)
   }
 
@@ -174,6 +174,31 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
     testReader.reset()
 
+    // ranking-based measures
+    if (!learner.isInstanceOf[BaselineLearner]) {
+      // for BaselineLearner, "predictProbOfBeingEssential" is not defined
+      val averagePrecisionList = testReader.data.map { consIt =>
+        val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+        val goldLabelList = consIt.toList.map { cons =>
+          if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+        }
+        if (goldLabelList.sum <= 0) {
+          logger.warn("no essential term in gold found in the gold annotation of this question .... ")
+          logger.warn(s"question: ${consIt.head.getTextAnnotation.sentences().asScala.mkString("*")}")
+          0.5
+        } else {
+          val scoreLabelPairs = consIt.toList.map { cons =>
+            val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+            val predScore = learner.predictProbOfBeingEssential(cons)
+            (predScore, goldBinaryLabel)
+          }
+          val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+          meanAverageRank(rankedGold)
+        }
+      }
+      logger.info(s"Average ranked precision: ${averagePrecisionList.sum / averagePrecisionList.size}")
+    }
+
     val hammingDistances = testReader.data.map { consIt =>
       consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons)) 1 else 0).sum
     }
@@ -197,7 +222,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       logger.info("----")
     }
 
-    logger.info("===  exact prediction ")
+    // harsh exact evaluation
     testReader.data.foreach { consIt =>
       val gold = consIt.map(goldLabel(_)).mkString
       val predicted = consIt.map(learner(_)).mkString
@@ -206,28 +231,6 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       testerExact.reportPrediction(fakePred, "same")
     }
     testerExact.printPerformance(System.out)
-
-    // ranking-based measures
-    val averagePrecisionList = testReader.data.map { consIt =>
-      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
-      val goldLabelList = consIt.toList.map { cons =>
-        if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
-      }
-      if (goldLabelList.sum <= 0) {
-        logger.warn("no essential term in gold found in the gold annotation of this question .... ")
-        logger.warn(s"question: ${consIt.head.getTextAnnotation.sentences().asScala.mkString("*")}")
-        0.5
-      } else {
-        val scoreLabelPairs = consIt.toList.map { cons =>
-          val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
-          val predScore = learner.predictProbOfBeingEssential(cons)
-          (predScore, goldBinaryLabel)
-        }
-        val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-        meanAverageRank(rankedGold)
-      }
-    }
-    logger.info(s"Average precision: ${averagePrecisionList.sum / averagePrecisionList.size}")
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
@@ -263,7 +266,7 @@ object EssentialTermsApp extends Logging {
       testType match {
         case "1" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false)
-          essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
+          essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = true)
         case "2" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
           essentialTermsApp.loadAndTestExpandedLearner()
