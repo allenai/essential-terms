@@ -4,7 +4,7 @@ import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.common.Logging
 
-import com.quantifind.charts.Highcharts._
+import com.quantifind.charts.Highcharts
 import com.redis._
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
@@ -245,7 +245,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       }.toList
       val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
       val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
-      areaspline(recall, precision)
+      Highcharts.areaspline(recall, precision)
     }
   }
 
