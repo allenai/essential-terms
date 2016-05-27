@@ -10,13 +10,14 @@ class LookupLearner(confidenceThresholdOpt: Option[Double]) extends EssentialTer
   private val confidenceThreshold = confidenceThresholdOpt.getOrElse(DEFAULT_CONFIDENCE_THRESHOLD)
 
   lazy val questionEssentialTermScores = EssentialTermsSensors.allQuestions.map { q =>
-    q.rawQuestion -> q.essentialTermMap
+    q.aristoQuestion.text.getOrElse(q.aristoQuestion.rawQuestion) -> q.essentialTermMap
   }
 
   /** Get MTurk annotated essential term scores for a given question. */
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
     val (_, termMap, minDistance) = questionEssentialTermScores.map {
-      case (q, termScores) => (q, termScores, Levenshtein.distance(q, aristoQuestion.rawQuestion))
+      case (q, termScores) => (q, termScores, Levenshtein.distance(q, aristoQuestion.text
+        .getOrElse(aristoQuestion.rawQuestion)))
     }.minBy { case (_, _, distance) => distance }
     val DISTANCE_THRESHOLD = 5
     if (minDistance < DISTANCE_THRESHOLD) {
