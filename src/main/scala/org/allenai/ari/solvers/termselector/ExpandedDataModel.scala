@@ -128,6 +128,9 @@ class ExpandedDataModel(
 
   val afterWHword = property(tokens) { x: Constituent =>
     val cons = (tokens(x) ~> constituentBefore).head
+    println("sentence = " + x.getTextAnnotation.getSentence(x.getSentenceId))
+    println("x = " + x.getSurfaceForm)
+    println("x.before = " + cons.getSurfaceForm)
     whKeyWords.contains(wordForm(cons).toLowerCase)
   }
 

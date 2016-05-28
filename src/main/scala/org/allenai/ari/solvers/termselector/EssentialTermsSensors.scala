@@ -152,25 +152,25 @@ object EssentialTermsSensors extends Logging {
   }
 
   def getConstituentAfter(x: Constituent): Constituent = {
-    val consAfter = x.getView.getConstituents.asScala.
+    val consAfter = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
       filter(cons => cons.getStartSpan >= x.getEndSpan)
     if (consAfter.nonEmpty) consAfter.minBy(_.getEndSpan) else x
   }
 
   def getConstituentBefore(x: Constituent): Constituent = {
-    val consBefore = x.getView.getConstituents.asScala.
+    val consBefore = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
       filter(cons => cons.getEndSpan <= x.getStartSpan)
     if (consBefore.nonEmpty) consBefore.maxBy(_.getEndSpan) else x
   }
 
   def getConstituentTwoAfter(x: Constituent): Constituent = {
-    val consAfter = x.getView.getConstituents.asScala.
+    val consAfter = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
       filter(cons => cons.getStartSpan >= x.getEndSpan)
     if (consAfter.size >= 2) consAfter.sortBy(_.getEndSpan).toList(1) else x
   }
 
   def getConstituentTwoBefore(x: Constituent): Constituent = {
-    val consBefore = x.getView.getConstituents.asScala.
+    val consBefore = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
       filter(cons => cons.getEndSpan <= x.getStartSpan)
     if (consBefore.size >= 2) consBefore.sortBy(-_.getEndSpan).toList(1) else x
   }

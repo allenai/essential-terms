@@ -20,25 +20,27 @@ class ExpandedLearner(
   override lazy val classifier = new SparseNetworkLearner
 
   override def feature = List(
-    dataModel.wordForm,
-    dataModel.afterWHword,
-    dataModel.twoAfterWHword,
-    dataModel.isAScienceTerm,
-    dataModel.pos,
-    dataModel.isItCapitalized,
-    dataModel.lemma,
-    dataModel.isItLastSentence,
-    dataModel.isItCloseToEnd,
-    dataModel.isItCloseToBeginning,
-    dataModel.ner,
-    dataModel.maxSalience,
-    dataModel.sumSalience,
-    dataModel.chunkLabel
-  ) ++
-    beforeAfterProperties(ViewNames.TOKENS) ++ beforeAfterProperties(ViewNames.POS) ++
-    beforeAfterProperties(EssentialTermsConstants.VIEW_NAME) ++
-    beforeAfterProperties(ViewNames.LEMMA) ++
-    baselineProperties(expandedDataModel.baselineClassifiers.surfaceForm)
+//    dataModel.wordForm,
+    dataModel.afterWHword//,
+//    dataModel.twoAfterWHword,
+//    dataModel.isAScienceTerm,
+//    dataModel.pos,
+//    dataModel.isItCapitalized,
+//    dataModel.lemma,
+//    dataModel.isItLastSentence,
+//    dataModel.isItCloseToEnd,
+//    dataModel.isItCloseToBeginning,
+//    dataModel.ner,
+//    dataModel.maxSalience,
+//    dataModel.sumSalience,
+//    dataModel.chunkLabel
+  )
+//  ++
+//    beforeAfterProperties(ViewNames.TOKENS) ++ beforeAfterProperties(ViewNames.POS) ++
+//    beforeAfterProperties(EssentialTermsConstants.VIEW_NAME) ++
+//    beforeAfterProperties(ViewNames.LEMMA)
+//  ++
+//    baselineProperties(expandedDataModel.baselineClassifiers.surfaceForm)
   override val logging = true
 
   private def baselineProperties(b: BaselineLearner): List[Property[Constituent]] = {

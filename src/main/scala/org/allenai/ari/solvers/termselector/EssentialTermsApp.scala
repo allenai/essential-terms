@@ -32,7 +32,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearner is used in expandedLearner, first train the baseline
-    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences = true, saveModel = true)
+//    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences = true, saveModel = true)
     //trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences = true, saveModel = true)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
   }
