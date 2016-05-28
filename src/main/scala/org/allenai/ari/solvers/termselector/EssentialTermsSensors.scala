@@ -299,13 +299,15 @@ object EssentialTermsSensors extends Logging {
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_NOM.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_VERB.key, Configurator.FALSE)
+    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_DEP.key, Configurator.FALSE)
+    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_PARSE.key, Configurator.FALSE)
     IllinoisPipelineFactory.buildPipeline(
       new CuratorConfigurator().getConfig(new ResourceManager(nonDefaultProps))
     )
   }
 
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
-    ViewNames.SHALLOW_PARSE, ViewNames.DEPENDENCY_STANFORD, ViewNames.PARSE_STANFORD).asJava
+    ViewNames.SHALLOW_PARSE).asJava
 
   private def populateEssentialTermView(
     ta: TextAnnotation,
