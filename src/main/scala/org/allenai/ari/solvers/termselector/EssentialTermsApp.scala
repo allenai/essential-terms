@@ -33,8 +33,11 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearner is used in expandedLearner, first train the baseline
-//    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences = true, saveModel = true)
-    //trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestLearner(baselineLearners.posConjLemma, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test = true, testOnSentences = true, saveModel = true)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
   }
 
@@ -97,9 +100,17 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   ): Unit = {
     val dataModel = learner.dataModel
     // load the data into the model
-    dataModel.tokens.clear
-    dataModel.tokens.populate(trainConstiuents)
-    dataModel.tokens.populate(testConstituents, train = false)
+    dataModel.essentialTermTokens.clear
+    println("size of training = " + trainConstiuents.size)
+    println("available views = " + trainConstiuents.head.getTextAnnotation.getAvailableViews)
+    println("getView = " + trainConstiuents.head.getViewName)
+    dataModel.essentialTermTokens.populate(trainConstiuents)
+    dataModel.essentialTermTokens.populate(testConstituents, train = false)
+
+    println("dataModel.essentialTermTokens.trainingSet.size >>>  " + dataModel.essentialTermTokens.trainingSet.size)
+    println(dataModel.essentialTermTokens.trainingSet.map { _.t.getViewName }.mkString("*"))
+    println("dataModel.essentialTermTokens.testingSet.size >>>  " + dataModel.essentialTermTokens.testingSet.size)
+    println(dataModel.essentialTermTokens.testingSet.map { _.t.getViewName }.mkString("*"))
 
     // train
     logger.debug(s"Training learner ${learner.getSimpleName} for $numIterations iterations")
@@ -120,8 +131,8 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   ): Unit = {
     val dataModel = learner.dataModel
     // load the data into the model
-    dataModel.tokens.clear
-    dataModel.tokens.populate(testConstituents, train = false)
+    dataModel.essentialTermTokens.clear
+    dataModel.essentialTermTokens.populate(testConstituents, train = false)
 
     // test
     if (test) {
@@ -249,6 +260,8 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
       val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
       Highcharts.areaspline(recall, precision)
+      Highcharts.xAxis("Recall")
+      Highcharts.yAxis("Precision")
     }
   }
 
@@ -277,7 +290,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
 
   private def printMistakesWithProperyPredictions(): Unit = {
     val dataModel = expandedLearner.dataModel
-    dataModel.tokens.populate(testConstituents, train = false)
+    dataModel.essentialTermTokens.populate(testConstituents, train = false)
     val goldLabel = expandedLearner.dataModel.goldLabel
     val testerExact = new TestDiscrete
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)

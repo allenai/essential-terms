@@ -20,64 +20,66 @@ class ExpandedLearner(
   override lazy val classifier = new SparseNetworkLearner
 
   override def feature = List(
-//    dataModel.wordForm,
-    dataModel.afterWHword//,
-//    dataModel.twoAfterWHword,
-//    dataModel.isAScienceTerm,
-//    dataModel.pos,
-//    dataModel.isItCapitalized,
-//    dataModel.lemma,
-//    dataModel.isItLastSentence,
-//    dataModel.isItCloseToEnd,
-//    dataModel.isItCloseToBeginning,
-//    dataModel.ner,
-//    dataModel.maxSalience,
-//    dataModel.sumSalience,
-//    dataModel.chunkLabel
-  )
-//  ++
-//    beforeAfterProperties(ViewNames.TOKENS) ++ beforeAfterProperties(ViewNames.POS) ++
-//    beforeAfterProperties(EssentialTermsConstants.VIEW_NAME) ++
-//    beforeAfterProperties(ViewNames.LEMMA)
-//  ++
-//    baselineProperties(expandedDataModel.baselineClassifiers.surfaceForm)
+    dataModel.wordForm,
+    dataModel.lemma,
+    dataModel.pos,
+    dataModel.ner,
+    dataModel.posConjNer,
+    dataModel.lemmaConjNer,
+    dataModel.wordFormConjNer,
+    dataModel.wordFormConjNerConjPOS,
+    dataModel.chunkLabel,
+    dataModel.posConjWordform,
+    dataModel.posConjLemma,
+    dataModel.afterWHword,
+    dataModel.afterWHwordWorForm,
+    dataModel.twoAfterWHword,
+    dataModel.isAScienceTerm,
+    dataModel.isAScienceTermConjPos,
+    dataModel.isAScienceTermLemma,
+    dataModel.isItCapitalized,
+    dataModel.isItLastSentence,
+    dataModel.isItSecondToLastSentence,
+    dataModel.isItCloseToEnd,
+    dataModel.maxSalience,
+    dataModel.sumSalience
+  // brown cluster features
+  // look into edison; should have good features
+  // chunker
+  ) ++ dataModel.baselinePropertiesPOSConjNerConjPos ++
+    dataModel.baselinePropertiesPOSConjNer ++
+    dataModel.baselinePropertiesPOSConjLemma ++
+    dataModel.baselinePropertiesLemma ++
+    dataModel.baselinePropertiesSurfaceForm ++
+    beforeAfterPropertiesGivenView(ViewNames.TOKENS) ++
+    beforeAfterPropertiesWHWords
+
+  //    baselineProperties(expandedDataModel.baselineClassifiers.surfaceForm)
   override val logging = true
 
-  private def baselineProperties(b: BaselineLearner): List[Property[Constituent]] = {
+  private def beforeAfterPropertiesGivenWord(view: String, word: String): List[Property[Constituent]] = {
     List(
-      dataModel.baselineTarget(b),
-      dataModel.labelTwoBefore(b),
-      dataModel.labelOneBefore(b),
-      dataModel.labelOneAfter(b),
-      dataModel.labelTwoAfter(b),
-      dataModel.L2bL1b(b),
-      dataModel.L1bL1a(b),
-      dataModel.L1aL2a(b)
+      dataModel.afterWord(word, view),
+      dataModel.twoAfterWord(word, view),
+      dataModel.beforeWord(word, view),
+      dataModel.twoBeforeWord(word, view)
     )
   }
 
-  private def beforeAfterProperties(view: String): List[Property[Constituent]] = {
+  private def beforeAfterPropertiesWHWords(): List[Property[Constituent]] = {
+    beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "which") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "what") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "where") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "when") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "how")
+  }
+
+  private def beforeAfterPropertiesGivenView(view: String): List[Property[Constituent]] = {
     List(
-      dataModel.afterWord("which", view),
-      dataModel.twoAfterWord("which", view),
-      dataModel.beforeWord("which", view),
-      dataModel.twoBeforeWord("which", view),
-      dataModel.afterWord("what", view),
-      dataModel.twoAfterWord("what", view),
-      dataModel.beforeWord("what", view),
-      dataModel.twoBeforeWord("what", view),
-      dataModel.afterWord("where", view),
-      dataModel.twoAfterWord("where", view),
-      dataModel.beforeWord("where", view),
-      dataModel.twoBeforeWord("where", view),
-      dataModel.afterWord("when", view),
-      dataModel.twoAfterWord("when", view),
-      dataModel.beforeWord("when", view),
-      dataModel.twoBeforeWord("when", view),
-      dataModel.afterWord("how", view),
-      dataModel.twoAfterWord("how", view),
-      dataModel.beforeWord("how", view),
-      dataModel.twoBeforeWord("how", view)
+      dataModel.wordAfter(view),
+      dataModel.wordTwoAfter(view),
+      dataModel.wordBefore(view),
+      dataModel.wordTwoBefore(view)
     )
   }
 }

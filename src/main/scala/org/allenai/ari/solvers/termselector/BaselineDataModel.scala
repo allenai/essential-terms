@@ -7,9 +7,9 @@ import scala.collection.JavaConverters._
 
 /** TODO: add description */
 class BaselineDataModel extends IllinoisDataModel {
-  override val tokens = node[Constituent]
+  override val essentialTermTokens = node[Constituent]
 
-  override val goldLabel = property(tokens) { x: Constituent =>
+  override val goldLabel = property(essentialTermTokens) { x: Constituent =>
     x.getTextAnnotation
       .getView(EssentialTermsConstants.VIEW_NAME)
       .getConstituentsCovering(x)
@@ -17,22 +17,46 @@ class BaselineDataModel extends IllinoisDataModel {
       .getLabel
   }
 
-  val wordForm = property(tokens, "wordForm", cache = true) { x: Constituent =>
+  val wordForm = property(essentialTermTokens, cache = true) { x: Constituent =>
     x.toString
   }
 
-  val pos = property(tokens) { x: Constituent =>
+  val pos = property(essentialTermTokens) { x: Constituent =>
     val y = x.getTextAnnotation.getView(ViewNames.POS).getConstituentsCovering(x)
     y.asScala.map(_.getLabel).mkString("*")
   }
 
-  val lemma = property(tokens) { x: Constituent =>
+  val lemma = property(essentialTermTokens) { x: Constituent =>
     val y = x.getTextAnnotation.getView(ViewNames.LEMMA).getConstituentsCovering(x)
     y.asScala.map(_.getLabel).mkString("*")
   }
 
-  val ner = property(tokens) { x: Constituent =>
+  val ner = property(essentialTermTokens) { x: Constituent =>
     val y = x.getTextAnnotation.getView(ViewNames.NER_CONLL).getConstituentsCovering(x)
     y.asScala.map(_.getLabel).mkString("*")
+  }
+
+  val posConjLemma = property(essentialTermTokens) { x: Constituent =>
+    pos(x) + lemma(x)
+  }
+
+  val posConjWordform = property(essentialTermTokens) { x: Constituent =>
+    pos(x) + wordForm(x)
+  }
+
+  val posConjNer = property(essentialTermTokens) { x: Constituent =>
+    pos(x) + ner(x)
+  }
+
+  val lemmaConjNer = property(essentialTermTokens) { x: Constituent =>
+    lemma(x) + ner(x)
+  }
+
+  val wordFormConjNer = property(essentialTermTokens) { x: Constituent =>
+    wordForm(x) + ner(x)
+  }
+
+  val wordFormConjNerConjPOS = property(essentialTermTokens) { x: Constituent =>
+    wordForm(x) + ner(x) + pos(x)
   }
 }

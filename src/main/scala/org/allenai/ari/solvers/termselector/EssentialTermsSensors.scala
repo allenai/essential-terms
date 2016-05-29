@@ -52,10 +52,13 @@ object EssentialTermsSensors extends Logging {
     )
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
-    stopWords.toSet
+    stopWords.toSet ++ Set("__________")
   }
   // since we never to learning on the above stopwords, we choose a subset of the stopwords to ALWAYS be essential
-  lazy val essentialStopWords = List("all", "any", "because", "before", "both", "but")
+  lazy val essentialStopWords = Set("all", "any", "because", "before", "both", "but")
+  val ESSENTIAL_STOPWORD_SCORE = 0.8
+  lazy val nonessentialStopWords = stopWords.--(essentialStopWords)
+  val NONESSENTIAL_STOPWORD_SCORE = 0.0
 
   // a hashmap from sentences to [[TextAnnotation]]s
   // TODO(daniel): this is not used currently; decide if you want to use this file, or use redis
@@ -103,9 +106,11 @@ object EssentialTermsSensors extends Logging {
     val (train, test) = allQuestions.partition(_ => Random.nextDouble() < trainProb)
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
+
     // add a train attribute to the training constituents, in order to make sure they will have
     // different hashcode than the test constituents
-    trainSen.flatten.foreach(_.addAttribute("train", "true"))
+    trainSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("trainidx", s"$idx") }
+    testSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("testidx", s"${9999 + idx}") }
     (trainSen.flatten, testSen.flatten, trainSen, testSen)
   }
 
@@ -151,26 +156,26 @@ object EssentialTermsSensors extends Logging {
     terms
   }
 
-  def getConstituentAfter(x: Constituent): Constituent = {
-    val consAfter = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
+  def getConstituentAfter(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
+    val consAfter = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
       filter(cons => cons.getStartSpan >= x.getEndSpan)
     if (consAfter.nonEmpty) consAfter.minBy(_.getEndSpan) else x
   }
 
-  def getConstituentBefore(x: Constituent): Constituent = {
-    val consBefore = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
+  def getConstituentBefore(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
+    val consBefore = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
       filter(cons => cons.getEndSpan <= x.getStartSpan)
     if (consBefore.nonEmpty) consBefore.maxBy(_.getEndSpan) else x
   }
 
-  def getConstituentTwoAfter(x: Constituent): Constituent = {
-    val consAfter = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
+  def getConstituentTwoAfter(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
+    val consAfter = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
       filter(cons => cons.getStartSpan >= x.getEndSpan)
     if (consAfter.size >= 2) consAfter.sortBy(_.getEndSpan).toList(1) else x
   }
 
-  def getConstituentTwoBefore(x: Constituent): Constituent = {
-    val consBefore = x.getTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.
+  def getConstituentTwoBefore(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
+    val consBefore = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
       filter(cons => cons.getEndSpan <= x.getStartSpan)
     if (consBefore.size >= 2) consBefore.sortBy(-_.getEndSpan).toList(1) else x
   }
@@ -376,11 +381,14 @@ object EssentialTermsSensors extends Logging {
     learner: IllinoisLearner
   ): Map[String, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None)
-    val constituents = questionStruct.getConstituents(stopWords)
+    val (constituents, stopwordConstituents) = questionStruct.getConstituents(stopWords)
+    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
-    learner.dataModel.tokens.populate(constituents)
-    constituents.map { c => (c.getSurfaceForm, learner.predictProbOfBeingEssential(c)) }.toMap
+    learner.dataModel.essentialTermTokens.populate(constituents)
+    (constituents.map { c => (c.getSurfaceForm, learner.predictProbOfBeingEssential(c)) } ++
+      essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
+      nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }).toMap
   }
 
   def getEssentialTermsForAristoQuestion(
@@ -388,10 +396,12 @@ object EssentialTermsSensors extends Logging {
     learner: IllinoisLearner
   ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None)
-    val constituents = questionStruct.getConstituents(stopWords)
+    val (constituents, stopwordConstituents) = questionStruct.getConstituents(stopWords)
+    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
-    learner.dataModel.tokens.populate(constituents)
-    constituents.collect { case c if learner.predictIsEssential(c) => c.getSurfaceForm }
+    learner.dataModel.essentialTermTokens.populate(constituents)
+    constituents.collect { case c if learner.predictIsEssential(c) => c.getSurfaceForm } ++
+      essentialConstituents.map(_.getSurfaceForm)
   }
 }

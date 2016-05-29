@@ -4,7 +4,7 @@ import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.TextAnnotation
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation }
 
 import scala.collection.JavaConverters._
 
@@ -18,10 +18,14 @@ case class EssentialTermsQuestion(
     sumSalience: Option[Map[String, Double]],
     maxSalience: Option[Map[String, Double]]
 ) {
-  /** Get non-stopword constituents for the question. */
-  def getConstituents(stopWords: Set[String]) = {
-    questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.filterNot { c =>
+  /** Get non-stopword and stopword constituents for the question. */
+  def getConstituents(stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
+    questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq.partition { c =>
       stopWords.contains(c.getSurfaceForm.toLowerCase())
     }
+  }
+
+  def getConstituents(constitunts: Seq[Constituent], stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
+    constitunts.partition { c => stopWords.contains(c.getSurfaceForm.toLowerCase()) }
   }
 }

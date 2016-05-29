@@ -31,19 +31,24 @@ object BaselineLearner extends Logging {
   def makeNewLearner(loadSavedModel: Boolean): (BaselineDataModel, BaselineLearners) = {
     // create the baseline data model and the corresponding learner object
     val baselineDataModel = new BaselineDataModel
-    val baselineLearnerSurfaceString = new BaselineLearner(baselineDataModel)(baselineDataModel.wordForm)
-    //    val baselineLearnerLemma = new BaselineLearner(baselineDataModel)(baselineDataModel.lemma)
-    //    val baselineLearnerPOS = new BaselineLearner(baselineDataModel)(baselineDataModel.pos)
+    val baselineLearnerSurfaceForm = new BaselineLearner(baselineDataModel)(baselineDataModel.wordForm)
+    val baselineLearnerLemma = new BaselineLearner(baselineDataModel)(baselineDataModel.lemma)
+    val baselineLearnerPosConjLemma = new BaselineLearner(baselineDataModel)(baselineDataModel.lemma)
+    val baselineLearnerWordFormConjNer = new BaselineLearner(baselineDataModel)(baselineDataModel.wordFormConjNer)
+    val baselineLearnerWordFormConjNerCojPos = new BaselineLearner(baselineDataModel)(baselineDataModel.wordFormConjNerConjPOS)
     if (loadSavedModel) {
       //      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerLemma.lcFilePath()}")
       //      baselineLearnerLemma.load()
     }
-    (baselineDataModel, BaselineLearners(baselineLearnerSurfaceString /*, baselineLearnerLemma, baselineLearnerPOS*/ ))
+    (baselineDataModel, BaselineLearners(baselineLearnerSurfaceForm, baselineLearnerLemma, baselineLearnerPosConjLemma,
+      baselineLearnerWordFormConjNer, baselineLearnerWordFormConjNerCojPos))
   }
 }
 
 case class BaselineLearners(
-  surfaceForm: BaselineLearner //,
-//lemma: BaselineLearner,
-//pos: BaselineLearner
+  surfaceForm: BaselineLearner,
+  lemma: BaselineLearner,
+  posConjLemma: BaselineLearner,
+  wordFormConjNer: BaselineLearner,
+  wordFormConjNerConjPos: BaselineLearner
 )
