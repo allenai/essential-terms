@@ -23,6 +23,7 @@ class ExpandedLearner(
     dataModel.wordForm,
     dataModel.lemma,
     dataModel.pos,
+    dataModel.confaltedPos,
     dataModel.ner,
     dataModel.posConjNer,
     dataModel.lemmaConjNer,
@@ -31,6 +32,39 @@ class ExpandedLearner(
     dataModel.chunkLabel,
     dataModel.posConjWordform,
     dataModel.posConjLemma,
+    dataModel.conflatedPosConjLemma,
+    dataModel.conflatedPosConjWordform,
+    dataModel.conflatedPosConjNer,
+    dataModel.deAdjectivalAbstractNounsSuffixes,
+    dataModel.deNominalNounProducingSuffixes,
+    dataModel.deVerbalSuffix,
+    dataModel.gerundMarker,
+    dataModel.knownPrefixes,
+    dataModel.nominalizationMarker,
+    dataModel.numberNormalizer,
+    dataModel.deVerbalSuffix,
+    dataModel.prefixSuffixes,
+    dataModel.wordnetSynsetsFirstSense,
+    dataModel.wordnetSynsetsAllSenses,
+    dataModel.wordnetLexicographerFileNamesAllSenses,
+    dataModel.wordnetLexicographerFileNamesFirstSense,
+    dataModel.wordnetHypernymFirstSenseLexicographerFileNames,
+    dataModel.wordnetHypernymAllSensesLexicographerFileNames,
+    dataModel.wordnetHypernymsFirstSense,
+    dataModel.wordnetHypernymsAllSenses,
+    dataModel.wordnetMemberHolonymsAllSenses,
+    dataModel.wordnetMemberHolonymsFirstSense,
+    dataModel.wordnetPartHolonymsFirstSenseLexicographerFileNames,
+    dataModel.wordnetPartHolonymsAllSensesLexicographerFileNames,
+    dataModel.wordnetPartHolonymsFirstSense,
+    dataModel.wordnetPartHolonymsAllSenses,
+    dataModel.wordnetPointersFirstSense,
+    dataModel.wordnetPointersAllSenses,
+    dataModel.wordnetSubstanceHolonymsAllSenses,
+    dataModel.wordnetSubstanceHolonymsFirstSense,
+    dataModel.wordnetSynonymsFirstSense,
+    dataModel.wordnetSynonymsAllSense,
+    dataModel.wordnetExistsConjFirstSynsetConjLexFileNamesAll,
     dataModel.afterWHword,
     dataModel.afterWHwordWorForm,
     dataModel.twoAfterWHword,
@@ -42,10 +76,41 @@ class ExpandedLearner(
     dataModel.isItSecondToLastSentence,
     dataModel.isItCloseToEnd,
     dataModel.maxSalience,
-    dataModel.sumSalience
-  // brown cluster features
-  // look into edison; should have good features
-  // chunker
+    dataModel.sumSalience,
+    dataModel.subcategoriationFeature,
+    dataModel.spanFeaturesUnorderedChunkBigram,
+    dataModel.spanFeaturesUnorderedPosBigram,
+    dataModel.spanFeaturesUnorderedPosTrigram,
+    dataModel.spanFeaturesUnorderedChunkUnigram,
+    dataModel.spanFeaturesUnorderedChunkBigram,
+    dataModel.spanFeaturesOrderedChunkBigram,
+    dataModel.spanFeaturesOrderedPosBigram,
+    dataModel.spanFeaturesOrderedPosTrigram,
+    dataModel.spanFeaturesOrderedChunkUnigram,
+    dataModel.spanFeaturesOrderedChunkBigram,
+    dataModel.rogetThesaurusFeatures,
+    dataModel.parseSiblingsFeatures,
+    dataModel.parsePhraseType,
+    dataModel.parsePhraseTypeOnly,
+    dataModel.parseHeadWordPOS,
+    dataModel.nomLexClassFeature,
+    dataModel.chunkEmbeddingShallowParse,
+    dataModel.chunkEmbeddingNer
+    //features not used:
+  //dataModel.brownClusterFeatures
+  //dataModel.wordnetVerbFramesAllSenses,
+  //dataModel.wordnetVerbFramesFirstSenses
+  //dataModel.wordnetExistsEntry no
+  //dataModel.xuPalmerFeature dependency parse failed
+  //dataModel.parsePath parse failed
+  //dataModel.linearPosition
+  //dataModel.dependencyPathUnigram,
+  //dataModel.dependencyPathBigram
+  //dataModel.corlexFeatureExtractor
+  //dataModel.clauseFeatureExtractor
+  //dataModel.chunkPropertyFeatureFactoryHasModal,
+  //dataModel.chunkPropertyFeatureFactoryIsNegated
+  //dataModel.chunkPathPattern
   ) ++ dataModel.baselinePropertiesPOSConjNerConjPos ++
     dataModel.baselinePropertiesPOSConjNer ++
     dataModel.baselinePropertiesPOSConjLemma ++
@@ -54,7 +119,6 @@ class ExpandedLearner(
     beforeAfterPropertiesGivenView(ViewNames.TOKENS) ++
     beforeAfterPropertiesWHWords
 
-  //    baselineProperties(expandedDataModel.baselineClassifiers.surfaceForm)
   override val logging = true
 
   private def beforeAfterPropertiesGivenWord(view: String, word: String): List[Property[Constituent]] = {

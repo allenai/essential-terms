@@ -1,5 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
+import edu.illinois.cs.cogcomp.edison.features.factory.{ ParseLabelIdentifier, WordFeatureExtractorFactory }
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
@@ -15,7 +16,7 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
   TokenLabelView
 }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
-import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
+import edu.illinois.cs.cogcomp.core.utilities.{ DummyTextAnnotationGenerator, SerializationHelper }
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
@@ -155,6 +156,8 @@ object EssentialTermsSensors extends Logging {
     file.close()
     terms
   }
+
+  val brownClusterFeatureExtractor = WordFeatureExtractorFactory.getBrownFeatureGenerator("", "brownBllipClusters", Array[Int](4, 5))
 
   def getConstituentAfter(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
     val consAfter = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
@@ -304,15 +307,15 @@ object EssentialTermsSensors extends Logging {
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_NOM.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_VERB.key, Configurator.FALSE)
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_DEP.key, Configurator.FALSE)
-    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_PARSE.key, Configurator.FALSE)
+    //    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_DEP.key, Configurator.FALSE)
+    //    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_PARSE.key, Configurator.FALSE)
     IllinoisPipelineFactory.buildPipeline(
       new CuratorConfigurator().getConfig(new ResourceManager(nonDefaultProps))
     )
   }
 
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
-    ViewNames.SHALLOW_PARSE).asJava
+    ViewNames.SHALLOW_PARSE, ViewNames.DEPENDENCY_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
 
   private def populateEssentialTermView(
     ta: TextAnnotation,

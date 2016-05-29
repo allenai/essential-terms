@@ -2,6 +2,7 @@ package org.allenai.ari.solvers.termselector
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
+import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 
 import scala.collection.JavaConverters._
 
@@ -17,13 +18,18 @@ class BaselineDataModel extends IllinoisDataModel {
       .getLabel
   }
 
-  val wordForm = property(essentialTermTokens, cache = true) { x: Constituent =>
+  val wordForm = property(essentialTermTokens) { x: Constituent =>
     x.toString
   }
 
   val pos = property(essentialTermTokens) { x: Constituent =>
     val y = x.getTextAnnotation.getView(ViewNames.POS).getConstituentsCovering(x)
     y.asScala.map(_.getLabel).mkString("*")
+  }
+
+  // The coarse POS tag (one of Noun, Verb, Adjective, Adverb, Punctuation, Pronoun and Other)
+  val conflatedPos = property(essentialTermTokens) { x: Constituent =>
+    WordFeatureExtractorFactory.conflatedPOS.getFeatures(x).asScala.mkString
   }
 
   val lemma = property(essentialTermTokens) { x: Constituent =>
@@ -44,8 +50,20 @@ class BaselineDataModel extends IllinoisDataModel {
     pos(x) + wordForm(x)
   }
 
+  val conflatedPosConjLemma = property(essentialTermTokens) { x: Constituent =>
+    conflatedPos(x) + lemma(x)
+  }
+
+  val conflatedPosConjWordform = property(essentialTermTokens) { x: Constituent =>
+    conflatedPos(x) + wordForm(x)
+  }
+
   val posConjNer = property(essentialTermTokens) { x: Constituent =>
     pos(x) + ner(x)
+  }
+
+  val conflatedPosConjNer = property(essentialTermTokens) { x: Constituent =>
+    conflatedPos(x) + ner(x)
   }
 
   val lemmaConjNer = property(essentialTermTokens) { x: Constituent =>
