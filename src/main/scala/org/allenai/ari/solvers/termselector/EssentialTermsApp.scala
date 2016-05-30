@@ -27,23 +27,25 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   }
 
   def trainAndTestBaselineLearners(testOnSentences: Boolean = false): Unit = {
-    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences)
-    //    trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences)
+    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences, saveModel = true)
+    trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences, saveModel = true)
+    trainAndTestLearner(baselineLearners.posConjLemma, 1, test = true, testOnSentences, saveModel = true)
+    trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test = true, testOnSentences, saveModel = true)
+    trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test = true, testOnSentences, saveModel = true)
   }
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearner is used in expandedLearner, first train the baseline
-    trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true, testOnSentences = true, saveModel = true)
-    trainAndTestLearner(baselineLearners.lemma, 1, test = true, testOnSentences = true, saveModel = true)
-    trainAndTestLearner(baselineLearners.posConjLemma, 1, test = true, testOnSentences = true, saveModel = true)
-    trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test = true, testOnSentences = true, saveModel = true)
-    trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test = true, testOnSentences = true, saveModel = true)
+    trainAndTestBaselineLearners(testOnSentences)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = true)
-    //testLearner(baselineLearners.lemma, test = true, testOnSentences = true)
+    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = false)
+    testLearner(baselineLearners.lemma, test = true, testOnSentences = false)
+    testLearner(baselineLearners.posConjLemma, test = true, testOnSentences = false)
+    testLearner(baselineLearners.wordFormConjNer, test = true, testOnSentences = false)
+    testLearner(baselineLearners.wordFormConjNerConjPos, test = true, testOnSentences = false)
     testLearner(expandedLearner, test = true, testOnSentences = true)
   }
 
@@ -101,23 +103,15 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     val dataModel = learner.dataModel
     // load the data into the model
     dataModel.essentialTermTokens.clear
-    println("size of training = " + trainConstiuents.size)
-    println("available views = " + trainConstiuents.head.getTextAnnotation.getAvailableViews)
-    println("getView = " + trainConstiuents.head.getViewName)
     dataModel.essentialTermTokens.populate(trainConstiuents)
     dataModel.essentialTermTokens.populate(testConstituents, train = false)
-
-    println("dataModel.essentialTermTokens.trainingSet.size >>>  " + dataModel.essentialTermTokens.trainingSet.size)
-    println(dataModel.essentialTermTokens.trainingSet.map { _.t.getViewName }.mkString("*"))
-    println("dataModel.essentialTermTokens.testingSet.size >>>  " + dataModel.essentialTermTokens.testingSet.size)
-    println(dataModel.essentialTermTokens.testingSet.map { _.t.getViewName }.mkString("*"))
 
     // train
     logger.debug(s"Training learner ${learner.getSimpleName} for $numIterations iterations")
     learner.learn(numIterations)
 
     if (saveModel) {
-      logger.debug(s"Saving model ${learner.getSimpleName} at ${learner.lcFilePath()}")
+      logger.debug(s"Saving model ${learner.getSimpleName} at ${learner.lcFilePath}")
       learner.save()
     }
 

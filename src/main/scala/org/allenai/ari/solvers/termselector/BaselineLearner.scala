@@ -28,17 +28,30 @@ object BaselineLearner extends Logging {
     *
     * @param loadSavedModel whether to load a previously saved model
     */
-  def makeNewLearner(loadSavedModel: Boolean): (BaselineDataModel, BaselineLearners) = {
+  def makeNewLearners(loadSavedModel: Boolean): (BaselineDataModel, BaselineLearners) = {
     // create the baseline data model and the corresponding learner object
     val baselineDataModel = new BaselineDataModel
     val baselineLearnerSurfaceForm = new BaselineLearner(baselineDataModel)(baselineDataModel.wordForm)
+    baselineLearnerSurfaceForm.modelSuffix = "surfaceForm"
     val baselineLearnerLemma = new BaselineLearner(baselineDataModel)(baselineDataModel.lemma)
+    baselineLearnerLemma.modelSuffix = "lemma"
     val baselineLearnerPosConjLemma = new BaselineLearner(baselineDataModel)(baselineDataModel.lemma)
+    baselineLearnerPosConjLemma.modelSuffix = "PosConjLemma"
     val baselineLearnerWordFormConjNer = new BaselineLearner(baselineDataModel)(baselineDataModel.wordFormConjNer)
+    baselineLearnerWordFormConjNer.modelSuffix = "baselineLearnerWordFormConjNer"
     val baselineLearnerWordFormConjNerCojPos = new BaselineLearner(baselineDataModel)(baselineDataModel.wordFormConjNerConjPOS)
+    baselineLearnerWordFormConjNerCojPos.modelSuffix = "baselineLearnerWordFormConjNerCojPos"
     if (loadSavedModel) {
-      //      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerLemma.lcFilePath()}")
-      //      baselineLearnerLemma.load()
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerSurfaceForm.lcFilePath}")
+      baselineLearnerSurfaceForm.load()
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerLemma.lcFilePath}")
+      baselineLearnerLemma.load()
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerPosConjLemma.lcFilePath}")
+      baselineLearnerPosConjLemma.load()
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerWordFormConjNer.lcFilePath}")
+      baselineLearnerWordFormConjNer.load()
+      logger.debug(s"Loading BaselineLearner model from ${baselineLearnerWordFormConjNerCojPos.lcFilePath}")
+      baselineLearnerWordFormConjNerCojPos.load()
     }
     (baselineDataModel, BaselineLearners(baselineLearnerSurfaceForm, baselineLearnerLemma, baselineLearnerPosConjLemma,
       baselineLearnerWordFormConjNer, baselineLearnerWordFormConjNerCojPos))
