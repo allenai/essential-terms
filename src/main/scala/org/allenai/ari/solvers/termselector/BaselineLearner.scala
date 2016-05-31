@@ -2,17 +2,17 @@ package org.allenai.ari.solvers.termselector
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
-import org.allenai.ari.models.Question
 import org.allenai.common.Logging
 
 /** A baseline learner based on simply counting the label frequency per word
+  *
   * @param baselineDataModel
-  * @param inputFeature what can be used to make the prediction; usually [[baselineDataModel.goldLabel]]
-  * @param output what needs to be predicted; usually [[baselineDataModel.wordForm]]
+  * @param input what can be used to make the prediction; usually [[baselineDataModel.wordForm]]
+  * @param output what needs to be predicted; usually [[baselineDataModel.goldLabel]]
   */
 class BaselineLearner(
     baselineDataModel: BaselineDataModel,
-    inputFeature: Property[Constituent],
+    input: Property[Constituent],
     output: Property[Constituent]
 ) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
 
@@ -23,7 +23,7 @@ class BaselineLearner(
   override def label = dataModel.goldLabel
   override lazy val classifier = new CountClassifier
 
-  override def feature = using(inputFeature)
+  override def feature = using(input)
   override val logging = true
 }
 
