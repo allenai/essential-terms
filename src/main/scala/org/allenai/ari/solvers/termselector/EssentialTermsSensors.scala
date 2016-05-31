@@ -41,6 +41,7 @@ protected case object EssentialTermsConstants {
   val VIEW_NAME = "ESSENTIAL_TERMS"
   val IMPORTANT_LABEL = "IMPORTANT"
   val UNIMPORTANT_LABEL = "NOT-IMPORTANT"
+  val LABEL_SEPARATOR = "*|*|*"
 }
 
 object EssentialTermsSensors extends Logging {
@@ -157,7 +158,10 @@ object EssentialTermsSensors extends Logging {
     terms
   }
 
-  val brownClusterFeatureExtractor = WordFeatureExtractorFactory.getBrownFeatureGenerator("", "brownBllipClusters", Array[Int](4, 5))
+  val brownClusterFeatureExtractor = WordFeatureExtractorFactory.getBrownFeatureGenerator(
+    "",
+    "brown-clusters/brown-rcv1.clean.tokenized-CoNLL03.txt-c100-freq1.txt", Array[Int](4, 5)
+  )
 
   def getConstituentAfter(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
     val consAfter = x.getTextAnnotation.getView(viewName).getConstituents.asScala.

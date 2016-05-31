@@ -32,6 +32,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     trainAndTestLearner(baselineLearners.posConjLemma, 1, test = true, testOnSentences, saveModel = true)
     trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test = true, testOnSentences, saveModel = true)
     trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test = true, testOnSentences, saveModel = true)
+    trainAndTestLearner(baselineLearners.baselineLearnerLemmaPair, 1, test = true, testOnSentences, saveModel = true)
   }
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
@@ -242,8 +243,9 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     testerExact.printPerformance(System.out)
 
     // precision recall curve
+    // because for BaselineLearner, "predictProbOfBeingEssential" is not defined
     if (!learner.isInstanceOf[BaselineLearner]) {
-      // for BaselineLearner, "predictProbOfBeingEssential" is not defined
+      // evaluating PR-curve over all tokens
       val scoreLabelPairs = testReader.data.flatMap { consIt =>
         consIt.toList.map { cons =>
           val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
@@ -254,9 +256,44 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
       val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
       Highcharts.areaspline(recall, precision)
+
+      // per sentence
+      //      val (perSenPList, perSenRList) = testReader.data.map { consIt =>
+      //        val scoreLabelPairs = consIt.toList.map { cons =>
+      //          val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+      //          val predScore = learner.predictProbOfBeingEssential(cons)
+      //          (predScore, goldBinaryLabel)
+      //        }
+      //        val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+      //        val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
+      //        (precision, recall)
+      //      }.unzip
+      //
+      //      val averagePList = perSenPList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+      //      val averageRList = perSenRList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+      //      assert(averagePList.length == averageRList.length)
+      //      Highcharts.areaspline(averageRList, averagePList)
+      //
+      //      println(averageRList)
+      //      println(averagePList)
+      //      println(averageRList.length)
+      //      println(averagePList.length)
+
       Highcharts.xAxis("Recall")
       Highcharts.yAxis("Precision")
+      Thread.sleep(10000L)
+      Highcharts.stopServer
     }
+  }
+
+  private def avg(list: List[Double]): Double = {
+    list.sum / list.size
+  }
+
+  // averaging two lists of potentially different length
+  private def avgList(list1: Seq[Double], list2: Seq[Double]): Seq[Double] = {
+    val (shortList, longList) = if (list1.length < list2.length) (list1, list2) else (list2, list1)
+    shortList.zipWithIndex.map { case (num, idx) => (longList(idx) + num) / 2 } ++ longList.drop(shortList.length)
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
@@ -290,7 +327,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
     testReader.reset()
 
-    testReader.data.slice(0, 5).foreach { consIt =>
+    testReader.data.foreach { consIt =>
       val consList = consIt.toList
       val numSen = consList.head.getTextAnnotation.getNumberOfSentences
       (0 until numSen).foreach(id =>
@@ -309,6 +346,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
         if (expandedLearner.predictLabel(cons) != goldLabel(cons)) {
           logger.info(cons.toString)
           logger.info(expandedLearner.combinedProperties(cons).toString())
+          logger.info("correct label: " + goldLabel(cons))
           logger.info("-------")
         }
       }

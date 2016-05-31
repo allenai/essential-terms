@@ -6,7 +6,7 @@ import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFacto
 
 import scala.collection.JavaConverters._
 
-/** TODO: add description */
+/** This class contains the basic definitions and properties of the model */
 class BaselineDataModel extends IllinoisDataModel {
   override val essentialTermTokens = node[Constituent]
 
@@ -18,8 +18,19 @@ class BaselineDataModel extends IllinoisDataModel {
       .getLabel
   }
 
+  // the gold label of two consecutive constituents
+  val goldLabelPair = property(essentialTermTokens) { x: Constituent =>
+    val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    goldLabel(xBefore) + EssentialTermsConstants.LABEL_SEPARATOR + goldLabel(x)
+  }
+
   val wordForm = property(essentialTermTokens) { x: Constituent =>
     x.toString
+  }
+
+  val wordFormPair = property(essentialTermTokens) { x: Constituent =>
+    val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    wordForm(xBefore) + EssentialTermsConstants.LABEL_SEPARATOR + wordForm(x)
   }
 
   val pos = property(essentialTermTokens) { x: Constituent =>
@@ -35,6 +46,11 @@ class BaselineDataModel extends IllinoisDataModel {
   val lemma = property(essentialTermTokens) { x: Constituent =>
     val y = x.getTextAnnotation.getView(ViewNames.LEMMA).getConstituentsCovering(x)
     y.asScala.map(_.getLabel).mkString("*")
+  }
+
+  val lemmaPair = property(essentialTermTokens) { x: Constituent =>
+    val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    lemma(xBefore) + EssentialTermsConstants.LABEL_SEPARATOR + lemma(x)
   }
 
   val ner = property(essentialTermTokens) { x: Constituent =>
