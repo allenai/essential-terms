@@ -245,7 +245,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     // precision recall curve
     // because for BaselineLearner, "predictProbOfBeingEssential" is not defined
     if (!learner.isInstanceOf[BaselineLearner]) {
-      // evaluating PR-curve over all tokens
+      //       evaluating PR-curve over all tokens
       val scoreLabelPairs = testReader.data.flatMap { consIt =>
         consIt.toList.map { cons =>
           val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
@@ -254,30 +254,31 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
         }
       }.toList
       val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-      val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
+      val (precision, recall, _) = rankedPrecisionRecallYield(rankedGold).unzip3
       Highcharts.areaspline(recall, precision)
 
       // per sentence
-      //      val (perSenPList, perSenRList) = testReader.data.map { consIt =>
-      //        val scoreLabelPairs = consIt.toList.map { cons =>
-      //          val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
-      //          val predScore = learner.predictProbOfBeingEssential(cons)
-      //          (predScore, goldBinaryLabel)
-      //        }
-      //        val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-      //        val (precision, recall) = rankedPrecisionRecall(rankedGold).unzip
-      //        (precision, recall)
-      //      }.unzip
-      //
-      //      val averagePList = perSenPList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-      //      val averageRList = perSenRList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-      //      assert(averagePList.length == averageRList.length)
-      //      Highcharts.areaspline(averageRList, averagePList)
-      //
-      //      println(averageRList)
-      //      println(averagePList)
-      //      println(averageRList.length)
-      //      println(averagePList.length)
+      val (perSenPList, perSenRList, perSenYList) = testReader.data.map { consIt =>
+        val scoreLabelPairs = consIt.toList.map { cons =>
+          val goldBinaryLabel = if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+          val predScore = learner.predictProbOfBeingEssential(cons)
+          (predScore, goldBinaryLabel)
+        }
+        val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+        val (precision, recall, yyield) = rankedPrecisionRecallYield(rankedGold).unzip3
+        (precision, recall, yyield)
+      }.unzip3
+
+      val averagePList = perSenPList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+      val averageRList = perSenRList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+      val averageYList = perSenYList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+      assert(averagePList.length == averageRList.length)
+      assert(averagePList.length == averageYList.length)
+
+      println(averageRList)
+      println(averagePList)
+      println(averageYList)
+      //Highcharts.areaspline(averageRList, averagePList)
 
       Highcharts.xAxis("Recall")
       Highcharts.yAxis("Precision")
@@ -307,14 +308,16 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     totalPrecisionScore.sum / totalPrecisionScore.size
   }
 
-  def rankedPrecisionRecall(gold: Seq[Int]): Seq[(Double, Double)] = {
+  // gold is a Seq of 0 and 1
+  def rankedPrecisionRecallYield(gold: Seq[Int]): Seq[(Double, Double, Double)] = {
     val sum = gold.sum
     val totalPrecisionScore = gold.zipWithIndex.map {
       case (g, idx) =>
         val sumSlice = gold.slice(0, idx + 1).sum.toDouble
         val precision = sumSlice / (1 + idx)
         val recall = sumSlice / sum
-        (precision, recall)
+        val yyield = idx.toDouble
+        (precision, recall, yyield)
     }
     totalPrecisionScore
   }
