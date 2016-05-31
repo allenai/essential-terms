@@ -4,7 +4,7 @@ import org.allenai.common.Logging
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.lbjava.learn.SparseNetworkLearner
+import edu.illinois.cs.cogcomp.lbjava.learn.{ SupportVectorMachine, SparseNetworkLearner }
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 
 /** An expanded learner with a number of syntactic and semantic features. */
@@ -17,16 +17,15 @@ class ExpandedLearner(
 
   // implement for trait Learnable[Constituent]
   override def label = dataModel.goldLabel
-  override lazy val classifier = new SparseNetworkLearner
+
+  override lazy val classifier = new SupportVectorMachine
+  //  classifier.getParameters.asInstanceOf[SupportVectorMachine.Parameters].solverType = "L2_LR"
 
   override def feature = List(
     dataModel.wordForm,
     dataModel.lemma,
-    dataModel.pos,
-    dataModel.confaltedPos,
-    dataModel.ner,
+    dataModel.baselinePropertiesLemmaPairSingleLabel,
     dataModel.posConjNer,
-    dataModel.lemmaConjNer,
     dataModel.wordFormConjNer,
     dataModel.wordFormConjNerConjPOS,
     dataModel.chunkLabel,
@@ -34,9 +33,6 @@ class ExpandedLearner(
     dataModel.posConjLemma,
     dataModel.conflatedPosConjLemma,
     dataModel.conflatedPosConjWordform,
-    dataModel.conflatedPosConjNer,
-    dataModel.deAdjectivalAbstractNounsSuffixes,
-    dataModel.deNominalNounProducingSuffixes,
     dataModel.deVerbalSuffix,
     dataModel.gerundMarker,
     dataModel.knownPrefixes,
@@ -44,80 +40,87 @@ class ExpandedLearner(
     dataModel.numberNormalizer,
     dataModel.deVerbalSuffix,
     dataModel.prefixSuffixes,
+    dataModel.parsePath,
+    dataModel.brownClusterFeatures,
+    dataModel.dependencyPathUnigram,
+    dataModel.dependencyPathBigram,
     dataModel.wordnetSynsetsFirstSense,
     dataModel.wordnetSynsetsAllSenses,
     dataModel.wordnetLexicographerFileNamesAllSenses,
     dataModel.wordnetLexicographerFileNamesFirstSense,
     dataModel.wordnetHypernymFirstSenseLexicographerFileNames,
     dataModel.wordnetHypernymAllSensesLexicographerFileNames,
-    dataModel.wordnetHypernymsFirstSense,
-    dataModel.wordnetHypernymsAllSenses,
-    dataModel.wordnetMemberHolonymsAllSenses,
-    dataModel.wordnetMemberHolonymsFirstSense,
-    dataModel.wordnetPartHolonymsFirstSenseLexicographerFileNames,
-    dataModel.wordnetPartHolonymsAllSensesLexicographerFileNames,
-    dataModel.wordnetPartHolonymsFirstSense,
-    dataModel.wordnetPartHolonymsAllSenses,
     dataModel.wordnetPointersFirstSense,
     dataModel.wordnetPointersAllSenses,
-    dataModel.wordnetSubstanceHolonymsAllSenses,
-    dataModel.wordnetSubstanceHolonymsFirstSense,
     dataModel.wordnetSynonymsFirstSense,
     dataModel.wordnetSynonymsAllSense,
     dataModel.wordnetExistsConjFirstSynsetConjLexFileNamesAll,
-    dataModel.afterWHword,
-    dataModel.afterWHwordWorForm,
-    dataModel.twoAfterWHword,
     dataModel.isAScienceTerm,
-    dataModel.isAScienceTermConjPos,
     dataModel.isAScienceTermLemma,
     dataModel.isItCapitalized,
     dataModel.isItLastSentence,
-    dataModel.isItSecondToLastSentence,
-    dataModel.isItCloseToEnd,
     dataModel.maxSalience,
-    dataModel.sumSalience,
-    dataModel.subcategoriationFeature,
-    dataModel.spanFeaturesUnorderedChunkBigram,
-    dataModel.spanFeaturesUnorderedPosBigram,
-    dataModel.spanFeaturesUnorderedPosTrigram,
-    dataModel.spanFeaturesUnorderedChunkUnigram,
-    dataModel.spanFeaturesUnorderedChunkBigram,
-    dataModel.spanFeaturesOrderedChunkBigram,
-    dataModel.spanFeaturesOrderedPosBigram,
-    dataModel.spanFeaturesOrderedPosTrigram,
-    dataModel.spanFeaturesOrderedChunkUnigram,
-    dataModel.spanFeaturesOrderedChunkBigram,
-    dataModel.rogetThesaurusFeatures,
-    dataModel.parseSiblingsFeatures,
-    dataModel.parsePhraseType,
-    dataModel.parsePhraseTypeOnly,
-    dataModel.parseHeadWordPOS,
-    dataModel.nomLexClassFeature,
-    dataModel.chunkEmbeddingShallowParse,
-    dataModel.chunkEmbeddingNer
-    //features not used:
-  //dataModel.brownClusterFeatures
-  //dataModel.wordnetVerbFramesAllSenses,
-  //dataModel.wordnetVerbFramesFirstSenses
-  //dataModel.wordnetExistsEntry no
-  //dataModel.xuPalmerFeature dependency parse failed
-  //dataModel.parsePath parse failed
-  //dataModel.linearPosition
-  //dataModel.dependencyPathUnigram,
-  //dataModel.dependencyPathBigram
-  //dataModel.corlexFeatureExtractor
-  //dataModel.clauseFeatureExtractor
-  //dataModel.chunkPropertyFeatureFactoryHasModal,
-  //dataModel.chunkPropertyFeatureFactoryIsNegated
-  //dataModel.chunkPathPattern
+    dataModel.sumSalience
+  //    dataModel.parsePhraseType,
+  //    dataModel.parseHeadWordPOS,
+  //    dataModel.nomLexClassFeature,
+  //    dropped at feature selection
+  //    dataModel.pos,
+  //    dataModel.confaltedPos,
+  //    dataModel.ner,
+  //    dataModel.lemmaConjNer,
+  //    dataModel.wordnetVerbFramesAllSenses, // not helped much
+  //    dataModel.wordnetVerbFramesFirstSenses // not helped much
+  //    dataModel.wordnetExistsEntry // not helped much
+  //    dataModel.corlexFeatureExtractor // data not loaded
+  //    dataModel.clauseFeatureExtractor // not helped much
+  //    dataModel.chunkPropertyFeatureFactoryHasModal, // not helped much
+  //    dataModel.chunkPropertyFeatureFactoryIsNegated // not helped much
+  //    dataModel.conflatedPosConjNer,
+  //    dataModel.deAdjectivalAbstractNounsSuffixes,
+  //    dataModel.deNominalNounProducingSuffixes
+  //    dataModel.xuPalmerFeature,
+  //    dataModel.chunkPathPattern,
+  //    dataModel.wordnetHypernymsFirstSense,
+  //    dataModel.wordnetHypernymsAllSenses,
+  //    dataModel.wordnetMemberHolonymsAllSenses,
+  //    dataModel.wordnetMemberHolonymsFirstSense,
+  //    dataModel.wordnetPartHolonymsAllSensesLexicographerFileNames,
+  //    dataModel.wordnetPartHolonymsFirstSenseLexicographerFileNames,
+  //    dataModel.wordnetPartHolonymsFirstSense,
+  //    dataModel.wordnetPartHolonymsAllSenses,
+  //    dataModel.wordnetSubstanceHolonymsAllSenses,
+  //    dataModel.wordnetSubstanceHolonymsFirstSense,
+  //    dataModel.subcategoriationFeature,
+  //    dataModel.spanFeaturesUnorderedChunkBigram,
+  //    dataModel.spanFeaturesUnorderedPosBigram,
+  //    dataModel.spanFeaturesUnorderedPosTrigram,
+  //    dataModel.spanFeaturesUnorderedChunkUnigram,
+  //    dataModel.spanFeaturesUnorderedChunkBigram,
+  //    dataModel.spanFeaturesOrderedChunkBigram,
+  //    dataModel.spanFeaturesOrderedPosBigram,
+  //    dataModel.spanFeaturesOrderedPosTrigram,
+  //    dataModel.spanFeaturesOrderedChunkUnigram,
+  //    dataModel.spanFeaturesOrderedChunkBigram,
+  //    dataModel.rogetThesaurusFeatures,
+  //    dataModel.parseSiblingsFeatures,
+  //    dataModel.parsePhraseTypeOnly,
+  //    dataModel.chunkEmbeddingShallowParse,
+  //    dataModel.chunkEmbeddingNer
+  //    dataModel.afterWHword,
+  //    dataModel.afterWHwordWorForm,
+  //    dataModel.twoAfterWHword,
+  //    dataModel.isItSecondToLastSentence,
+  //    dataModel.isItCloseToEnd,
+  //      dataModel.isAScienceTermConjPos,
   ) ++ dataModel.baselinePropertiesPOSConjNerConjPos ++
     dataModel.baselinePropertiesPOSConjNer ++
     dataModel.baselinePropertiesPOSConjLemma ++
     dataModel.baselinePropertiesLemma ++
     dataModel.baselinePropertiesSurfaceForm ++
     beforeAfterPropertiesGivenView(ViewNames.TOKENS) ++
-    beforeAfterPropertiesWHWords
+    beforeAfterPropertiesWHWords ++
+    dataModel.baselinePropertiesLemmaPair
 
   override val logging = true
 
@@ -157,11 +160,11 @@ object ExpandedLearner extends Logging {
   def makeNewLearner(
     loadSavedModel: Boolean
   ): (BaselineDataModel, BaselineLearners, ExpandedDataModel, ExpandedLearner) = {
-    val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearner(loadSavedModel)
+    val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel)
     lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners)
     lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
     if (loadSavedModel) {
-      logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath()}")
+      logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
       expandedLearner.load()
     }
     (baselineDataModel, baselineLearners, expandedDataModel, expandedLearner)

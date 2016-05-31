@@ -5,23 +5,30 @@ import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Sentence, Constituent }
 
 import scala.collection.JavaConverters._
 
-/** TODO(daniel) add description */
+/** This class contains details about definiitions of the main properties and how they are defined based upon the main
+  * inputs of the problem
+  */
 class ExpandedDataModel(
     baselineDataModel: BaselineDataModel,
     baselineClassifiers: BaselineLearners
 ) extends IllinoisDataModel {
 
   // first copy relevant fields from BaselineDataModel and the underlying (mutable) DataModel
-  NODES ++= baselineDataModel.NODES
-  EDGES ++= baselineDataModel.EDGES
-  PROPERTIES ++= baselineDataModel.PROPERTIES
+  nodes ++= baselineDataModel.nodes
+  edges ++= baselineDataModel.edges
+  properties ++= baselineDataModel.properties
   //propertyCacheList ++= baselineDataModel.propertyCacheList
   override val essentialTermTokens = baselineDataModel.essentialTermTokens
-  //  override val allTokens = baselineDataModel.allTokens
+  val sentences = node[Sentence]
+
+  val tokenToSentence = edge(essentialTermTokens, sentences)
+  tokenToSentence.addSensor({ (c: Constituent) => c.getTextAnnotation.getSentence(c.getSentenceId) })
+
+  // properties
   override val goldLabel = baselineDataModel.goldLabel
   val wordForm = baselineDataModel.wordForm
   val lemma = baselineDataModel.lemma
@@ -171,7 +178,8 @@ class ExpandedDataModel(
   }
 
   val xuPalmerFeature = property(essentialTermTokens) { x: Constituent =>
-    SyntacticFrame.STANFORD.getFeatures(x).asScala.mkString
+    val y = x.getTextAnnotation.getView(ViewNames.DEPENDENCY_STANFORD).getConstituentsCovering(x)
+    y.asScala.map { SyntacticFrame.STANFORD.getFeatures(_).asScala.mkString }.mkString("*")
   }
 
   /** Given a constituent, this feature finds the corresponding node in the parse tree and reports
@@ -240,7 +248,8 @@ class ExpandedDataModel(
   }
 
   val parsePath = property(essentialTermTokens) { x: Constituent =>
-    ParsePath.STANFORD.getFeatures(x).asScala.mkString
+    val y = x.getTextAnnotation.getView(ViewNames.DEPENDENCY_STANFORD).getConstituentsCovering(x)
+    y.asScala.map { ParsePath.STANFORD.getFeatures(_).asScala.mkString }.mkString("*")
   }
 
   val parseHeadWordPOS = property(essentialTermTokens) { x: Constituent =>
@@ -251,16 +260,14 @@ class ExpandedDataModel(
     NomLexClassFeature.instance.getFeatures(x).asScala.mkString
   }
 
-  val linearPosition = property(essentialTermTokens) { x: Constituent =>
-    LinearPosition.instance.getFeatures(x).asScala.mkString
-  }
-
   val dependencyPathUnigram = property(essentialTermTokens) { x: Constituent =>
-    DependencyPathNgrams.STANFORD_UNIGRAM.getFeatures(x).asScala.mkString
+    val y = x.getTextAnnotation.getView(ViewNames.DEPENDENCY_STANFORD).getConstituentsCovering(x)
+    y.asScala.map { DependencyPathNgrams.STANFORD_UNIGRAM.getFeatures(_).asScala.mkString }.mkString("*")
   }
 
   val dependencyPathBigram = property(essentialTermTokens) { x: Constituent =>
-    DependencyPathNgrams.STANFORD_BIGRAM.getFeatures(x).asScala.mkString
+    val y = x.getTextAnnotation.getView(ViewNames.DEPENDENCY_STANFORD).getConstituentsCovering(x)
+    y.asScala.map { DependencyPathNgrams.STANFORD_BIGRAM.getFeatures(_).asScala.mkString }.mkString("*")
   }
 
   val corlexFeatureExtractor = property(essentialTermTokens) { x: Constituent =>
@@ -268,7 +275,8 @@ class ExpandedDataModel(
   }
 
   val clauseFeatureExtractor = property(essentialTermTokens) { x: Constituent =>
-    ClauseFeatureExtractor.STANFORD.getFeatures(x).asScala.mkString
+    val y = x.getTextAnnotation.getView(ViewNames.DEPENDENCY_STANFORD).getConstituentsCovering(x)
+    y.asScala.map { ClauseFeatureExtractor.STANFORD.getFeatures(_).asScala.mkString }.mkString("*")
   }
 
   val chunkPropertyFeatureFactoryHasModal = property(essentialTermTokens) { x: Constituent =>
@@ -280,7 +288,8 @@ class ExpandedDataModel(
   }
 
   val chunkPathPattern = property(essentialTermTokens) { x: Constituent =>
-    ChunkPathPattern.SHALLOW_PARSE.getFeatures(x).asScala.mkString
+    val y = x.getTextAnnotation.getView(ViewNames.DEPENDENCY_STANFORD).getConstituentsCovering(x)
+    y.asScala.map { ChunkPathPattern.SHALLOW_PARSE.getFeatures(_).asScala.mkString }.mkString("*")
   }
 
   val chunkEmbeddingShallowParse = property(essentialTermTokens) { x: Constituent =>
@@ -372,6 +381,13 @@ class ExpandedDataModel(
   val baselinePropertiesSurfaceForm = baselineProperties(baselineClassifiers.surfaceForm)
 
   val baselinePropertiesLemma = baselineProperties(baselineClassifiers.lemma)
+
+  val baselinePropertiesLemmaPair = baselineProperties(baselineClassifiers.baselineLearnerLemmaPair)
+
+  val baselinePropertiesLemmaPairSingleLabel = property(essentialTermTokens) { x: Constituent =>
+    val labelPair = baselineClassifiers.baselineLearnerLemmaPair(x)
+    labelPair.split(s"[${EssentialTermsConstants.LABEL_SEPARATOR}]").last
+  }
 
   val baselinePropertiesPOSConjLemma = baselineProperties(baselineClassifiers.posConjLemma)
 
@@ -520,8 +536,6 @@ class ExpandedDataModel(
   }
 
   val brownClusterFeatures = property(essentialTermTokens) { x: Constituent =>
-    val a = brownClusterFeatureExtractor.getFeatures(x).asScala.toString
-    println(a)
-    a
+    brownClusterFeatureExtractor.getFeatures(x).asScala.toString
   }
 }
