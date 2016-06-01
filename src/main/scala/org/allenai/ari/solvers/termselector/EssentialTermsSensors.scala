@@ -388,7 +388,7 @@ object EssentialTermsSensors extends Logging {
     learner: IllinoisLearner
   ): Map[String, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None)
-    val (constituents, stopwordConstituents) = questionStruct.getConstituents(stopWords)
+    val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))

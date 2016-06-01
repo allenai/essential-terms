@@ -51,8 +51,9 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
   }
 
   def testLearnerWithSampleAristoQuestion(): Unit = {
-    val q = " What force causes a feather to fall slower than a rock? " +
-      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
+    val q = "In New York State, the longest period of daylight occurs during which month? (A) December (B) June (C) March (D) September"
+    //    val q = " What force causes a feather to fall slower than a rock? " +
+    //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
     val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
     val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
