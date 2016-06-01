@@ -6,7 +6,6 @@ import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn._
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
-import weka.classifiers.meta.LogitBoost
 
 /** An expanded learner with a number of syntactic and semantic features. */
 class ExpandedLearner(
