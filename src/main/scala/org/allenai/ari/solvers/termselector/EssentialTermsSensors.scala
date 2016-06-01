@@ -9,13 +9,9 @@ import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
-  Constituent,
-  TextAnnotation,
-  TokenLabelView
-}
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence, TextAnnotation, TokenLabelView }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
-import edu.illinois.cs.cogcomp.core.utilities.{ DummyTextAnnotationGenerator, SerializationHelper }
+import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
@@ -414,10 +410,10 @@ object EssentialTermsSensors extends Logging {
   }
 
   def getEssentialTermsForAristoQuestionConstrainedLearner(
-                                          aristoQ: Question,
-                                          dataModel: ExpandedDataModel,
-                                          learner: ConstrainedClassifier[Constituent, Sentence]
-                                        ): Seq[String] = {
+    aristoQ: Question,
+    dataModel: ExpandedDataModel,
+    learner: ConstrainedClassifier[Constituent, Sentence]
+  ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)

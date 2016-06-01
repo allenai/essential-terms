@@ -30,8 +30,7 @@ object ConstrainedLearner extends Logging {
   /** Make a new constrained version of [[ExpandedLearner]].
     * Note that for using this constrained classifier you definitely have to have the other models saved on disk.
     */
-  def makeNewLearner(classifierModel: String
-                    ): (ExpandedDataModel, ConstrainedClassifier[Constituent, Sentence]) = {
+  def makeNewLearner(classifierModel: String): (ExpandedDataModel, ConstrainedClassifier[Constituent, Sentence]) = {
     val (_, _, expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel)
     (expandedDataModel, new ConstrainedLearner(expandedDataModel, expandedLearner))
   }
