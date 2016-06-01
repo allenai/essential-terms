@@ -58,6 +58,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
     val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
+    logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
   }
 
   def cacheSalienceScoresInRedis(): Unit = {
@@ -364,7 +365,7 @@ object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
     val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
       "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (CacheSalienceScores) |" +
-      " 6 (PrintMistakesAndPropertyValues) "
+      " 6 (PrintMistakes) "
     if (args.isEmpty || args.length > 1) {
       throw new IllegalArgumentException(usageStr)
     } else {

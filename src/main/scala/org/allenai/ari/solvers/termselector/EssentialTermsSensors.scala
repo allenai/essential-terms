@@ -349,7 +349,7 @@ object EssentialTermsSensors extends Logging {
         }
 
         ta.getView(ViewNames.TOKENS).getConstituents.asScala.foreach { cons =>
-          if (validTokens.get(cons.getSurfaceForm.toLowerCase()).exists(_ > 0.9)) {
+          if (validTokens.get(cons.getSurfaceForm.toLowerCase()).exists(_ > 0.5)) {
             view.addSpanLabel(
               cons.getStartSpan,
               cons.getEndSpan,
