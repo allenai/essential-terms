@@ -9,7 +9,6 @@ import spray.json._
 import DefaultJsonProtocol._
 
 /** A service for identifying essential terms in Aristo questions.
-  *
   * @param classifierType whether and how to identify and use essential terms in the model
   * @param confidenceThreshold Threshold to call terms essential. If set to a negative value, use
   * the classifier predictions directly
@@ -17,6 +16,7 @@ import DefaultJsonProtocol._
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
     @Named("essentialTerms.confidenceThreshold") val confidenceThreshold: Double,
+    @Named("essentialTerms.classifierModel") val classifierModel: String,
     @Named("essentialTerms.useRedisCaching") val useRedisCaching: Boolean
 ) extends Logging {
 
@@ -26,7 +26,7 @@ class EssentialTermsService @Inject() (
     classifierType match {
       case "Lookup" => new LookupLearner(None)
       case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.surfaceForm
-      case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true)._4
+      case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel)._4
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
   }
@@ -71,4 +71,3 @@ class EssentialTermsService @Inject() (
     (essentialTerms, termsWithScores)
   }
 }
-
