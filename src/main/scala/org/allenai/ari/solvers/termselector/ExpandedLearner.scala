@@ -4,12 +4,14 @@ import org.allenai.common.Logging
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.lbjava.learn.{ SupportVectorMachine, SparseNetworkLearner }
+import edu.illinois.cs.cogcomp.lbjava.learn._
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
+import weka.classifiers.meta.LogitBoost
 
 /** An expanded learner with a number of syntactic and semantic features. */
 class ExpandedLearner(
-    expandedDataModel: ExpandedDataModel
+    expandedDataModel: ExpandedDataModel,
+    classifierModel: String
 ) extends IllinoisLearner(expandedDataModel) {
 
   // implement for trait EssentialTermsLearner
@@ -18,7 +20,13 @@ class ExpandedLearner(
   // implement for trait Learnable[Constituent]
   override def label = dataModel.goldLabel
 
-  override lazy val classifier = new SupportVectorMachine
+  override lazy val classifier = classifierModel match {
+    case "SVM" => new SupportVectorMachine()
+    case "NaiveBayes" => new NaiveBayes()
+    case "SparseNetwork" => new SparseNetworkLearner()
+    case _ => new SupportVectorMachine()
+  }
+
   //  classifier.getParameters.asInstanceOf[SupportVectorMachine.Parameters].solverType = "L2_LR"
 
   override def feature = List(
@@ -158,11 +166,13 @@ object ExpandedLearner extends Logging {
     * @param loadSavedModel whether to load a previously saved model
     */
   def makeNewLearner(
-    loadSavedModel: Boolean
+    loadSavedModel: Boolean,
+    classifierModel: String
   ): (BaselineDataModel, BaselineLearners, ExpandedDataModel, ExpandedLearner) = {
     val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel)
     lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners)
-    lazy val expandedLearner = new ExpandedLearner(expandedDataModel)
+    lazy val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
+    expandedLearner.modelSuffix = classifierModel
     if (loadSavedModel) {
       logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
       expandedLearner.load()

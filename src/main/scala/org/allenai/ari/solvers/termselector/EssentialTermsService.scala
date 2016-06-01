@@ -13,7 +13,8 @@ import com.google.inject.name.Named
   */
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
-    @Named("essentialTerms.confidenceThreshold") val confidenceThreshold: Double
+    @Named("essentialTerms.confidenceThreshold") val confidenceThreshold: Double,
+    @Named("essentialTerms.classifierModel") val classifierModel: String
 ) extends Logging {
 
   /** Create a learner object. Lazy to avoid creating a learner if the service is not used. */
@@ -22,7 +23,7 @@ class EssentialTermsService @Inject() (
     classifierType match {
       case "Lookup" => new LookupLearner(None)
       case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.surfaceForm
-      case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true)._4
+      case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel)._4
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
   }
