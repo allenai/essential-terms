@@ -319,7 +319,7 @@ object EssentialTermsSensors extends Logging {
   }
 
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
-    ViewNames.SHALLOW_PARSE, ViewNames.DEPENDENCY_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
+    ViewNames.SHALLOW_PARSE, ViewNames.PARSE_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
 
   private def populateEssentialTermView(
     ta: TextAnnotation,
