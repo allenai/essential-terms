@@ -275,14 +275,14 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
       assert(averagePList.length == averageRList.length)
       assert(averagePList.length == averageYList.length)
 
-      println(averageRList)
-      println(averagePList)
-      println(averageYList)
+      logger.info(averageRList.mkString("/"))
+      logger.info(averagePList.mkString("/"))
+      logger.info(averageYList.mkString("/"))
       //Highcharts.areaspline(averageRList, averagePList)
 
       Highcharts.xAxis("Recall")
       Highcharts.yAxis("Precision")
-      Thread.sleep(10000L)
+      Thread.sleep(30000L)
       Highcharts.stopServer
     }
   }
@@ -322,7 +322,7 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     totalPrecisionScore
   }
 
-  private def printMistakesWithProperyPredictions(): Unit = {
+  private def printMistakes(): Unit = {
     val dataModel = expandedLearner.dataModel
     dataModel.essentialTermTokens.populate(testConstituents, train = false)
     val goldLabel = expandedLearner.dataModel.goldLabel
@@ -333,8 +333,10 @@ class EssentialTermsApp(loadSavedModel: Boolean) extends Logging {
     testReader.data.foreach { consIt =>
       val consList = consIt.toList
       val numSen = consList.head.getTextAnnotation.getNumberOfSentences
-      (0 until numSen).foreach(id =>
-        logger.info(consList.head.getTextAnnotation.getSentence(id).toString))
+      if (internalLogger.isInfoEnabled()) {
+        (0 until numSen).foreach(id =>
+          logger.info(consList.head.getTextAnnotation.getSentence(id).toString))
+      }
       val goldImportantSentence = consList.map { cons => cons.getSurfaceForm }.mkString("//")
       val gold = consList.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
       val predicted = consList.map(cons => convertToZeroOne(expandedLearner.predictLabel(cons))).toSeq
@@ -385,7 +387,7 @@ object EssentialTermsApp extends Logging {
           essentialTermsApp.cacheSalienceScoresInRedis()
         case "6" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true)
-          essentialTermsApp.printMistakesWithProperyPredictions()
+          essentialTermsApp.printMistakes()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }
