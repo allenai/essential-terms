@@ -1,6 +1,5 @@
 package org.allenai.ari.solvers.termselector
 
-import edu.illinois.cs.cogcomp.edison.features.factory.{ ParseLabelIdentifier, WordFeatureExtractorFactory }
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
@@ -18,8 +17,10 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
 import edu.illinois.cs.cogcomp.core.utilities.{ DummyTextAnnotationGenerator, SerializationHelper }
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
+import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
+import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 
 import akka.actor.ActorSystem
 import com.google.inject.Guice
@@ -409,6 +410,21 @@ object EssentialTermsSensors extends Logging {
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.essentialTermTokens.populate(constituents)
     constituents.collect { case c if learner.predictIsEssential(c) => c.getSurfaceForm } ++
+      essentialConstituents.map(_.getSurfaceForm)
+  }
+
+  def getEssentialTermsForAristoQuestionConstrainedLearner(
+                                          aristoQ: Question,
+                                          dataModel: ExpandedDataModel,
+                                          learner: ConstrainedClassifier[Constituent, Sentence]
+                                        ): Seq[String] = {
+    val questionStruct = annotateQuestion(aristoQ, None)
+    val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
+    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
+    // update the inverse map with the new constituents
+    constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
+    dataModel.essentialTermTokens.populate(constituents)
+    constituents.collect { case c if learner(c) == EssentialTermsConstants.IMPORTANT_LABEL => c.getSurfaceForm } ++
       essentialConstituents.map(_.getSurfaceForm)
   }
 }

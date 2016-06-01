@@ -22,9 +22,9 @@ import java.io.{ File, PrintWriter }
 /** A sample application to train, test, save, and load essential terms classifiers. */
 class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extends Logging {
   // lazily create the baseline and expanded data models and learners
-  private lazy val (baselineDataModel, baselineLearners, expandedDataModel, expandedLearner) = {
-    ExpandedLearner.makeNewLearner(loadSavedModel, classifierModel)
-  }
+  private lazy val baselineLearners = BaselineLearner.makeNewLearners(loadSavedModel)_2
+  private lazy val expandedLearner = ExpandedLearner.makeNewLearner(loadSavedModel, classifierModel)._4
+  private lazy val (expandedDataModel, constrainedLearner) = ConstrainedLearner.makeNewLearner(classifierModel)
 
   def trainAndTestBaselineLearners(testOnSentences: Boolean = false): Unit = {
     trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true,
@@ -67,6 +67,18 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
+  }
+
+  def testConstrainedLearnerWithSampleAristoQuestion(): Unit = {
+    val q = "In New York State, the longest period of daylight occurs during which month? (A) " +
+      "December (B) June (C) March (D) September"
+    //    val q = " What force causes a feather to fall slower than a rock? " +
+    //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
+    val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
+    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
+    val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
+    val essentialTerms = getEssentialTermsForAristoQuestionConstrainedLearner(aristoQuestion, expandedDataModel, constrainedLearner)
+    logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
   }
 
   def cacheSalienceScoresInRedis(): Unit = {
@@ -376,8 +388,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
     val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
-      "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (CacheSalienceScores) |" +
-      " 6 (PrintMistakes) <classifier model>"
+      "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (TestConstrainedLearnerWithAristoQuestion) | " +
+      "6 (CacheSalienceScores) | 7 (PrintMistakes) <classifier model>"
     if (args.isEmpty || args.length > 2) {
       throw new IllegalArgumentException(usageStr)
     } else {
@@ -397,9 +409,12 @@ object EssentialTermsApp extends Logging {
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, classifierModel)
           essentialTermsApp.testLearnerWithSampleAristoQuestion()
         case "5" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, classifierModel)
+          essentialTermsApp.testConstrainedLearnerWithSampleAristoQuestion()
+        case "6" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, classifierModel)
           essentialTermsApp.cacheSalienceScoresInRedis()
-        case "6" =>
+        case "7" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, classifierModel)
           essentialTermsApp.printMistakes()
         case _ =>
