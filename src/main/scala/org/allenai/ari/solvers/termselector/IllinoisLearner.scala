@@ -33,10 +33,14 @@ abstract class IllinoisLearner(
     classifier.discreteValue(c) == EssentialTermsConstants.IMPORTANT_LABEL
   }
 
+  private def convertRealsToPorbablities(realScore: Double): Double = 1 / (1 + Math.exp(-realScore))
+
   /** Predict the probability of a given term being essential. */
   def predictProbOfBeingEssential(c: Constituent): Double = {
-    classifier.scores(c).toArray.find {
+    val scores = classifier.scores(c).toArray
+    val rawScore = scores.find {
       case score => score.value == EssentialTermsConstants.IMPORTANT_LABEL
     }.get.score
+    convertRealsToPorbablities(rawScore)
   }
 }
