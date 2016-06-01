@@ -5,15 +5,19 @@ import org.allenai.common.Logging
 
 import com.google.inject.Inject
 import com.google.inject.name.Named
+import spray.json._
+import DefaultJsonProtocol._
 
 /** A service for identifying essential terms in Aristo questions.
+  *
   * @param classifierType whether and how to identify and use essential terms in the model
   * @param confidenceThreshold Threshold to call terms essential. If set to a negative value, use
   * the classifier predictions directly
   */
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
-    @Named("essentialTerms.confidenceThreshold") val confidenceThreshold: Double
+    @Named("essentialTerms.confidenceThreshold") val confidenceThreshold: Double,
+    @Named("essentialTerms.useRedisCaching") val useRedisCaching: Boolean
 ) extends Logging {
 
   /** Create a learner object. Lazy to avoid creating a learner if the service is not used. */
@@ -29,7 +33,17 @@ class EssentialTermsService @Inject() (
 
   /** Get essential term scores for a given question. */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    learner.getEssentialTermScores(aristoQ)
+    val cacheKey = aristoQ.text + classifierType
+    val scoreMapJson = if (useRedisCaching) EssentialTermsSensors.annotationRedisCache.get(cacheKey) else None
+    if (scoreMapJson.isDefined) {
+      scoreMapJson.get.parseJson.convertTo[Map[String, Double]]
+    } else {
+      val newScores = learner.getEssentialTermScores(aristoQ)
+      if (useRedisCaching) {
+        EssentialTermsSensors.annotationRedisCache.set(cacheKey, newScores.toJson.compactPrint)
+      }
+      newScores
+    }
   }
 
   /** Get essential terms for a given question; use confidenceThreshold if provided. */
@@ -57,3 +71,4 @@ class EssentialTermsService @Inject() (
     (essentialTerms, termsWithScores)
   }
 }
+
