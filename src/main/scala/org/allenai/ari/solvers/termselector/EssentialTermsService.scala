@@ -29,7 +29,11 @@ class EssentialTermsService @Inject() (
 
   /** Get essential term scores for a given question. */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    learner.getEssentialTermScores(aristoQ)
+    val illinoisLearner = learner match {
+      case x: IllinoisLearner => x
+      case _ => throw new Exception("incompatible classifier type ")
+    }
+    EssentialTermsSensors.getEssentialTermProbForAristoQuestion(aristoQ, illinoisLearner)
   }
 
   /** Get essential terms for a given question; use confidenceThreshold if provided. */
@@ -39,7 +43,11 @@ class EssentialTermsService @Inject() (
         val termsWithScores = getEssentialTermScores(aristoQ)
         termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
       case _ =>
-        learner.getEssentialTerms(aristoQ)
+        learner match {
+          case x: IllinoisLearner => EssentialTermsSensors.getEssentialTermsForAristoQuestion(aristoQ, x)
+          case x: LookupLearner => x.getEssentialTerms(aristoQ)
+          case _ => throw new Exception("incompatible classifier type ")
+        }
     }
   }
 
@@ -52,7 +60,11 @@ class EssentialTermsService @Inject() (
       case threshold if threshold >= 0 =>
         termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
       case _ =>
-        learner.getEssentialTerms(aristoQ)
+        learner match {
+          case x: IllinoisLearner => EssentialTermsSensors.getEssentialTermsForAristoQuestion(aristoQ, x)
+          case x: LookupLearner => x.getEssentialTerms(aristoQ)
+          case _ => throw new Exception("incompatible classifier type ")
+        }
     }
     (essentialTerms, termsWithScores)
   }
