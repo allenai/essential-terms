@@ -56,7 +56,8 @@ object EssentialTermsSensors extends Logging {
     stopWordsFile.close()
     stopWords.toSet ++ Set("__________")
   }
-  // since we never to learning on the above stopwords, we choose a subset of the stopwords to ALWAYS be essential
+  // since we never to learning on the above stopwords, we choose a subset of the stopwords to
+  // ALWAYS be essential
   lazy val essentialStopWords = Set("all", "any", "because", "before", "both", "but")
   val ESSENTIAL_STOPWORD_SCORE = 0.8
   lazy val nonessentialStopWords = stopWords.--(essentialStopWords)
@@ -252,8 +253,10 @@ object EssentialTermsSensors extends Logging {
   ): EssentialTermsQuestion = {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
-    val cacheKey = aristoQuestion.text.get + views.asScala.mkString
-    val redisAnnotation = annotationRedisCache.get(cacheKey)
+    val cacheKey = "AnnotationCache***" + aristoQuestion.text.get + views.asScala.mkString
+    val redisAnnotation = this.synchronized {
+      annotationRedisCache.get(cacheKey)
+    }
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
@@ -263,7 +266,9 @@ object EssentialTermsSensors extends Logging {
           logger.error(s">>>>>>>>>>>>>>>>>>>>> ${aristoQuestion.text.get}")
         }
       }
-      annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+      this.synchronized {
+        annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+      }
       ta
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
@@ -325,24 +330,28 @@ object EssentialTermsSensors extends Logging {
     ta: TextAnnotation,
     tokenScoreMapOpt: Option[Map[String, Double]]
   ): TextAnnotation = {
-    // since the annotated questions have different tokenizations, we first tokenize then asign essentiality scores
-    // to tokens of spans
+    // since the annotated questions have different tokenizations, we first tokenize then assign
+    // scores to tokens of spans
     val view = new TokenLabelView(EssentialTermsConstants.VIEW_NAME, ta)
     tokenScoreMapOpt match {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
             val cacheKey = "**essentialTermTokenization:" + tokenString
-            val redisAnnotation = annotationRedisCache.get(cacheKey)
-            val ta = if (redisAnnotation.isDefined) {
+            val redisAnnotation = this.synchronized {
+              annotationRedisCache.get(cacheKey)
+            }
+            val currentAnn = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
-              val ta = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
+              val generatedAnn = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 Set(ViewNames.TOKENS).asJava)
-              annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
-              ta
+              this.synchronized {
+                annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(generatedAnn))
+              }
+              generatedAnn
             }
-            val constituents = ta.getView(ViewNames.TOKENS).getConstituents.asScala
+            val constituents = currentAnn.getView(ViewNames.TOKENS).getConstituents.asScala
               .filter(_.getSurfaceForm.length > 2) // ignore constituents of short span
             constituents.map(cons => (cons.getSurfaceForm.toLowerCase(), score))
           case _ => List.empty
@@ -389,7 +398,8 @@ object EssentialTermsSensors extends Logging {
   ): Map[String, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
-    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
+    val (essentialConstituents, nonEssentialConstituents) =
+      questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.essentialTermTokens.populate(constituents)
@@ -404,7 +414,8 @@ object EssentialTermsSensors extends Logging {
   ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
-    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
+    val (essentialConstituents, nonEssentialConstituents) =
+      questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.essentialTermTokens.populate(constituents)

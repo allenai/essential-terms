@@ -33,14 +33,24 @@ class EssentialTermsService @Inject() (
 
   /** Get essential term scores for a given question. */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    val cacheKey = "EssentialTermsServiceCache***" + aristoQ.text + classifierType + classifierModel
-    val scoreMapJson = if (useRedisCaching) EssentialTermsSensors.annotationRedisCache.get(cacheKey) else None
+    // use the raw question in the cache as the essential term prediction depends on the options
+    val cacheKey = "EssentialTermsServiceCache***" + aristoQ.rawQuestion + classifierType +
+      classifierModel
+    val scoreMapJson = if (useRedisCaching) {
+      EssentialTermsSensors.synchronized {
+        EssentialTermsSensors.annotationRedisCache.get(cacheKey)
+      }
+    } else {
+      None
+    }
     if (scoreMapJson.isDefined) {
       scoreMapJson.get.parseJson.convertTo[Map[String, Double]]
     } else {
       val newScores = learner.getEssentialTermScores(aristoQ)
       if (useRedisCaching) {
-        EssentialTermsSensors.annotationRedisCache.set(cacheKey, newScores.toJson.compactPrint)
+        EssentialTermsSensors.synchronized {
+          EssentialTermsSensors.annotationRedisCache.set(cacheKey, newScores.toJson.compactPrint)
+        }
       }
       newScores
     }
@@ -57,8 +67,8 @@ class EssentialTermsService @Inject() (
     }
   }
 
-  /** Get essential terms for a given question (selected via confidenceThreshold, if provided), as well as essential
-    * term scores for a given question.
+  /** Get essential terms for a given question (selected via confidenceThreshold, if provided),
+    * as well as essential term scores for a given question.
     */
   def getEssentialTermsAndScores(aristoQ: Question): (Seq[String], Map[String, Double]) = {
     val termsWithScores = getEssentialTermScores(aristoQ)
