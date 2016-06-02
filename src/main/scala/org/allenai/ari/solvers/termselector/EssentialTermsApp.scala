@@ -383,13 +383,67 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       logger.info("=====")
     }
   }
+
+  def printAllFeatures() = {
+    val goldLabel = expandedLearner.dataModel.goldLabel
+    val testerExact = new TestDiscrete
+    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](trainSentences ++ testSentences)
+    testReader.reset()
+
+    // one time dry run, to add all the lexicon
+    testReader.data.foreach { consIt =>
+      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+      cons.foreach { c => expandedLearner.classifier.getExampleArray(c, true) }
+    }
+
+    printFeatures(train = true)
+    printFeatures(train = false)
+  }
+
+  /* this would print the feature values on disk */
+  private def printFeatures(train: Boolean): Unit = {
+    import java.io._
+    val pw = new PrintWriter(new File(s"src/main/resources/outputFeatures_${if (train) "train" else "test"}.arff"))
+    val featureLength = expandedLearner.classifier.getPrunedLexiconSize
+
+    pw.write("@RELATION EssentialTerms\n")
+    (0 until featureLength).foreach { idx => pw.write(s"@ATTRIBUTE $idx NUMERIC\n") }
+    pw.write("@ATTRIBUTE f60531 {IMPORTANT, NOT-IMPORTANT}\n")
+    pw.write("@DATA\n")
+
+    val goldLabel = expandedLearner.dataModel.goldLabel
+    val testerExact = new TestDiscrete
+    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](if (train) trainSentences else testSentences)
+    testReader.reset()
+
+    testReader.data.foreach { consIt =>
+      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+      cons.foreach { c =>
+        val out = expandedLearner.classifier.getExampleArray(c, true)
+        val intArray = out(0).asInstanceOf[Array[Int]].toList
+        val doubleArray = out(1).asInstanceOf[Array[Double]].toList
+
+        pw.write("{")
+        val featureValues = intArray.zip(doubleArray).groupBy { _._1 }.map { _._2.head }.toList. // remove the repeated features
+          filter { case (ind, value) => value != 0.0 }. // drop zero features
+          sortBy { case (ind, value) => ind }.
+          map {
+            case (ind, value) => ind + " " + (if (value == 1.0) "1" else value) // print featur as intger if it is 1.0
+          }.mkString(", ")
+        pw.write(featureValues)
+        pw.write(", " + featureLength + " " + goldLabel(c) + "}\n")
+      }
+    }
+    pw.close()
+  }
 }
+
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
     val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
       "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (TestConstrainedLearnerWithAristoQuestion) | " +
-      "6 (CacheSalienceScores) | 7 (PrintMistakes) <classifier model>"
+      "6 (CacheSalienceScores) | 7 (PrintMistakes) | 8 (PrintFeatures) <classifier model>"
     if (args.isEmpty || args.length > 2) {
       throw new IllegalArgumentException(usageStr)
     } else {
@@ -417,6 +471,9 @@ object EssentialTermsApp extends Logging {
         case "7" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, classifierModel)
           essentialTermsApp.printMistakes()
+        case "8" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          essentialTermsApp.printAllFeatures()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }

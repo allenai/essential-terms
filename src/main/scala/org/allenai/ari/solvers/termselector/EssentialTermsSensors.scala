@@ -98,11 +98,22 @@ object EssentialTermsSensors extends Logging {
     cache
   }
 
+  // regents training question: just to make sure they are all in the test set of the term-selector
+  lazy val regentsSet = {
+    val separator = "\",".r
+    lazy val rawTextFile = Datastore("private").filePath("org.allenai.tableilp.data", "regentsTrain.txt", 1).toFile
+    lazy val questions = FileUtils.getFileAsLines(rawTextFile)
+    questions.map { q => decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
+  }
+
   lazy val (trainConstiuents, testConstituents, trainSentences, testSentences) = {
     val trainProb = 0.7
     // in order to be consistent across runs
     Random.setSeed(10)
-    val (train, test) = allQuestions.partition(_ => Random.nextDouble() < trainProb)
+    val (regents, nonRegents) = allQuestions.partition(q => regentsSet.contains(q.aristoQuestion.text))
+    val trainSize = (trainProb * allQuestions.size).toInt
+    val (train, test_nonRegents) = nonRegents.splitAt(trainSize - regents.size)
+    val test = test_nonRegents ++ regents // add regents to the test data
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
 
@@ -232,15 +243,19 @@ object EssentialTermsSensors extends Logging {
     }.map {
       case (wordImportance, _, question) =>
         // logger.info(s"Question: $question // Scores: ${wordImportance.toList}")
-        val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
-        val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
-        val aristoQuestion = Question(question, Some(maybeSplitQuestion.question),
-          multipleChoiceSelection)
+        val aristoQuestion = decomposeQuestion(question)
         val essentialTermMap = wordImportance.groupBy(_._1).mapValues(_.maxBy(_._2)._2)
         annotateQuestion(aristoQuestion: Question, Some(essentialTermMap))
     }.toSeq
     // getting rid of invalid questions
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
+  }
+
+  private def decomposeQuestion(question: String): Question = {
+    val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
+    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
+    Question(question, Some(maybeSplitQuestion.question),
+      multipleChoiceSelection)
   }
 
   def annotateQuestion(
@@ -303,6 +318,7 @@ object EssentialTermsSensors extends Logging {
     )
   }
 
+  // TODO(daniel): you can get rid of this output; right?
   private lazy val annotatorService = {
     val nonDefaultProps = new Properties()
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
@@ -318,34 +334,47 @@ object EssentialTermsSensors extends Logging {
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
     ViewNames.SHALLOW_PARSE, ViewNames.PARSE_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
 
+  // TODO(daniel): move this parameter to application.conf
+  val combineNamedEntities = false
+
   private def populateEssentialTermView(
     ta: TextAnnotation,
     tokenScoreMapOpt: Option[Map[String, Double]]
   ): TextAnnotation = {
     // since the annotated questions have different tokenizations, we first tokenize then asign essentiality scores
     // to tokens of spans
+    val viewNamesForParsingEssentialTermTokens = if (combineNamedEntities) Set(ViewNames.TOKENS, ViewNames.NER_CONLL) else Set(ViewNames.TOKENS)
     val view = new TokenLabelView(EssentialTermsConstants.VIEW_NAME, ta)
+    val combinedConsAll = if (combineNamedEntities) {
+      getCombinedConsituents(ta)
+    } else {
+      ta.getView(ViewNames.TOKENS).getConstituents.asScala
+    }
     tokenScoreMapOpt match {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
-            val cacheKey = "**essentialTermTokenization:" + tokenString
+            val cacheKey = "**essentialTermTokenization:" + tokenString + viewNamesForParsingEssentialTermTokens.toString
             val redisAnnotation = annotationRedisCache.get(cacheKey)
-            val ta = if (redisAnnotation.isDefined) {
+            val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
               val ta = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
-                Set(ViewNames.TOKENS).asJava)
+                viewNamesForParsingEssentialTermTokens.asJava)
               annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
               ta
             }
-            val constituents = ta.getView(ViewNames.TOKENS).getConstituents.asScala
-              .filter(_.getSurfaceForm.length > 2) // ignore constituents of short span
+            val combinedConstituents = if (combineNamedEntities) {
+              getCombinedConsituents(tokenTa)
+            } else {
+              tokenTa.getView(ViewNames.TOKENS).getConstituents.asScala
+            }
+            val constituents = combinedConstituents.filter(_.getSurfaceForm.length > 2) // ignore constituents of short span
             constituents.map(cons => (cons.getSurfaceForm.toLowerCase(), score))
           case _ => List.empty
         }
 
-        ta.getView(ViewNames.TOKENS).getConstituents.asScala.foreach { cons =>
+        combinedConsAll.foreach { cons =>
           if (validTokens.get(cons.getSurfaceForm.toLowerCase()).exists(_ > 0.5)) {
             view.addSpanLabel(
               cons.getStartSpan,
@@ -362,13 +391,19 @@ object EssentialTermsSensors extends Logging {
             )
           }
         }
-      case None =>
-        ta.getView(ViewNames.TOKENS).getConstituents.asScala.foreach { cons =>
-          view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, "", -1)
-        }
+      case None => combinedConsAll.foreach { cons => view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, "", -1) }
     }
     ta.addView(EssentialTermsConstants.VIEW_NAME, view)
     ta
+  }
+
+  // merges tokens which belong to the same NER constitunet
+  def getCombinedConsituents(ta: TextAnnotation): Seq[Constituent] = {
+    val tokenConsitutnes = ta.getView(ViewNames.TOKENS).getConstituents.asScala
+    val nerConstituents = ta.getView(ViewNames.NER_CONLL).getConstituents.asScala
+    tokenConsitutnes.filterNot { c =>
+      ta.getView(ViewNames.NER_CONLL).getConstituentsCovering(c).size() > 0
+    } ++ nerConstituents
   }
 
   private def getSentence(qs: Seq[EssentialTermsQuestion]): Iterable[Iterable[Constituent]] = {

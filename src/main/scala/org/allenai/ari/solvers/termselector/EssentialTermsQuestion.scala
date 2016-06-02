@@ -20,7 +20,13 @@ case class EssentialTermsQuestion(
 ) {
   /** Get non-stopword and stopword constituents for the question. */
   def getConstituents(stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
-    questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq.partition { c =>
+    // whether to combine NER words together or not
+    val cons = if (EssentialTermsSensors.combineNamedEntities) {
+      EssentialTermsSensors.getCombinedConsituents(questionTextAnnotation)
+    } else {
+      questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq
+    }
+    cons.partition { c =>
       stopWords.contains(c.getSurfaceForm.toLowerCase())
     }
   }
