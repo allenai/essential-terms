@@ -102,11 +102,22 @@ object EssentialTermsSensors extends Logging {
     cache
   }
 
+  // regents training question: just to make sure they are all in the test set of the term-selector
+  lazy val regentsSet = {
+    val separator = "\",".r
+    lazy val rawTextFile = Datastore("private").filePath("org.allenai.tableilp.data", "regentsTrain.txt", 1).toFile
+    lazy val questions = FileUtils.getFileAsLines(rawTextFile)
+    questions.map { q => decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
+  }
+
   lazy val (trainConstiuents, testConstituents, trainSentences, testSentences) = {
     val trainProb = 0.7
     // in order to be consistent across runs
     Random.setSeed(10)
-    val (train, test) = allQuestions.partition(_ => Random.nextDouble() < trainProb)
+    val (regents, nonRegents) = allQuestions.partition(q => regentsSet.contains(q.aristoQuestion.text))
+    val trainSize = (trainProb * allQuestions.size).toInt
+    val (train, test_nonRegents) = nonRegents.splitAt(trainSize - regents.size)
+    val test = test_nonRegents ++ regents // add regents to the test data
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
 
@@ -245,6 +256,13 @@ object EssentialTermsSensors extends Logging {
     }.toSeq
     // getting rid of invalid questions
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
+  }
+
+  private def decomposeQuestion(question: String): Question = {
+    val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
+    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
+    Question(question, Some(maybeSplitQuestion.question),
+      multipleChoiceSelection)
   }
 
   def annotateQuestion(
