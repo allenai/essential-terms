@@ -241,11 +241,11 @@ object EssentialTermsSensors extends Logging {
             (mergedWordImportance, numAnnotator + numAnnotatorsOverall, question)
         }
     }.map {
-      case (wordImportance, _, question) =>
+      case (wordImportance, numAnnotators, question) =>
         // logger.info(s"Question: $question // Scores: ${wordImportance.toList}")
         val aristoQuestion = decomposeQuestion(question)
         val essentialTermMap = wordImportance.groupBy(_._1).mapValues(_.maxBy(_._2)._2)
-        annotateQuestion(aristoQuestion: Question, Some(essentialTermMap))
+        annotateQuestion(aristoQuestion: Question, Some(essentialTermMap), Some(numAnnotators))
     }.toSeq
     // getting rid of invalid questions
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
@@ -260,7 +260,8 @@ object EssentialTermsSensors extends Logging {
 
   def annotateQuestion(
     aristoQuestion: Question,
-    essentialTermMapOpt: Option[Map[String, Double]]
+    essentialTermMapOpt: Option[Map[String, Double]],
+    numAnnotators: Option[Double]
   ): EssentialTermsQuestion = {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
@@ -314,7 +315,8 @@ object EssentialTermsSensors extends Logging {
       taWithEssentialTermsView,
       salienceResultOpt,
       avgSalienceOpt,
-      maxSalienceOpt
+      maxSalienceOpt,
+      numAnnotators
     )
   }
 
@@ -387,7 +389,7 @@ object EssentialTermsSensors extends Logging {
               cons.getStartSpan,
               cons.getEndSpan,
               EssentialTermsConstants.UNIMPORTANT_LABEL,
-              -1
+              validTokens.getOrElse(cons.getSurfaceForm.toLowerCase(), -1)
             )
           }
         }
@@ -419,7 +421,7 @@ object EssentialTermsSensors extends Logging {
     aristoQ: Question,
     learner: IllinoisLearner
   ): Map[String, Double] = {
-    val questionStruct = annotateQuestion(aristoQ, None)
+    val questionStruct = annotateQuestion(aristoQ, None, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
@@ -434,7 +436,7 @@ object EssentialTermsSensors extends Logging {
     aristoQ: Question,
     learner: IllinoisLearner
   ): Seq[String] = {
-    val questionStruct = annotateQuestion(aristoQ, None)
+    val questionStruct = annotateQuestion(aristoQ, None, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
@@ -449,7 +451,7 @@ object EssentialTermsSensors extends Logging {
     dataModel: ExpandedDataModel,
     learner: ConstrainedClassifier[Constituent, Sentence]
   ): Seq[String] = {
-    val questionStruct = annotateQuestion(aristoQ, None)
+    val questionStruct = annotateQuestion(aristoQ, None, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents

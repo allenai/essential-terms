@@ -120,7 +120,7 @@ class ExpandedLearner(
   //    dataModel.isItSecondToLastSentence,
   //    dataModel.isItCloseToEnd,
   //      dataModel.isAScienceTermConjPos,
-  ) ++ dataModel.baselinePropertiesPOSConjNerConjPos ++
+  ) ++ dataModel.baselinePropertiesSurfaceConjNerConjPos ++
     dataModel.baselinePropertiesPOSConjNer ++
     dataModel.baselinePropertiesPOSConjLemma ++
     dataModel.baselinePropertiesLemma ++

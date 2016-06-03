@@ -16,7 +16,8 @@ case class EssentialTermsQuestion(
     questionTextAnnotation: TextAnnotation,
     salience: Option[List[(MultipleChoiceSelection, SalienceResult)]],
     sumSalience: Option[Map[String, Double]],
-    maxSalience: Option[Map[String, Double]]
+    maxSalience: Option[Map[String, Double]],
+    numAnnotators: Option[Double]
 ) {
   /** Get non-stopword and stopword constituents for the question. */
   def getConstituents(stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {

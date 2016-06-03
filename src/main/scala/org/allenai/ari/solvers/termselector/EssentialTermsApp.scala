@@ -48,8 +48,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = false)
-    testLearner(baselineLearners.lemma, test = true, testOnSentences = false)
+    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = true)
+    testLearner(baselineLearners.lemma, test = true, testOnSentences = true)
     testLearner(baselineLearners.posConjLemma, test = true, testOnSentences = false)
     testLearner(baselineLearners.wordFormConjNer, test = true, testOnSentences = false)
     testLearner(baselineLearners.wordFormConjNerConjPos, test = true, testOnSentences = false)
@@ -441,7 +441,33 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
-    val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
+//    println(allQuestions.size)
+//    println(allQuestions.map{_.numAnnotators.get }.toSet)
+//    println(allQuestions.count{_.numAnnotators.get == 10 })
+//    println(allQuestions.count{_.numAnnotators.get > 4 })
+//    println(allQuestions.count{_.numAnnotators.get == 5 })
+//    println(allQuestions.count{_.numAnnotators.get == 4 })
+//    println(allQuestions.count{_.numAnnotators.get == 3 })
+//    println(allQuestions.count{_.numAnnotators.get == 2 })
+//
+//    println(trainSentences.size)
+//    println(testSentences.size)
+//
+//    val a = allConstituents.toList.groupBy{ _.getConstituentScore }.map{ case (a,b) => (a, b.size)}.toList.sortBy{ case (a,b) => a }
+//    println(a)
+//
+//    a.foreach{ case (b,c) => print(b + "\t" + c + "\n")   }
+//
+//    a.foreach{ case (c,b) => print(c+ "\t" )   }
+//    println("\n")
+//    a.foreach{ case (c,b) => print(b+ "\t" )   }
+//
+//    println(allConstituents.size)
+//
+
+
+
+        val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
       "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (TestConstrainedLearnerWithAristoQuestion) | " +
       "6 (CacheSalienceScores) | 7 (PrintMistakes) | 8 (PrintFeatures) <classifier model>"
     if (args.isEmpty || args.length > 2) {

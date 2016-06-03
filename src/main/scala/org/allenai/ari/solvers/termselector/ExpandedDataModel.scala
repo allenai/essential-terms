@@ -394,7 +394,7 @@ class ExpandedDataModel(
 
   val baselinePropertiesPOSConjNer = baselineProperties(baselineClassifiers.wordFormConjNer)
 
-  val baselinePropertiesPOSConjNerConjPos = baselineProperties(baselineClassifiers.wordFormConjNerConjPos)
+  val baselinePropertiesSurfaceConjNerConjPos = baselineProperties(baselineClassifiers.wordFormConjNerConjPos)
 
   val isAScienceTerm = property(essentialTermTokens) { x: Constituent =>
     scienceTerms.contains(wordForm(x))

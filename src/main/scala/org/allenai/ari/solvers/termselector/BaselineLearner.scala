@@ -40,7 +40,8 @@ object BaselineLearner extends Logging {
     val baselineDataModel = new BaselineDataModel
     val baselineLearnerSurfaceForm = createASingleBaseline(baselineDataModel, baselineDataModel.wordForm, baselineDataModel.goldLabel, "surfaceForm", loadSavedModel)
     val baselineLearnerLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "lemma", loadSavedModel)
-    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "PosConjLemma", loadSavedModel)
+    // fix the output label
+    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.posConjLemma, baselineDataModel.goldLabel, "PosConjLemma", loadSavedModel)
     val baselineLearnerWordFormConjNer = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNer, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNer", loadSavedModel)
     val baselineLearnerWordFormConjNerCojPos = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNerConjPOS, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNerCojPos", loadSavedModel)
     val baselineLearnerLemmaPair = createASingleBaseline(baselineDataModel, baselineDataModel.lemmaPair, baselineDataModel.goldLabelPair, "baselineLearnerLemmaPair", loadSavedModel)
@@ -54,7 +55,8 @@ object BaselineLearner extends Logging {
     */
   def createASingleBaseline(baselineDataModel: BaselineDataModel, input: Property[Constituent],
     output: Property[Constituent], suffix: String, loadSavedModel: Boolean): BaselineLearner = {
-    val baseline = new BaselineLearner(baselineDataModel, baselineDataModel.wordForm, baselineDataModel.goldLabel)
+    //
+    val baseline = new BaselineLearner(baselineDataModel, input, output)
     baseline.modelSuffix = suffix
     if (loadSavedModel) {
       logger.debug(s"Loading baseline classifier ${baseline.getSimpleName} ")
