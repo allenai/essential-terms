@@ -25,6 +25,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   private lazy val baselineLearners = BaselineLearner.makeNewLearners(loadSavedModel)_2
   private lazy val expandedLearner = ExpandedLearner.makeNewLearner(loadSavedModel, classifierModel)._4
   private lazy val (expandedDataModel, constrainedLearner) = ConstrainedLearner.makeNewLearner(classifierModel)
+  private lazy val salienceLearner = SalienceBaseline.makeNewLearners()
 
   def trainAndTestBaselineLearners(testOnSentences: Boolean = false): Unit = {
     trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true,
@@ -61,9 +62,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       "December (B) June (C) March (D) September"
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
-    val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
-    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
-    val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
+    val aristoQuestion = decomposeQuestion(q)
     val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
@@ -74,12 +73,20 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       "December (B) June (C) March (D) September"
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
-    val maybeSplitQuestion = ParentheticalChoiceIdentifier(q)
-    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
-    val aristoQuestion = Question(q, Some(maybeSplitQuestion.question), multipleChoiceSelection)
+    val aristoQuestion = decomposeQuestion(q)
     val essentialTerms = getEssentialTermsForAristoQuestionConstrainedLearner(aristoQuestion, expandedDataModel, constrainedLearner)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
   }
+
+  def testSalienceWithSampleAristoQuestion(): Unit = {
+    val q = "In New York State, the longest period of daylight occurs during which month? (A) " +
+      "December (B) June (C) March (D) September"
+    val aristoQuestion = decomposeQuestion(q)
+    val scores = salienceLearner.getEssentialTermScores(aristoQuestion)
+    logger.debug(scores.toString)
+    //logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
+  }
+
 
   def cacheSalienceScoresInRedis(): Unit = {
     val r = new RedisClient("localhost", 6379)
@@ -441,35 +448,34 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
-//    println(allQuestions.size)
-//    println(allQuestions.map{_.numAnnotators.get }.toSet)
-//    println(allQuestions.count{_.numAnnotators.get == 10 })
-//    println(allQuestions.count{_.numAnnotators.get > 4 })
-//    println(allQuestions.count{_.numAnnotators.get == 5 })
-//    println(allQuestions.count{_.numAnnotators.get == 4 })
-//    println(allQuestions.count{_.numAnnotators.get == 3 })
-//    println(allQuestions.count{_.numAnnotators.get == 2 })
-//
-//    println(trainSentences.size)
-//    println(testSentences.size)
-//
-//    val a = allConstituents.toList.groupBy{ _.getConstituentScore }.map{ case (a,b) => (a, b.size)}.toList.sortBy{ case (a,b) => a }
-//    println(a)
-//
-//    a.foreach{ case (b,c) => print(b + "\t" + c + "\n")   }
-//
-//    a.foreach{ case (c,b) => print(c+ "\t" )   }
-//    println("\n")
-//    a.foreach{ case (c,b) => print(b+ "\t" )   }
-//
-//    println(allConstituents.size)
-//
+    //    println(allQuestions.size)
+    //    println(allQuestions.map{_.numAnnotators.get }.toSet)
+    //    println(allQuestions.count{_.numAnnotators.get == 10 })
+    //    println(allQuestions.count{_.numAnnotators.get > 4 })
+    //    println(allQuestions.count{_.numAnnotators.get == 5 })
+    //    println(allQuestions.count{_.numAnnotators.get == 4 })
+    //    println(allQuestions.count{_.numAnnotators.get == 3 })
+    //    println(allQuestions.count{_.numAnnotators.get == 2 })
+    //
+    //    println(trainSentences.size)
+    //    println(testSentences.size)
+    //
+    //    val a = allConstituents.toList.groupBy{ _.getConstituentScore }.map{ case (a,b) => (a, b.size)}.toList.sortBy{ case (a,b) => a }
+    //    println(a)
+    //
+    //    a.foreach{ case (b,c) => print(b + "\t" + c + "\n")   }
+    //
+    //    a.foreach{ case (c,b) => print(c+ "\t" )   }
+    //    println("\n")
+    //    a.foreach{ case (c,b) => print(b+ "\t" )   }
+    //
+    //    println(allConstituents.size)
+    //
 
-
-
-        val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
+    val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
       "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (TestConstrainedLearnerWithAristoQuestion) | " +
-      "6 (CacheSalienceScores) | 7 (PrintMistakes) | 8 (PrintFeatures) <classifier model>"
+      "6 (CacheSalienceScores) | 7 (PrintMistakes) | 8 (PrintFeatures) | " +
+      "9 (TestSalienceBaslineWithAristoQuestion) <classifier model>"
     if (args.isEmpty || args.length > 2) {
       throw new IllegalArgumentException(usageStr)
     } else {
@@ -500,6 +506,9 @@ object EssentialTermsApp extends Logging {
         case "8" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
           essentialTermsApp.printAllFeatures()
+        case "9" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          essentialTermsApp.testSalienceWithSampleAristoQuestion()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }
