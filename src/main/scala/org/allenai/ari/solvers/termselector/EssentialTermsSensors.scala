@@ -116,7 +116,7 @@ object EssentialTermsSensors extends Logging {
     Random.setSeed(10)
     val (regents, nonRegents) = allQuestions.partition(q => regentsSet.contains(q.aristoQuestion.text))
     val trainSize = (trainProb * allQuestions.size).toInt
-    val (train, test_nonRegents) = nonRegents.splitAt(trainSize - regents.size)
+    val (train, test_nonRegents) = Random.shuffle(nonRegents).splitAt(trainSize)
     val test = test_nonRegents ++ regents // add regents to the test data
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
