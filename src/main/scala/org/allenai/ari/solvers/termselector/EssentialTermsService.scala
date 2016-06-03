@@ -105,7 +105,6 @@ class EssentialTermsService @Inject() (
     }
     termsAndScoreJsonOpt match {
       case Some(termsAndScoreJson) =>
-        logger.info(s"FOUND IT!")
         termsAndScoreJson.parseJson.convertTo[(Seq[String], Map[String, Double])]
       case None =>
         val (terms, scores) = computeEssentialTermsAndScores(aristoQ)
