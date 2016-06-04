@@ -27,10 +27,16 @@ class SalienceBaseline(essentialTermsDataModel: ExpandedDataModel, useMax: Boole
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
+    println(questionStruct)
+    println(questionStruct.maxSalience)
+    println(questionStruct.sumSalience)
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
-    (constituents.map(c => c.getSurfaceForm -> (if (useMax) essentialTermsDataModel.maxSalience(c) else essentialTermsDataModel.sumSalience(c)).toDouble) ++
-      essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
-      nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }).toMap
+    val a = (constituents.map(c => c.getSurfaceForm -> (if (useMax) essentialTermsDataModel.maxSalience(c) else essentialTermsDataModel.sumSalience(c)))// ++
+      /*essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
+      nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }*/).toMap
+    println("bluh . . . ")
+    println(a)
+    a
   }
 
   override def getEssentialTerms(aristoQuestion: Question): Seq[String] = {

@@ -1,5 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
+import ch.qos.logback.classic.Level
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
@@ -28,6 +29,8 @@ import spray.json._
 import DefaultJsonProtocol._
 
 import scala.collection.JavaConverters._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.io.Codec
 import scala.util.Random
 
@@ -141,6 +144,7 @@ object EssentialTermsSensors extends Logging {
   }: _*)
 
   lazy val (salienceScorer, actorSystem) = {
+    loggerConfig.Logger("org.allenai.wumpus.client.WumpusClient").setLevel(Level.ERROR)
     implicit val system = ActorSystem("ari-http-solver")
     val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
     val localConfig = rootConfig.getConfig("ari.solvers.common").withValue(
@@ -283,7 +287,16 @@ object EssentialTermsSensors extends Logging {
     // logger.info(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
 
     // salience
-    val salienceResultOpt = salienceMap.get(aristoQuestion.rawQuestion)
+    val salienceResultOpt = {
+      val mapOpt = salienceMap.get(aristoQuestion.rawQuestion)
+      if(mapOpt.isDefined) {
+        println("Found the salience score in the static map . . . ")
+        mapOpt
+      } else {
+        cacheSalienceScoresInRedis(aristoQuestion)
+      }
+    }
+
     val (avgSalienceOpt, maxSalienceOpt) = {
       salienceResultOpt match {
         case Some(result) =>
@@ -318,6 +331,24 @@ object EssentialTermsSensors extends Logging {
       maxSalienceOpt,
       numAnnotators
     )
+  }
+
+  def cacheSalienceScoresInRedis(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
+    if (!annotationRedisCache.exists(q.rawQuestion) && q.selections.nonEmpty) {
+      logger.debug(" ===> Caching . . . ")
+      logger.debug(q.rawQuestion)
+      logger.debug(q.toString)
+      val resultFuture = salienceScorer.salienceFor(q)
+      val result = Await.result(resultFuture, Duration.Inf)
+      val resultJson = result.toList.toJson
+      annotationRedisCache.set("***SalienceScore=" + q.rawQuestion, resultJson.compactPrint)
+      Some(result.toList)
+    } else {
+      logger.debug(" ===> Skipping . . . ")
+      logger.debug(q.rawQuestion)
+      logger.debug(q.toString)
+      None
+    }
   }
 
   // TODO(daniel): you can get rid of this output; right?

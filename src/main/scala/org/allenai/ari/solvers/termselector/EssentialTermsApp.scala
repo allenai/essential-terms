@@ -87,22 +87,10 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     //logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
   }
 
-
-  def cacheSalienceScoresInRedis(): Unit = {
-    val r = new RedisClient("localhost", 6379)
+  def cacheSalienceScoresForAllQuestionsInRedis(): Unit = {
     allQuestions.foreach { q =>
-      if (!r.exists(q.rawQuestion) && q.aristoQuestion.selections.nonEmpty) {
-        logger.debug(" ===> Caching . . . ")
-        logger.debug(q.rawQuestion)
-        logger.debug(q.aristoQuestion.toString)
-        val resultFuture = salienceScorer.salienceFor(q.aristoQuestion)
-        val result = Await.result(resultFuture, Duration.Inf)
-        val resultJson = result.toList.toJson
-        r.set(q.rawQuestion, resultJson.compactPrint)
-      } else {
-        logger.debug(" ===> Skipping . . . ")
-        logger.debug(q.rawQuestion)
-        logger.debug(q.aristoQuestion.toString)
+      if (!annotationRedisCache.exists(q.rawQuestion) && q.aristoQuestion.selections.nonEmpty) {
+        cacheSalienceScoresInRedis(q.aristoQuestion)
       }
     }
     actorSystem.terminate()
@@ -499,7 +487,7 @@ object EssentialTermsApp extends Logging {
           essentialTermsApp.testConstrainedLearnerWithSampleAristoQuestion()
         case "6" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, classifierModel)
-          essentialTermsApp.cacheSalienceScoresInRedis()
+          essentialTermsApp.cacheSalienceScoresForAllQuestionsInRedis()
         case "7" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, classifierModel)
           essentialTermsApp.printMistakes()
@@ -513,5 +501,6 @@ object EssentialTermsApp extends Logging {
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }
     }
+    actorSystem.terminate()
   }
 }
