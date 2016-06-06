@@ -10,11 +10,14 @@ import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence, TextAnnotation, TokenLabelView }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
+  Constituent,
+  TextAnnotation,
+  TokenLabelView
+}
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
 import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
-import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
@@ -56,7 +59,8 @@ object EssentialTermsSensors extends Logging {
     stopWordsFile.close()
     stopWords.toSet ++ Set("__________")
   }
-  // since we never to learning on the above stopwords, we choose a subset of the stopwords to ALWAYS be essential
+  // since we never to learning on the above stopwords, we choose a subset of the stopwords to
+  // ALWAYS be essential
   lazy val essentialStopWords = Set("all", "any", "because", "before", "both", "but")
   val ESSENTIAL_STOPWORD_SCORE = 0.8
   lazy val nonessentialStopWords = stopWords.--(essentialStopWords)
@@ -255,7 +259,7 @@ object EssentialTermsSensors extends Logging {
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
   }
 
-  def decomposeQuestion(question: String): Question = {
+  private def decomposeQuestion(question: String): Question = {
     val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
     val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
     Question(question, Some(maybeSplitQuestion.question),
@@ -269,8 +273,10 @@ object EssentialTermsSensors extends Logging {
   ): EssentialTermsQuestion = {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
-    val cacheKey = aristoQuestion.text.get + views.asScala.mkString
-    val redisAnnotation = annotationRedisCache.get(cacheKey)
+    val cacheKey = "AnnotationCache***" + aristoQuestion.text.get + views.asScala.mkString
+    val redisAnnotation = this.synchronized {
+      annotationRedisCache.get(cacheKey)
+    }
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
@@ -280,7 +286,9 @@ object EssentialTermsSensors extends Logging {
           logger.error(s">>>>>>>>>>>>>>>>>>>>> ${aristoQuestion.text.get}")
         }
       }
-      annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+      this.synchronized {
+        annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+      }
       ta
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
@@ -379,6 +387,8 @@ object EssentialTermsSensors extends Logging {
     ta: TextAnnotation,
     tokenScoreMapOpt: Option[Map[String, Double]]
   ): TextAnnotation = {
+    // since the annotated questions have different tokenizations, we first tokenize then assign
+    // scores to tokens of spans
     // since the annotated questions have different tokenizations, we first tokenize then asign essentiality scores
     // to tokens of spans
     val viewNamesForParsingEssentialTermTokens = if (combineNamedEntities) Set(ViewNames.TOKENS, ViewNames.NER_CONLL) else Set(ViewNames.TOKENS)
@@ -397,17 +407,18 @@ object EssentialTermsSensors extends Logging {
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
-              val ta = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
+              val tokenTaTmp = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 viewNamesForParsingEssentialTermTokens.asJava)
               annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
-              ta
+              tokenTaTmp
             }
             val combinedConstituents = if (combineNamedEntities) {
               getCombinedConsituents(tokenTa)
             } else {
               tokenTa.getView(ViewNames.TOKENS).getConstituents.asScala
             }
-            val constituents = combinedConstituents.filter(_.getSurfaceForm.length > 2) // ignore constituents of short span
+            val constituents = combinedConstituents.
+              filter(_.getSurfaceForm.length > 2) // ignore constituents of short span
             constituents.map(cons => (cons.getSurfaceForm.toLowerCase(), score))
           case _ => List.empty
         }
@@ -459,7 +470,8 @@ object EssentialTermsSensors extends Logging {
   ): Map[String, Double] = {
     val questionStruct = annotateQuestion(aristoQ, None, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
-    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
+    val (essentialConstituents, nonEssentialConstituents) =
+      questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.essentialTermTokens.populate(constituents)
@@ -474,7 +486,8 @@ object EssentialTermsSensors extends Logging {
   ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
-    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
+    val (essentialConstituents, nonEssentialConstituents) =
+      questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.essentialTermTokens.populate(constituents)
