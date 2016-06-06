@@ -289,11 +289,16 @@ object EssentialTermsSensors extends Logging {
     // salience
     val salienceResultOpt = {
       val mapOpt = salienceMap.get(aristoQuestion.rawQuestion)
+      // TODO(daniel) move it to application.conf as an option
+      val checkForMissingSalienceScores = false
       if(mapOpt.isDefined) {
         println("Found the salience score in the static map . . . ")
         mapOpt
-      } else {
+      } else if (checkForMissingSalienceScores) {
         cacheSalienceScoresInRedis(aristoQuestion)
+      } else {
+        println("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
+        None
       }
     }
 
