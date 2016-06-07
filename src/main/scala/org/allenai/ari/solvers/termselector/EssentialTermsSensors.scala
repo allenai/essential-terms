@@ -45,10 +45,12 @@ protected case object EssentialTermsConstants {
   val ANNOTATION_PREFIX = "AnnotationCache***"
   val SALIENCE_PREFIX = "***SalienceScore="
   val TOKENIZATION_PREFIX = "**essentialTermTokenization:"
+
+  // cache files
+  val SALIENCE_CACHE = "salienceCache.txt"
 }
 
 object EssentialTermsSensors extends Logging {
-  val annotationCache = ""
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
@@ -118,9 +120,9 @@ object EssentialTermsSensors extends Logging {
   lazy val w2vModel = Word2VecModel.fromBinFile(word2vecFile)
   lazy val w2vNoMatchStr = "</s>" // string used by word2vec when there is no match
 
-  private lazy val salienceMap = {
+  lazy val salienceMap = {
     val salienceCache = EssentialTermsUtils.getDatastoreFileAsSource(
-      "public", "org.allenai.termselector", "salienceCache.txt", 1
+      "public", "org.allenai.termselector", EssentialTermsConstants.SALIENCE_CACHE, 2
     )
     val lines = salienceCache.getLines
     val cache = lines.grouped(2).map {
@@ -429,7 +431,7 @@ object EssentialTermsSensors extends Logging {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
-            val cacheKey =  EssentialTermsConstants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
+            val cacheKey = EssentialTermsConstants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
             val redisAnnotation = redisGet(cacheKey)
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
