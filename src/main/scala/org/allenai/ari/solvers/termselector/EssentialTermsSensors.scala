@@ -5,23 +5,17 @@ import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
-import org.allenai.common.{ Logging, FileUtils }
+import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
-
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{
-  Constituent,
-  TextAnnotation,
-  TokenLabelView
-}
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence, TextAnnotation, TokenLabelView }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
 import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
-
 import akka.actor.ActorSystem
 import com.google.inject.Guice
 import com.medallia.word2vec.Word2VecModel
@@ -36,9 +30,10 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.io.Codec
 import scala.util.Random
-
 import java.io.File
 import java.util.Properties
+
+import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 
 protected case object EssentialTermsConstants {
   val VIEW_NAME = "ESSENTIAL_TERMS"
@@ -84,6 +79,32 @@ object EssentialTermsSensors extends Logging {
   // redis cache for annotations
   // TODO(daniel): create a key in application.conf for activating this feature
   lazy val annotationRedisCache = new RedisClient("localhost", 6379)
+
+  private def redisGet(key: String): Option[String] = {
+    try {
+      this.synchronized(annotationRedisCache.get(key))
+    } catch {
+      case e: Exception => {
+        logger.error("Fetching information from redis failed!")
+        logger.error(s"Key: $key")
+        e.printStackTrace()
+        None
+      }
+    }
+  }
+
+  private def redisSet(key: String, value: String): Unit = {
+    try {
+      this.synchronized(annotationRedisCache.set(key, value))
+    } catch {
+      case e: Exception => {
+        logger.error("Setting information in redis failed!")
+        logger.error(s"Key: $key")
+        e.printStackTrace()
+        None
+      }
+    }
+  }
 
   // TODO(danm): This path should come from config so anyone can run the code.
   private lazy val word2vecFile = new File(
@@ -259,7 +280,7 @@ object EssentialTermsSensors extends Logging {
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
   }
 
-  private def decomposeQuestion(question: String): Question = {
+  def decomposeQuestion(question: String): Question = {
     val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
     val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
     Question(question, Some(maybeSplitQuestion.question),
@@ -274,9 +295,7 @@ object EssentialTermsSensors extends Logging {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
     val cacheKey = "AnnotationCache***" + aristoQuestion.text.get + views.asScala.mkString
-    val redisAnnotation = this.synchronized {
-      annotationRedisCache.get(cacheKey)
-    }
+    val redisAnnotation = redisGet(cacheKey)
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
@@ -286,29 +305,14 @@ object EssentialTermsSensors extends Logging {
           logger.error(s">>>>>>>>>>>>>>>>>>>>> ${aristoQuestion.text.get}")
         }
       }
-      this.synchronized {
-        annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
-      }
+      redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
       ta
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
     // logger.info(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
 
     // salience
-    val salienceResultOpt = {
-      val mapOpt = salienceMap.get(aristoQuestion.rawQuestion)
-      // TODO(daniel) move it to application.conf as an option
-      val checkForMissingSalienceScores = false
-      if(mapOpt.isDefined) {
-        println("Found the salience score in the static map . . . ")
-        mapOpt
-      } else if (checkForMissingSalienceScores) {
-        cacheSalienceScoresInRedis(aristoQuestion)
-      } else {
-        println("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
-        None
-      }
-    }
+    val salienceResultOpt = getSalienceScores(aristoQuestion)
 
     val (avgSalienceOpt, maxSalienceOpt) = {
       salienceResultOpt match {
@@ -346,18 +350,36 @@ object EssentialTermsSensors extends Logging {
     )
   }
 
-  def cacheSalienceScoresInRedis(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
-    if (!annotationRedisCache.exists(q.rawQuestion) && q.selections.nonEmpty) {
-      logger.debug(" ===> Caching . . . ")
-      logger.debug(q.rawQuestion)
-      logger.debug(q.toString)
-      val resultFuture = salienceScorer.salienceFor(q)
-      val result = Await.result(resultFuture, Duration.Inf)
-      val resultJson = result.toList.toJson
-      annotationRedisCache.set("***SalienceScore=" + q.rawQuestion, resultJson.compactPrint)
-      Some(result.toList)
+  /** given an aristo question it looks up the salience annotation, either from an static map, or queries salience service */
+  def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
+    val mapOpt = salienceMap.get(q.rawQuestion)
+    // TODO(daniel) move it to application.conf as an option
+    val checkForMissingSalienceScores = true
+    if (mapOpt.isDefined) {
+      logger.debug("Found the salience score in the static map . . . ")
+      mapOpt
+    } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
+      val redisSalienceKey = "***SalienceScore=" + q.rawQuestion
+      val salienceFromRedis = redisGet(redisSalienceKey)
+      if (salienceFromRedis.isDefined) {
+        logger.debug("Found the salience score in the redis map . . . ")
+        Some(salienceFromRedis.get.parseJson.convertTo[List[(MultipleChoiceSelection, SalienceResult)]])
+      } else {
+        logger.debug(" ===> Caching . . . ")
+        logger.debug(q.rawQuestion)
+        logger.debug(q.toString)
+        val resultFuture = salienceScorer.salienceFor(q)
+        val result = Await.result(resultFuture, Duration.Inf)
+        val resultJson = result.toList.toJson
+        redisSet(redisSalienceKey, resultJson.compactPrint)
+        Some(result.toList)
+      }
     } else {
-      logger.debug(" ===> Skipping . . . ")
+      if (!checkForMissingSalienceScores) {
+        logger.debug("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
+      } else {
+        logger.debug("Question does not options . . . ")
+      }
       logger.debug(q.rawQuestion)
       logger.debug(q.toString)
       None
@@ -403,13 +425,13 @@ object EssentialTermsSensors extends Logging {
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
             val cacheKey = "**essentialTermTokenization:" + tokenString + viewNamesForParsingEssentialTermTokens.toString
-            val redisAnnotation = annotationRedisCache.get(cacheKey)
+            val redisAnnotation = redisGet(cacheKey)
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
               val tokenTaTmp = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 viewNamesForParsingEssentialTermTokens.asJava)
-              annotationRedisCache.set(cacheKey, SerializationHelper.serializeToJson(ta))
+              redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
               tokenTaTmp
             }
             val combinedConstituents = if (combineNamedEntities) {
