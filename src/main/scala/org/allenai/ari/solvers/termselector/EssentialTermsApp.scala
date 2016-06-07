@@ -529,6 +529,25 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     logger.info(s"Score after tuning: $topScore / threshold after tuning: $topThreshold")
 
   }
+
+  /** saving all the annotations in the cache */
+  def saveRedisAnnotationCache(): Unit = {
+    val keys = annotationRedisCache.keys().get
+    logger.info(s"Saving ${keys.size} elements in the cache. ")
+    val writer = new PrintWriter(new File(annotationCache))
+    keys.foreach{ key =>
+      val value = if(key.isDefined && key.get.contains(EssentialTermsConstants.SALIENCE_PREFIX) ) {
+        annotationRedisCache.get(key.get)
+      }
+      else {
+        None
+      }
+      if(value.isDefined && key.isDefined) {
+        writer.write(s"${key.get}\n${value.get}\n")
+      }
+    }
+    writer.close()
+  }
 }
 
 /** An EssentialTermsApp companion object with main() method. */

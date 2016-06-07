@@ -40,10 +40,15 @@ protected case object EssentialTermsConstants {
   val IMPORTANT_LABEL = "IMPORTANT"
   val UNIMPORTANT_LABEL = "NOT-IMPORTANT"
   val LABEL_SEPARATOR = "*|*|*"
+
+  // annotation keys
+  val ANNOTATION_PREFIX = "AnnotationCache***"
+  val SALIENCE_PREFIX = "***SalienceScore="
+  val TOKENIZATION_PREFIX = "**essentialTermTokenization:"
 }
 
 object EssentialTermsSensors extends Logging {
-
+  val annotationCache = ""
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
@@ -294,7 +299,7 @@ object EssentialTermsSensors extends Logging {
   ): EssentialTermsQuestion = {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
-    val cacheKey = "AnnotationCache***" + aristoQuestion.text.get + views.asScala.mkString
+    val cacheKey = EssentialTermsConstants.ANNOTATION_PREFIX + aristoQuestion.text.get + views.asScala.mkString
     val redisAnnotation = redisGet(cacheKey)
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
@@ -359,7 +364,7 @@ object EssentialTermsSensors extends Logging {
       logger.debug("Found the salience score in the static map . . . ")
       mapOpt
     } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
-      val redisSalienceKey = "***SalienceScore=" + q.rawQuestion
+      val redisSalienceKey = EssentialTermsConstants.SALIENCE_PREFIX + q.rawQuestion
       val salienceFromRedis = redisGet(redisSalienceKey)
       if (salienceFromRedis.isDefined) {
         logger.debug("Found the salience score in the redis map . . . ")
@@ -424,7 +429,7 @@ object EssentialTermsSensors extends Logging {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
-            val cacheKey = "**essentialTermTokenization:" + tokenString + viewNamesForParsingEssentialTermTokens.toString
+            val cacheKey =  EssentialTermsConstants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
             val redisAnnotation = redisGet(cacheKey)
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
