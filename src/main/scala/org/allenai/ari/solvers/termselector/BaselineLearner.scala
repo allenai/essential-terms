@@ -1,7 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 import org.allenai.common.Logging
 
@@ -26,6 +25,14 @@ class BaselineLearner(
 
   override def feature = using(input)
   override val logging = true
+
+  override def predictProbOfBeingEssential(c: Constituent): Double = {
+    val scores = classifier.scores(c).toArray
+    val rawScore = scores.collect {
+      case score if score.value == EssentialTermsConstants.IMPORTANT_LABEL => score.score
+    }.headOption.getOrElse(0.0) // if we have not seen the word in the training data it is never important
+    rawScore
+  }
 }
 
 object BaselineLearner extends Logging {
@@ -40,7 +47,7 @@ object BaselineLearner extends Logging {
     val baselineDataModel = new BaselineDataModel
     val baselineLearnerSurfaceForm = createASingleBaseline(baselineDataModel, baselineDataModel.wordForm, baselineDataModel.goldLabel, "surfaceForm", loadSavedModel)
     val baselineLearnerLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "lemma", loadSavedModel)
-    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "PosConjLemma", loadSavedModel)
+    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.posConjLemma, baselineDataModel.goldLabel, "PosConjLemma", loadSavedModel)
     val baselineLearnerWordFormConjNer = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNer, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNer", loadSavedModel)
     val baselineLearnerWordFormConjNerCojPos = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNerConjPOS, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNerCojPos", loadSavedModel)
     val baselineLearnerLemmaPair = createASingleBaseline(baselineDataModel, baselineDataModel.lemmaPair, baselineDataModel.goldLabelPair, "baselineLearnerLemmaPair", loadSavedModel)
