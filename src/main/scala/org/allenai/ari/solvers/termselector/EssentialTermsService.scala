@@ -43,8 +43,8 @@ class EssentialTermsService @Inject() (
     }
   }
 
-  /** Get essential terms for a given question (selected via confidenceThreshold, if provided), as well as essential
-    * term scores for a given question.
+  /** Get essential terms for a given question (selected via confidenceThreshold, if provided),
+    * as well as essential term scores for a given question.
     */
   def getEssentialTermsAndScores(aristoQ: Question): (Seq[String], Map[String, Double]) = {
     val termsWithScores = getEssentialTermScores(aristoQ)
