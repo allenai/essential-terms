@@ -127,7 +127,8 @@ class ExpandedLearner(
     dataModel.baselinePropertiesSurfaceForm ++
     beforeAfterPropertiesGivenView(ViewNames.TOKENS) ++
     beforeAfterPropertiesWHWords ++
-    dataModel.baselinePropertiesLemmaPair
+    dataModel.baselinePropertiesLemmaPair ++
+    dataModel.baselinesWithThresholds
 
   override val logging = true
 
@@ -169,8 +170,9 @@ object ExpandedLearner extends Logging {
     classifierModel: String
   ): (BaselineDataModel, BaselineLearners, ExpandedDataModel, ExpandedLearner) = {
     val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel)
-    lazy val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners)
-    lazy val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
+    val salienceLearners = SalienceBaseline.makeNewLearners()
+    val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
+    val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
     expandedLearner.modelSuffix = classifierModel
     if (loadSavedModel) {
       logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")

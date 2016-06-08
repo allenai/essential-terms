@@ -14,7 +14,8 @@ import scala.collection.JavaConverters._
   */
 class ExpandedDataModel(
     baselineDataModel: BaselineDataModel,
-    baselineClassifiers: BaselineLearners
+    baselineClassifiers: BaselineLearners,
+    salienceBaselines: SalienceBaselines
 ) extends IllinoisDataModel {
 
   // first copy relevant fields from BaselineDataModel and the underlying (mutable) DataModel
@@ -45,6 +46,8 @@ class ExpandedDataModel(
   val conflatedPosConjLemma = baselineDataModel.conflatedPosConjLemma
   val conflatedPosConjWordform = baselineDataModel.conflatedPosConjWordform
   val conflatedPosConjNer = baselineDataModel.conflatedPosConjNer
+  val maxSalience = baselineDataModel.maxSalience
+  val sumSalience = baselineDataModel.sumSalience
 
   val deAdjectivalAbstractNounsSuffixes = property(essentialTermTokens) { x: Constituent =>
     WordFeatureExtractorFactory.deAdjectivalAbstractNounsSuffixes.getFeatures(x).asScala.mkString
@@ -301,6 +304,10 @@ class ExpandedDataModel(
     ChunkEmbedding.NER.getFeatures(x).asScala.mkString
   }
 
+  val baselineLabelWithThreshold = (b: IllinoisLearner, ths: Seq[Double]) => property(essentialTermTokens, cache = true) {
+    x: Constituent => ths.map { th => b.predictLabel(x, th) }.toList
+  }
+
   val baselineTargetP = (b: BaselineLearner) => property(essentialTermTokens, cache = true) { x: Constituent =>
     b(x)
   }
@@ -376,6 +383,16 @@ class ExpandedDataModel(
       L2bL1b(b),
       L1bL1a(b),
       L1aL2a(b)
+    )
+  }
+
+  // group of baselines cut in different thresholds
+  val baselinesWithThresholds = {
+    List(
+      baselineLabelWithThreshold(baselineClassifiers.lemma, Seq(0.73, 0.63, 0.54, 0.46, 0.38, 0.37, 0.31, 0.24, 0.19)),
+      baselineLabelWithThreshold(baselineClassifiers.surfaceForm, Seq(0.72, 0.60, 0.46, 0.37, 0.35, 0.33, 0.24, 0.19)),
+      baselineLabelWithThreshold(salienceBaselines.max, Seq(0.18, 0.10, 0.08, 0.04, 0.02, 0.01)),
+      baselineLabelWithThreshold(salienceBaselines.sum, Seq(0.39, 0.37, 0.26, 0.09, 0.06, 0.03))
     )
   }
 
@@ -513,22 +530,6 @@ class ExpandedDataModel(
   val w2v = property(essentialTermTokens, cache = true) { x: Constituent =>
     val key = if (w2vModel.forSearch().contains(wordForm(x))) wordForm(x) else w2vNoMatchStr
     w2vModel.forSearch().getRawVector(key).asScala.map(_.doubleValue()).toList.head
-  }
-
-  val maxSalience = property(essentialTermTokens) { x: Constituent =>
-    val salienceOpt = constituentToAnnotationMap(x).maxSalience
-    salienceOpt match {
-      case Some(s) => s.getOrElse(wordForm(x), 0d)
-      case None => 0d
-    }
-  }
-
-  val sumSalience = property(essentialTermTokens) { x: Constituent =>
-    val salienceOpt = constituentToAnnotationMap(x).sumSalience
-    salienceOpt match {
-      case Some(s) => s.getOrElse(wordForm(x), 0d)
-      case None => 0d
-    }
   }
 
   val chunkLabel = property(essentialTermTokens) { x: Constituent =>

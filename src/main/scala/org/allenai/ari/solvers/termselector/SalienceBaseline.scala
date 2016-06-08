@@ -7,12 +7,12 @@ import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector
 import org.allenai.common.Logging
 
-/** @param essentialTermsDataModel
-  * @param useMax whether to use max or summation
+/** @param baselineDataModel
+  * @param useMax whether to use max or summation. If true, would return maxSalience; sumSalience otherwise
   */
-class SalienceBaseline(essentialTermsDataModel: ExpandedDataModel, useMax: Boolean) extends IllinoisLearner(essentialTermsDataModel) with EssentialTermsLearner {
+class SalienceBaseline(baselineDataModel: BaselineDataModel, useMax: Boolean) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
 
-  override def dataModel: IllinoisDataModel = essentialTermsDataModel
+  override def dataModel: IllinoisDataModel = baselineDataModel
 
   override def label = dataModel.goldLabel
 
@@ -28,24 +28,21 @@ class SalienceBaseline(essentialTermsDataModel: ExpandedDataModel, useMax: Boole
     logger.debug("MaxSalience: " + questionStruct.maxSalience)
     logger.debug("SumSalience: " + questionStruct.sumSalience)
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
-    (constituents.map(c => c.getSurfaceForm -> (if (useMax) essentialTermsDataModel.maxSalience(c) else essentialTermsDataModel.sumSalience(c))) // ++
+    (constituents.map(c => c.getSurfaceForm -> (if (useMax) baselineDataModel.maxSalience(c) else baselineDataModel.sumSalience(c))) // ++
     /*essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
       nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }*/ ).toMap
   }
 
-  /** the threshold used in prediction of discrete values; these values are usually set by tuning. */
-  val threshold = if (useMax) 0.5 else 0.5
-
-  override def getEssentialTerms(aristoQuestion: Question): Seq[String] = {
+  override def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = {
     val scores = getEssentialTermScores(aristoQuestion)
     scores.collect { case (str, score) if score > threshold => str }.toSeq
   }
 
   override def predictProbOfBeingEssential(c: Constituent): Double = {
-    if (useMax) essentialTermsDataModel.maxSalience(c) else essentialTermsDataModel.sumSalience(c)
+    if (useMax) baselineDataModel.maxSalience(c) else baselineDataModel.sumSalience(c)
   }
 
-  override def predictLabel(c: Constituent): String = {
+  override def predictLabel(c: Constituent, threshold: Double): String = {
     if (predictProbOfBeingEssential(c) > threshold) {
       EssentialTermsConstants.IMPORTANT_LABEL
     } else {
@@ -55,14 +52,13 @@ class SalienceBaseline(essentialTermsDataModel: ExpandedDataModel, useMax: Boole
 }
 
 object SalienceBaseline extends Logging {
-  /** @param maxSalience if true, would return maxSalience; sumSalience otherwise
-    * @return
-    */
-  def makeNewLearners(maxSalience: Boolean): IllinoisLearner = {
+  def makeNewLearners(): SalienceBaselines = {
     val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel = false)
-    val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners)
-    val salienceBaseline = new SalienceBaseline(expandedDataModel, maxSalience)
-    salienceBaseline
+    val max = new SalienceBaseline(baselineDataModel, true)
+    val sum = new SalienceBaseline(baselineDataModel, false)
+    SalienceBaselines(max, sum)
   }
 }
+
+case class SalienceBaselines(max: SalienceBaseline, sum: SalienceBaseline)
 

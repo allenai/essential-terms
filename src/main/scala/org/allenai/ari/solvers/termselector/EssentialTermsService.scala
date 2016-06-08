@@ -25,7 +25,8 @@ class EssentialTermsService @Inject() (
   private lazy val learner: EssentialTermsLearner = {
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
-      case "Lookup" => new LookupLearner(None)
+      case "Lookup" => new LookupLearner()
+      case "Salience" => SalienceBaseline.makeNewLearners().max
       case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.surfaceForm
       case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel)._4
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
@@ -68,13 +69,9 @@ class EssentialTermsService @Inject() (
 
   /** Compute essential terms for a given question; use confidenceThreshold if provided. */
   private def computeEssentialTerms(aristoQ: Question): Seq[String] = {
-    confidenceThreshold match {
-      case threshold if threshold >= 0 =>
-        val termsWithScores = computeEssentialTermScores(aristoQ)
-        termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
-      case _ =>
-        learner.getEssentialTerms(aristoQ)
-    }
+    require(confidenceThreshold >= 0, "The defined threshold must be bigger than zero . . . ")
+    val termsWithScores = computeEssentialTermScores(aristoQ)
+    termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
   }
 
   /** Compute essential terms for a given question (selected via confidenceThreshold, if provided),
@@ -83,13 +80,10 @@ class EssentialTermsService @Inject() (
   private def computeEssentialTermsAndScores(
     aristoQ: Question
   ): (Seq[String], Map[String, Double]) = {
+    require(confidenceThreshold >= 0, "The defined threshold must be bigger than zero . . . ")
     val termsWithScores = computeEssentialTermScores(aristoQ)
-    val essentialTerms = confidenceThreshold match {
-      case threshold if threshold >= 0 =>
-        termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
-      case _ =>
-        learner.getEssentialTerms(aristoQ)
-    }
+    val essentialTerms = termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
+
     (essentialTerms, termsWithScores)
   }
 

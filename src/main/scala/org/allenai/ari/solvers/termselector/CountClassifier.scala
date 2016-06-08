@@ -16,18 +16,25 @@ class CountClassifier extends POSBaselineLearner {
     }
   }
 
-  /** get probabiltiy score for the baselines */
+  /** get probability score for the baselines */
   override def scores(example: AnyRef): ScoreSet = {
     val scoreSet = new ScoreSet()
     val form = extractor.discreteValue(example)
-    val countsMap = table.get(form).asScala
-    val countSum = countsMap.values.foldRight(0)(_ + _)
-    if (countsMap.nonEmpty) {
-      countsMap.foreach { case (label, count) => scoreSet.put(label, count.toDouble / countSum) }
+    val countsMap = table.get(form)
+    if (countsMap != null) {
+      val countsMapScala = countsMap.asScala
+      val countSum = if (countsMap.values.size > 1) {
+        countsMapScala.values.foldRight(0)(_ + _)
+      } else {
+        countsMapScala.values.toList.head.toInt
+      }
+      countsMapScala.foreach {
+        case (label, count) =>
+          scoreSet.put(label, count.toDouble / countSum)
+      }
     } else {
       scoreSet.put("UNKNOWN", 1)
     }
     scoreSet
   }
-
 }

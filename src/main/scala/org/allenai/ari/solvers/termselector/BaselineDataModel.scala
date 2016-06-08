@@ -93,4 +93,21 @@ class BaselineDataModel extends IllinoisDataModel {
   val wordFormConjNerConjPOS = property(essentialTermTokens) { x: Constituent =>
     wordForm(x) + ner(x) + pos(x)
   }
+
+  val maxSalience = property(essentialTermTokens) { x: Constituent =>
+    val salienceOpt = EssentialTermsSensors.constituentToAnnotationMap(x).maxSalience
+    salienceOpt match {
+      case Some(s) => s.getOrElse(wordForm(x), 0d)
+      case None => 0d
+    }
+  }
+
+  val sumSalience = property(essentialTermTokens) { x: Constituent =>
+    val salienceOpt = EssentialTermsSensors.constituentToAnnotationMap(x).sumSalience
+    salienceOpt match {
+      case Some(s) => s.getOrElse(wordForm(x), 0d)
+      case None => 0d
+    }
+  }
+
 }

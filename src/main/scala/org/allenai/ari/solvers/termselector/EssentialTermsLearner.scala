@@ -11,5 +11,5 @@ trait EssentialTermsLearner {
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double]
 
   /** Get essential terms for a given question. */
-  def getEssentialTerms(aristoQuestion: Question): Seq[String]
+  def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String]
 }

@@ -48,6 +48,16 @@ protected case object EssentialTermsConstants {
 
   // cache files
   val SALIENCE_CACHE = "salienceCache.txt"
+
+  // the threshold used in prediction of discrete values; these values are usually set by tuning.
+  val EXPANDED_UP_THRESHOLD = 1.5
+  val EXPANDED_DOWN_THRESHOLD = 0.5
+  val MAX_SALIENCE_UP_THRESHOLD = 1.5
+  val MAX_SALIENCE_DOWN_THRESHOLD = 0.5
+  val SUM_SALIENCE_UP_THRESHOLD = 1.5
+  val SUM_SALIENCE_DOWN_THRESHOLD = 0.5
+  val WORD_BASELINE_UP_THRESHOLD = 1.5
+  val WORD_BASELINE_DOWN_THRESHOLD = 0.5
 }
 
 object EssentialTermsSensors extends Logging {
@@ -363,7 +373,7 @@ object EssentialTermsSensors extends Logging {
     // TODO(daniel) move it to application.conf as an option
     val checkForMissingSalienceScores = true
     if (mapOpt.isDefined) {
-      logger.debug("Found the salience score in the static map . . . ")
+      //logger.debug("Found the salience score in the static map . . . ")
       mapOpt
     } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
       val redisSalienceKey = EssentialTermsConstants.SALIENCE_PREFIX + q.rawQuestion
@@ -418,8 +428,6 @@ object EssentialTermsSensors extends Logging {
   ): TextAnnotation = {
     // since the annotated questions have different tokenizations, we first tokenize then assign
     // scores to tokens of spans
-    // since the annotated questions have different tokenizations, we first tokenize then asign essentiality scores
-    // to tokens of spans
     val viewNamesForParsingEssentialTermTokens = if (combineNamedEntities) Set(ViewNames.TOKENS, ViewNames.NER_CONLL) else Set(ViewNames.TOKENS)
     val view = new TokenLabelView(EssentialTermsConstants.VIEW_NAME, ta)
     val combinedConsAll = if (combineNamedEntities) {
@@ -511,7 +519,8 @@ object EssentialTermsSensors extends Logging {
 
   def getEssentialTermsForAristoQuestion(
     aristoQ: Question,
-    learner: IllinoisLearner
+    learner: IllinoisLearner,
+    threshold: Double
   ): Seq[String] = {
     val questionStruct = annotateQuestion(aristoQ, None, None)
     val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
@@ -520,7 +529,7 @@ object EssentialTermsSensors extends Logging {
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     learner.dataModel.essentialTermTokens.populate(constituents)
-    constituents.collect { case c if learner.predictIsEssential(c) => c.getSurfaceForm } ++
+    constituents.collect { case c if learner.predictIsEssential(c, threshold) => c.getSurfaceForm } ++
       essentialConstituents.map(_.getSurfaceForm)
   }
 

@@ -1,13 +1,10 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.common.Logging
 
-import com.quantifind.charts.Highcharts
 import com.redis._
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
 import spray.json._
 import DefaultJsonProtocol._
@@ -23,8 +20,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   private lazy val baselineLearners = BaselineLearner.makeNewLearners(loadSavedModel)_2
   private lazy val expandedLearner = ExpandedLearner.makeNewLearner(loadSavedModel, classifierModel)._4
   private lazy val (expandedDataModel, constrainedLearner) = ConstrainedLearner.makeNewLearner(classifierModel)
-  private lazy val maxSalienceLearner = SalienceBaseline.makeNewLearners(true)
-  private lazy val sumSalienceLearner = SalienceBaseline.makeNewLearners(false)
+  private lazy val salienceLearners = SalienceBaseline.makeNewLearners()
 
   def trainAndTestBaselineLearners(testOnSentences: Boolean = false): Unit = {
     trainAndTestLearner(baselineLearners.surfaceForm, 1, test = true,
@@ -43,7 +39,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearner is used in expandedLearner, first train the baseline
-    trainAndTestBaselineLearners(testOnSentences)
+    trainAndTestBaselineLearners(testOnSentences = false)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
   }
 
@@ -58,8 +54,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 
   def testSalienceLearner(salienceType: String): Unit = {
     val salienceLearner = salienceType match {
-      case "max" => maxSalienceLearner
-      case "sum" => sumSalienceLearner
+      case "max" => salienceLearners.max
+      case "sum" => salienceLearners.sum
     }
     testLearner(salienceLearner, test = false, testOnSentences = true)
   }
@@ -70,7 +66,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val aristoQuestion = decomposeQuestion(q)
-    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner)
+    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner, threshold = EssentialTermsConstants.EXPANDED_UP_THRESHOLD)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
   }
@@ -92,13 +88,13 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     //      "In New York State, the longest period of daylight occurs during which month? (A) " +
     //      "December (B) June (C) March (D) September"
     val aristoQuestion = decomposeQuestion(q)
-    val salienceLearner = salienceType match {
-      case "max" => maxSalienceLearner
-      case "sum" => sumSalienceLearner
+    val (salienceLearner, th) = salienceType match {
+      case "max" => (salienceLearners.max, EssentialTermsConstants.MAX_SALIENCE_UP_THRESHOLD)
+      case "sum" => (salienceLearners.sum, EssentialTermsConstants.SUM_SALIENCE_UP_THRESHOLD)
     }
     val scores = salienceLearner.getEssentialTermScores(aristoQuestion)
     logger.debug("Identified essentiality scores: " + scores.toString)
-    val essentialTerms = salienceLearner.getEssentialTerms(aristoQuestion)
+    val essentialTerms = salienceLearner.getEssentialTerms(aristoQuestion, th)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
   }
 
@@ -182,228 +178,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     // microAvgTest(baselineLearner)
     if (testOnSentences) {
       logger.debug(s"Testing learner ${learner.getSimpleName} over sentences")
-      testOverSentences(learner)
-    }
-  }
-
-  private def microAvgTest(learner: IllinoisLearner): Unit = {
-    logger.info("Micro-average = ")
-    val results = testSentences.map { sentenceCons =>
-      learner.test(sentenceCons)
-    }
-    logger.info(results.toString())
-
-    results.flatten.toList.groupBy({
-      tu: (String, (Double, Double, Double)) => tu._1
-    }).foreach({
-      case (label, l) =>
-        val t = l.length
-        val avg = avgTuple(l.map(_._2).reduce(sumTuple), t)
-        printTestResult((label, avg))
-    })
-  }
-
-  private def sumTuple(
-    a: (Double, Double, Double),
-    b: (Double, Double, Double)
-  ): (Double, Double, Double) = {
-    (a._1 + b._1, a._2 + b._2, a._3 + b._3)
-  }
-
-  private def avgTuple(a: (Double, Double, Double), size: Int): (Double, Double, Double) = {
-    (a._1 / size, a._2 / size, a._3 / size)
-  }
-
-  private def printTestResult(result: (String, (Double, Double, Double))): Unit = {
-    result match {
-      case (label, (f1, precision, recall)) =>
-        logger.info(s"  $label    $f1    $precision     $recall   ")
-    }
-  }
-
-  private def convertToZeroOne(label: String): Int = {
-    if (label == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
-  }
-
-  private def testOverSentences(learner: IllinoisLearner): Unit = {
-    val goldLabel = learner.dataModel.goldLabel
-    val testerExact = new TestDiscrete
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
-    testReader.reset()
-
-    // ranking-based measures
-    if (!learner.isInstanceOf[BaselineLearner]) {
-      // for BaselineLearner, "predictProbOfBeingEssential" is not defined
-      val averagePrecisionList = testReader.data.map { consIt =>
-        val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME)
-          .getConstituents.asScala
-        val goldLabelList = consIt.toList.map { cons =>
-          if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
-        }
-        if (goldLabelList.sum <= 0) {
-          logger.warn("no essential term in gold found in the gold annotation of this question .... ")
-          logger.warn(s"question: ${consIt.head.getTextAnnotation.sentences().asScala.mkString("*")}")
-          0.5
-        } else {
-          val scoreLabelPairs = consIt.toList.map { cons =>
-            val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
-            val predScore = learner.predictProbOfBeingEssential(cons)
-            (predScore, goldBinaryLabel)
-          }
-          val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-          meanAverageRank(rankedGold)
-        }
-      }
-      logger.info(s"Average ranked precision: ${averagePrecisionList.sum / averagePrecisionList.size}")
-    }
-
-    val hammingDistances = testReader.data.map { consIt =>
-      consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons)) 1 else 0).sum
-    }
-    logger.info("Average hamming distance = " + hammingDistances.sum.toDouble / hammingDistances.size)
-
-    testReader.data.slice(0, 30).foreach { consIt =>
-      val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
-      (0 until numSen).foreach(id =>
-        logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
-
-      val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
-      val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
-      val predicted = consIt.map(cons => convertToZeroOne(learner.predictLabel(cons))).toSeq
-      val goldStr = gold.mkString("")
-      val predictedStr = predicted.mkString("")
-      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
-      logger.info(goldImportantSentence)
-      logger.info(goldStr)
-      logger.info(predictedStr)
-      logger.info(s"hamming distance = $hammingDistance")
-      logger.info("----")
-    }
-
-    // harsh exact evaluation
-    testReader.data.foreach { consIt =>
-      val gold = consIt.map(goldLabel(_)).mkString
-      val predicted = consIt.map(learner.predictLabel(_)).mkString
-
-      val fakePred = if (gold == predicted) "same" else "different"
-      testerExact.reportPrediction(fakePred, "same")
-    }
-    testerExact.printPerformance(System.out)
-
-    // precision recall curve
-    // because for BaselineLearner, "predictProbOfBeingEssential" is not defined
-    if (!learner.isInstanceOf[BaselineLearner]) {
-      //       evaluating PR-curve over all tokens
-      val scoreLabelPairs = testReader.data.flatMap { consIt =>
-        consIt.toList.map { cons =>
-          val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
-          val predScore = learner.predictProbOfBeingEssential(cons)
-          (predScore, goldBinaryLabel)
-        }
-      }.toList
-      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-      val (precision, recall, _) = rankedPrecisionRecallYield(rankedGold).unzip3
-      Highcharts.areaspline(recall, precision)
-
-      // per sentence
-      val (perSenPList, perSenRList, perSenYList) = testReader.data.map { consIt =>
-        val scoreLabelPairs = consIt.toList.map { cons =>
-          val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
-          val predScore = learner.predictProbOfBeingEssential(cons)
-          (predScore, goldBinaryLabel)
-        }
-        val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-        val (precision, recall, yyield) = rankedPrecisionRecallYield(rankedGold).unzip3
-        (precision, recall, yyield)
-      }.unzip3
-
-      val averagePList = perSenPList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-      val averageRList = perSenRList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-      val averageYList = perSenYList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-      assert(averagePList.length == averageRList.length)
-      assert(averagePList.length == averageYList.length)
-
-      logger.info(averageRList.mkString("/"))
-      logger.info(averagePList.mkString("/"))
-      logger.info(averageYList.mkString("/"))
-      //Highcharts.areaspline(averageRList, averagePList)
-
-      Highcharts.xAxis("Recall")
-      Highcharts.yAxis("Precision")
-      Thread.sleep(30000L)
-      Highcharts.stopServer
-    }
-  }
-
-  private def avg(list: List[Double]): Double = {
-    list.sum / list.size
-  }
-
-  // averaging two lists of potentially different length
-  private def avgList(list1: Seq[Double], list2: Seq[Double]): Seq[Double] = {
-    val (shortList, longList) = if (list1.length < list2.length) (list1, list2) else (list2, list1)
-    shortList.zipWithIndex.map { case (num, idx) => (longList(idx) + num) / 2 } ++
-      longList.drop(shortList.length)
-  }
-
-  /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
-    * The higher the score is, the earlier the element shows up in the gold list
-    */
-  def meanAverageRank(gold: Seq[Int]): Double = {
-    require(gold.sum > 0, "There is no essential term in this sentence! ")
-    val totalPrecisionScore = gold.zipWithIndex.collect {
-      case (1, idx) => gold.slice(0, idx + 1).sum.toDouble / (idx + 1)
-    }
-    totalPrecisionScore.sum / totalPrecisionScore.size
-  }
-
-  // gold is a Seq of 0 and 1
-  def rankedPrecisionRecallYield(gold: Seq[Int]): Seq[(Double, Double, Double)] = {
-    val sum = gold.sum
-    val totalPrecisionScore = gold.zipWithIndex.map {
-      case (g, idx) =>
-        val sumSlice = gold.slice(0, idx + 1).sum.toDouble
-        val precision = sumSlice / (1 + idx)
-        val recall = sumSlice / sum
-        val yyield = idx.toDouble
-        (precision, recall, yyield)
-    }
-    totalPrecisionScore
-  }
-
-  private def printMistakes(): Unit = {
-    val dataModel = expandedLearner.dataModel
-    dataModel.essentialTermTokens.populate(testConstituents, train = false)
-    val goldLabel = expandedLearner.dataModel.goldLabel
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](testSentences)
-    testReader.reset()
-
-    testReader.data.foreach { consIt =>
-      val consList = consIt.toList
-      val numSen = consList.head.getTextAnnotation.getNumberOfSentences
-      if (internalLogger.isInfoEnabled()) {
-        (0 until numSen).foreach(id =>
-          logger.info(consList.head.getTextAnnotation.getSentence(id).toString))
-      }
-      val goldImportantSentence = consList.map { cons => cons.getSurfaceForm }.mkString("//")
-      val gold = consList.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
-      val predicted = consList.map(cons => convertToZeroOne(expandedLearner.predictLabel(cons)))
-      val goldStr = gold.mkString("")
-      val predictedStr = predicted.mkString("")
-      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
-      logger.info(goldImportantSentence)
-      logger.info(goldStr)
-      logger.info(predictedStr)
-      logger.info("Mistakes: ")
-      consIt.toList.foreach { cons =>
-        if (expandedLearner.predictLabel(cons) != goldLabel(cons)) {
-          logger.info(cons.toString)
-          logger.info(expandedLearner.combinedProperties(cons).toString())
-          logger.info("correct label: " + goldLabel(cons))
-          logger.info("-------")
-        }
-      }
-      logger.info("=====")
+      learner.rankingMeasures()
     }
   }
 
@@ -449,7 +224,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
           filter { case (ind, value) => value != 0.0 }. // drop zero features
           sortBy { case (ind, value) => ind }.
           map {
-            case (ind, value) => ind + " " + (if (value == 1.0) "1" else value) // print featur as intger if it is 1.0
+            case (ind, value) => ind + " " + (if (value == 1.0) "1" else value) // print feature as integer if it is 1.0
           }.mkString(", ")
         pw.write(featureValues)
         pw.write(", " + featureLength + " " + goldLabel(c) + "}\n")
@@ -459,111 +234,38 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   }
 
   def tuneClassifierThreshold(classifier: String): Unit = {
-    classifier match {
-      case "maxSalience" => tuneThreshold(maxSalienceLearner)
-      case "sumSalience" => tuneThreshold(sumSalienceLearner)
-      case "wordBaseline" => tuneThreshold(baselineLearners.surfaceForm)
-      case "lemmaBaseline" => tuneThreshold(baselineLearners.lemma)
-      case "expanded" => tuneThreshold(expandedLearner)
+    val c = classifier match {
+      case "maxSalience" => salienceLearners.max
+      case "sumSalience" => salienceLearners.sum
+      case "wordBaseline" => baselineLearners.surfaceForm
+      case "lemmaBaseline" => baselineLearners.lemma
+      case "expanded" => expandedLearner
+    }
+
+    testWithAlpha(0.1)
+    testWithAlpha(0.3)
+    testWithAlpha(0.5)
+    testWithAlpha(0.7)
+    testWithAlpha(0.9)
+    testWithAlpha(1.0)
+    testWithAlpha(1.1)
+    testWithAlpha(1.3)
+    testWithAlpha(1.5)
+    testWithAlpha(1.7)
+    testWithAlpha(1.9)
+
+    def testWithAlpha(alpha: Double): Unit = {
+      println("-------")
+      val threshold = c.tuneThreshold(alpha)
+      val trainScore = c.testAcrossSentences(trainSentences, threshold, alpha)
+      println("train = " + trainScore.get(EssentialTermsConstants.IMPORTANT_LABEL))
+      val testScores = c.testAcrossSentences(threshold, alpha)
+      println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
     }
   }
 
-  /** given a set of training instances it returns the optimal threshold */
-  private def tuneThreshold(learner: IllinoisLearner): Unit = {
-    val goldLabel = learner.dataModel.goldLabel
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](trainSentences.slice(0, 10))
-    testReader.reset()
-
-    require(!learner.isInstanceOf[BaselineLearner], "The classifier should not be of type BaselineLearner  . . . ")
-
-    // first get the real predictions per sentence
-    val scoreLabelPairs = testReader.data.map { consIt =>
-      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME)
-        .getConstituents.asScala
-      val goldLabelList = consIt.toList.map { cons =>
-        if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
-      }
-      consIt.toList.map { cons =>
-        val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
-        val predScore = learner.predictProbOfBeingEssential(cons)
-        (predScore, goldBinaryLabel)
-      }
-    }
-
-    println("scoreLabelPairs = ")
-    println(scoreLabelPairs)
-
-    // tune the threshold
-    val initialThreshold = 0.5
-    val totalIterations = 20
-    val alpha = 1
-    def stepSize(k: Int): Double = 0.2 / (k + 1)
-    val (minTh, maxTh) = (scoreLabelPairs.map { a => a.unzip._1.min }.min, scoreLabelPairs.map { a => a.unzip._1.max }.max)
-    val thresholdRange = (minTh to maxTh by 0.05)
-    logger.info("thresholdRange : " + thresholdRange)
-
-    // recursive
-    def singleIteration(currentThreshold: Double, remainingIterations: Int, currentScore: Double): (Double, Double) = {
-      if (remainingIterations == 0) {
-        (currentThreshold, currentScore)
-      } else {
-        val thresholdUp = currentThreshold + stepSize(totalIterations - remainingIterations)
-        val thresholdDown = currentThreshold - stepSize(totalIterations - remainingIterations)
-        val FUp = evaluateFAllSentences(scoreLabelPairs, thresholdUp, alpha)._1
-        val FDown = evaluateFAllSentences(scoreLabelPairs, thresholdDown, alpha)._1
-        val thresholdScoresPairs = List((thresholdUp, FUp), (thresholdDown, FDown), (currentThreshold, currentScore))
-        val (topTh, topF) = thresholdScoresPairs.sortBy(_._2).last
-        logger.debug(s"Iteration:$remainingIterations / score: $currentScore / threshold: $topTh")
-        singleIteration(topTh, remainingIterations - 1, topF)
-      }
-    }
-
-    // try all points
-    def tryGridOfThresholds(): (Double, (Double, Double, Double)) = {
-      val scores = thresholdRange.map { th => th -> evaluateFAllSentences(scoreLabelPairs, th, alpha) }
-      println("all the scores " + scores)
-      scores.sortBy { _._2._1 }.last
-    }
-
-    def evaluateFAllSentences(scoreLabelPairs: Iterable[Seq[(Double, Int)]], threshold: Double, alpha: Double): (Double, Double, Double) = {
-      val (fList, pList, rList) = scoreLabelPairs.map { scoreLabelPairsPerSentence =>
-        evaluateFSingleSentence(scoreLabelPairsPerSentence, threshold, alpha)
-      }.toList.unzip3
-      (fList.sum / fList.length, pList.sum / pList.length, rList.sum / rList.length)
-    }
-
-    def evaluateFSingleSentence(scoreLabelPairs: Seq[(Double, Int)], threshold: Double, alpha: Double): (Double, Double, Double) = {
-      val testDiscrete = new TestDiscrete
-      scoreLabelPairs.foreach {
-        case (score, label) =>
-          testDiscrete.reportPrediction(if (score > threshold) "1" else "0", label.toString)
-      }
-
-      val tmp = scoreLabelPairs.map {
-        case (score, label) =>
-          (if (score > threshold) "1" else "0", label.toString)
-      }
-      println("---------")
-      println("scoreLabelPairs = " + scoreLabelPairs)
-      println("threshold = " + threshold)
-      println("labels = " + tmp)
-      println("P: " + testDiscrete.getPrecision("1"))
-      println("R: " + testDiscrete.getRecall("1"))
-      println("F1: " + testDiscrete.getF1("1"))
-      println("F: " + testDiscrete.getF(alpha, "1"))
-      println("Labels: " + testDiscrete.getLabels().toList.toString)
-      println("Predictions: " + testDiscrete.getPredictions.toList.toString)
-      println("Overall stats: " + testDiscrete.getOverallStats.toList.toString)
-
-      println(scoreLabelPairs)
-      println(testDiscrete.getF(alpha, "1"))
-      val f = testDiscrete.getF(alpha, "1")
-      (if (f.isNaN) 0 else f, testDiscrete.getPrecision("1"), testDiscrete.getRecall("1"))
-    }
-
-    val (topThreshold, topScore) = tryGridOfThresholds() // singleIteration(initialThreshold, totalIterations, -1)
-    logger.info(s"Score after tuning: $topScore / threshold after tuning: $topThreshold")
-
+  def printMistakes(): Unit = {
+    expandedLearner.printMistakes(0.2)
   }
 }
 
@@ -627,19 +329,19 @@ object EssentialTermsApp extends Logging {
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.printMistakes()
         case "8" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.printAllFeatures()
         case "9" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
           essentialTermsApp.testSalienceWithSampleAristoQuestion(arg1)
         case "10" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
           essentialTermsApp.testSalienceLearner(arg1)
         case "11" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
           essentialTermsApp.tuneClassifierThreshold(arg1)
         case "12" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
           essentialTermsApp.saveRedisAnnotationCache()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")

@@ -4,10 +4,7 @@ import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.EssentialTermsUtils.Levenshtein
 
 /** A learner that simply looks up essential terms as annotated in MTurk data, if available. */
-class LookupLearner(confidenceThresholdOpt: Option[Double]) extends EssentialTermsLearner {
-
-  private val DEFAULT_CONFIDENCE_THRESHOLD = 0.9
-  private val confidenceThreshold = confidenceThresholdOpt.getOrElse(DEFAULT_CONFIDENCE_THRESHOLD)
+class LookupLearner() extends EssentialTermsLearner {
 
   lazy val questionEssentialTermScores = EssentialTermsSensors.allQuestions.map { q =>
     q.aristoQuestion.text.getOrElse(q.aristoQuestion.rawQuestion) -> q.essentialTermMap
@@ -28,7 +25,7 @@ class LookupLearner(confidenceThresholdOpt: Option[Double]) extends EssentialTer
   }
 
   /** Get MTurk annotated essential term scores for a given question. */
-  def getEssentialTerms(aristoQuestion: Question): Seq[String] = {
+  def getEssentialTerms(aristoQuestion: Question, confidenceThreshold: Double): Seq[String] = {
     val termScores = getEssentialTermScores(aristoQuestion)
     termScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
   }

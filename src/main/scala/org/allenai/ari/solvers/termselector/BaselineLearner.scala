@@ -2,6 +2,7 @@ package org.allenai.ari.solvers.termselector
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
+import org.allenai.ari.models.Question
 import org.allenai.common.Logging
 
 /** A baseline learner based on simply counting the label frequency per word
@@ -28,10 +29,10 @@ class BaselineLearner(
 
   override def predictProbOfBeingEssential(c: Constituent): Double = {
     val scores = classifier.scores(c).toArray
-    val rawScore = scores.collect {
+    val essentialScore = scores.collect {
       case score if score.value == EssentialTermsConstants.IMPORTANT_LABEL => score.score
-    }.headOption.getOrElse(0.0) // if we have not seen the word in the training data it is never important
-    rawScore
+    }
+    essentialScore.toList.headOption.getOrElse(0.0) // if we have not seen the word in the training data it is never important
   }
 }
 
