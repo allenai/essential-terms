@@ -246,7 +246,7 @@ abstract class IllinoisLearner(
 
     Highcharts.xAxis("Recall")
     Highcharts.yAxis("Precision")
-    Thread.sleep(30000L)
+    Thread.sleep(1000L)
     Highcharts.stopServer
   }
 

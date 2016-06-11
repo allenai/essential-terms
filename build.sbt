@@ -10,6 +10,7 @@ libraryDependencies ++= Seq(
   illinoisEdison,
   illinoisNlpPipeline,
   illinoisSaul,
+  illinoisLBJava,
   redisClient exclude("edu.stanford.nlp", "stanford-corenlp"),
   stanfordCorenlp331,  // different version than included in allenAiCommon
   stanfordModels331,  // different version than included in allenAiCommon
@@ -18,3 +19,5 @@ libraryDependencies ++= Seq(
   redisClient,
   wispPotting
 )
+
+resolvers += Resolver.mavenLocal

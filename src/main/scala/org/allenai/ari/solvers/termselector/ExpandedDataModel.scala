@@ -32,6 +32,13 @@ class ExpandedDataModel(
   // properties
   // TODO: transfer all these properties here automatically?
   override val goldLabel = baselineDataModel.goldLabel
+  // used in the regression model
+  val goldRealConfidence = property(essentialTermTokens) { x: Constituent =>
+    x.getTextAnnotation
+      .getView(EssentialTermsConstants.VIEW_NAME)
+      .getConstituentsCovering(x)
+      .get(0).getConstituentScore
+  }
   val wordForm = baselineDataModel.wordForm
   val lemma = baselineDataModel.lemma
   val ner = baselineDataModel.ner
@@ -539,5 +546,136 @@ class ExpandedDataModel(
 
   val brownClusterFeatures = property(essentialTermTokens) { x: Constituent =>
     brownClusterFeatureExtractor.getFeatures(x).asScala.toString
+  }
+
+  private def beforeAfterPropertiesGivenWord(view: String, word: String): List[Property[Constituent]] = {
+    List(
+      afterWord(word, view),
+      twoAfterWord(word, view),
+      beforeWord(word, view),
+      twoBeforeWord(word, view)
+    )
+  }
+
+  def beforeAfterPropertiesWHWords(): List[Property[Constituent]] = {
+    beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "which") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "what") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "where") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "when") ++
+      beforeAfterPropertiesGivenWord(ViewNames.TOKENS, "how")
+  }
+
+  def beforeAfterPropertiesGivenView(view: String): List[Property[Constituent]] = {
+    List(
+      wordAfter(view),
+      wordTwoAfter(view),
+      wordBefore(view),
+      wordTwoBefore(view)
+    )
+  }
+
+  def allProperties(): List[Property[Constituent]] = {
+    List(
+      wordForm/*,
+      lemma,
+      baselinePropertiesLemmaPairSingleLabel,
+      posConjNer,
+      wordFormConjNer,
+      wordFormConjNerConjPOS,
+      chunkLabel,
+      posConjWordform,
+      posConjLemma,
+      conflatedPosConjLemma,
+      conflatedPosConjWordform,
+      deVerbalSuffix,
+      gerundMarker,
+      knownPrefixes,
+      nominalizationMarker,
+      numberNormalizer,
+      deVerbalSuffix,
+      prefixSuffixes,
+      parsePath,
+      brownClusterFeatures,
+      dependencyPathUnigram,
+      dependencyPathBigram,
+      wordnetSynsetsFirstSense,
+      wordnetSynsetsAllSenses,
+      wordnetLexicographerFileNamesAllSenses,
+      wordnetLexicographerFileNamesFirstSense,
+      wordnetHypernymFirstSenseLexicographerFileNames,
+      wordnetHypernymAllSensesLexicographerFileNames,
+      wordnetPointersFirstSense,
+      wordnetPointersAllSenses,
+      wordnetSynonymsFirstSense,
+      wordnetSynonymsAllSense,
+      wordnetExistsConjFirstSynsetConjLexFileNamesAll,
+      isAScienceTerm,
+      isAScienceTermLemma,
+      isItCapitalized,
+      isItLastSentence,
+      maxSalience,
+      sumSalience */
+    // features commented out due to poor effect
+    //    parsePhraseType,
+    //    parseHeadWordPOS,
+    //    nomLexClassFeature,
+    //    dropped at feature selection
+    //    pos,
+    //    confaltedPos,
+    //    ner,
+    //    lemmaConjNer,
+    //    wordnetVerbFramesAllSenses, // not helped much
+    //    wordnetVerbFramesFirstSenses // not helped much
+    //    wordnetExistsEntry // not helped much
+    //    corlexFeatureExtractor // data not loaded
+    //    clauseFeatureExtractor // not helped much
+    //    chunkPropertyFeatureFactoryHasModal, // not helped much
+    //    chunkPropertyFeatureFactoryIsNegated // not helped much
+    //    conflatedPosConjNer,
+    //    deAdjectivalAbstractNounsSuffixes,
+    //    deNominalNounProducingSuffixes
+    //    xuPalmerFeature,
+    //    chunkPathPattern,
+    //    wordnetHypernymsFirstSense,
+    //    wordnetHypernymsAllSenses,
+    //    wordnetMemberHolonymsAllSenses,
+    //    wordnetMemberHolonymsFirstSense,
+    //    wordnetPartHolonymsAllSensesLexicographerFileNames,
+    //    wordnetPartHolonymsFirstSenseLexicographerFileNames,
+    //    wordnetPartHolonymsFirstSense,
+    //    wordnetPartHolonymsAllSenses,
+    //    wordnetSubstanceHolonymsAllSenses,
+    //    wordnetSubstanceHolonymsFirstSense,
+    //    subcategoriationFeature,
+    //    spanFeaturesUnorderedChunkBigram,
+    //    spanFeaturesUnorderedPosBigram,
+    //    spanFeaturesUnorderedPosTrigram,
+    //    spanFeaturesUnorderedChunkUnigram,
+    //    spanFeaturesUnorderedChunkBigram,
+    //    spanFeaturesOrderedChunkBigram,
+    //    spanFeaturesOrderedPosBigram,
+    //    spanFeaturesOrderedPosTrigram,
+    //    spanFeaturesOrderedChunkUnigram,
+    //    spanFeaturesOrderedChunkBigram,
+    //    rogetThesaurusFeatures,
+    //    parseSiblingsFeatures,
+    //    parsePhraseTypeOnly,
+    //    chunkEmbeddingShallowParse,
+    //    chunkEmbeddingNer
+    //    afterWHword,
+    //    afterWHwordWorForm,
+    //    twoAfterWHword,
+    //    isItSecondToLastSentence,
+    //    isItCloseToEnd,
+    //      isAScienceTermConjPos,
+    ) /*++ baselinePropertiesSurfaceConjNerConjPos ++
+      baselinePropertiesPOSConjNer ++
+      baselinePropertiesPOSConjLemma ++
+      baselinePropertiesLemma ++
+      baselinePropertiesSurfaceForm ++
+      beforeAfterPropertiesGivenView(ViewNames.TOKENS) ++
+      beforeAfterPropertiesWHWords ++
+      baselinePropertiesLemmaPair ++
+      baselinesWithThresholds*/
   }
 }

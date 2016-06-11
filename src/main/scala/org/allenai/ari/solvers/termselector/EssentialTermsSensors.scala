@@ -151,7 +151,7 @@ object EssentialTermsSensors extends Logging {
     questions.map { q => decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
   }
 
-  lazy val (trainConstiuents, testConstituents, trainSentences, testSentences) = {
+  lazy val (trainConstituents, testConstituents, trainSentences, testSentences) = {
     val trainProb = 0.7
     // in order to be consistent across runs
     Random.setSeed(10)
@@ -162,6 +162,14 @@ object EssentialTermsSensors extends Logging {
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
 
+    // TODO(daniel): make it parameter in application.conf
+    val filterMidScoreConsitutents = true
+    val filteredTrainSen = if (filterMidScoreConsitutents) {
+      trainSen.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.4 || c.getConstituentScore <= 0.2 } }
+    } else {
+      trainSen
+    }
+
     // add a train attribute to the training constituents, in order to make sure they will have
     // different hashcode than the test constituents
     trainSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("trainidx", s"$idx") }
@@ -169,7 +177,7 @@ object EssentialTermsSensors extends Logging {
     (trainSen.flatten, testSen.flatten, trainSen, testSen)
   }
 
-  lazy val allConstituents = trainConstiuents ++ testConstituents
+  lazy val allConstituents = trainConstituents ++ testConstituents
 
   lazy val allSentences = trainSentences ++ testSentences
 
@@ -473,11 +481,11 @@ object EssentialTermsSensors extends Logging {
               cons.getStartSpan,
               cons.getEndSpan,
               EssentialTermsConstants.UNIMPORTANT_LABEL,
-              validTokens.getOrElse(cons.getSurfaceForm.toLowerCase(), -1)
+              validTokens.getOrElse(cons.getSurfaceForm.toLowerCase(), 0)
             )
           }
         }
-      case None => combinedConsAll.foreach { cons => view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, "", -1) }
+      case None => combinedConsAll.foreach { cons => view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, "", 0) }
     }
     ta.addView(EssentialTermsConstants.VIEW_NAME, view)
     ta
