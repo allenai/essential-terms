@@ -28,7 +28,11 @@ class EssentialTermsService @Inject() (
       case "Lookup" => new LookupLearner()
       case "Salience" => SalienceBaseline.makeNewLearners().max
       case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.surfaceForm
-      case "Expanded" => ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel)._4
+      case "Expanded" =>
+        val salienceBaselines = SalienceBaseline.makeNewLearners()
+        val (baselineDataModel, baselineClassifiers) = BaselineLearner.makeNewLearners(loadSavedModel = true)
+        ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel, baselineClassifiers,
+          baselineDataModel, salienceBaselines)._2
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
   }

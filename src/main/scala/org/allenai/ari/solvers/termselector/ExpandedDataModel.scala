@@ -576,7 +576,7 @@ class ExpandedDataModel(
 
   def allProperties(): List[Property[Constituent]] = {
     List(
-      wordForm/*,
+      wordForm,
       lemma,
       baselinePropertiesLemmaPairSingleLabel,
       posConjNer,
@@ -614,7 +614,7 @@ class ExpandedDataModel(
       isItCapitalized,
       isItLastSentence,
       maxSalience,
-      sumSalience */
+      sumSalience
     // features commented out due to poor effect
     //    parsePhraseType,
     //    parseHeadWordPOS,
@@ -668,7 +668,7 @@ class ExpandedDataModel(
     //    isItSecondToLastSentence,
     //    isItCloseToEnd,
     //      isAScienceTermConjPos,
-    ) /*++ baselinePropertiesSurfaceConjNerConjPos ++
+    ) ++ baselinePropertiesSurfaceConjNerConjPos ++
       baselinePropertiesPOSConjNer ++
       baselinePropertiesPOSConjLemma ++
       baselinePropertiesLemma ++
@@ -676,6 +676,6 @@ class ExpandedDataModel(
       beforeAfterPropertiesGivenView(ViewNames.TOKENS) ++
       beforeAfterPropertiesWHWords ++
       baselinePropertiesLemmaPair ++
-      baselinesWithThresholds*/
+      baselinesWithThresholds
   }
 }

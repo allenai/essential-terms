@@ -101,7 +101,9 @@ abstract class IllinoisLearner(
     }
     tester.getLabels.map { label =>
       val F = if (!tester.getF(alpha, label).isNaN) tester.getF(alpha, label) else 0.0
-      (label, (F, tester.getPrecision(label), tester.getRecall(label)))
+      val P = if (!tester.getPrecision(label).isNaN) tester.getPrecision(label) else 0.0
+      val R = if (!tester.getRecall(label).isNaN) tester.getRecall(label) else 0.0
+      (label, (F, P, R))
     }.toMap
   }
 
@@ -140,7 +142,7 @@ abstract class IllinoisLearner(
     (a._1 / size, a._2 / size, a._3 / size)
   }
 
-  def hammingMeasure(threshold: Double): Unit = {
+  def hammingMeasure(threshold: Double): Double = {
     val goldLabel = dataModel.goldLabel
     val testerExact = new TestDiscrete
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.testSentences)
@@ -150,33 +152,34 @@ abstract class IllinoisLearner(
     }
     ai2Logger.info("Average hamming distance = " + hammingDistances.sum.toDouble / hammingDistances.size)
 
-    testReader.data.slice(0, 30).foreach { consIt =>
-      val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
-      (0 until numSen).foreach(id =>
-        ai2Logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
-
-      val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
-      val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
-      val predicted = consIt.map(cons => convertToZeroOne(predictLabel(cons, threshold))).toSeq
-      val goldStr = gold.mkString("")
-      val predictedStr = predicted.mkString("")
-      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
-      ai2Logger.info(goldImportantSentence)
-      ai2Logger.info(goldStr)
-      ai2Logger.info(predictedStr)
-      ai2Logger.info(s"hamming distance = $hammingDistance")
-      ai2Logger.info("----")
-    }
-
-    // harsh exact evaluation
-    testReader.data.foreach { consIt =>
-      val gold = consIt.map(goldLabel(_)).mkString
-      val predicted = consIt.map(predictLabel(_, threshold)).mkString
-
-      val fakePred = if (gold == predicted) "same" else "different"
-      testerExact.reportPrediction(fakePred, "same")
-    }
-    testerExact.printPerformance(System.out)
+    //    testReader.data.slice(0, 30).foreach { consIt =>
+    //      val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
+    //      (0 until numSen).foreach(id =>
+    //        ai2Logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
+    //
+    //      val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
+    //      val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
+    //      val predicted = consIt.map(cons => convertToZeroOne(predictLabel(cons, threshold))).toSeq
+    //      val goldStr = gold.mkString("")
+    //      val predictedStr = predicted.mkString("")
+    //      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
+    //      ai2Logger.info(goldImportantSentence)
+    //      ai2Logger.info(goldStr)
+    //      ai2Logger.info(predictedStr)
+    //      ai2Logger.info(s"hamming distance = $hammingDistance")
+    //      ai2Logger.info("----")
+    //    }
+    //
+    //    // harsh exact evaluation
+    //    testReader.data.foreach { consIt =>
+    //      val gold = consIt.map(goldLabel(_)).mkString
+    //      val predicted = consIt.map(predictLabel(_, threshold)).mkString
+    //
+    //      val fakePred = if (gold == predicted) "same" else "different"
+    //      testerExact.reportPrediction(fakePred, "same")
+    //    }
+    //    testerExact.printPerformance(System.out)
+    hammingDistances.sum.toDouble / hammingDistances.size
   }
 
   def rankingMeasures(): Unit = {
@@ -246,7 +249,7 @@ abstract class IllinoisLearner(
 
     Highcharts.xAxis("Recall")
     Highcharts.yAxis("Precision")
-    Thread.sleep(1000L)
+    Thread.sleep(10000L)
     Highcharts.stopServer
   }
 
@@ -389,7 +392,9 @@ abstract class IllinoisLearner(
           testDiscrete.reportPrediction(if (score > threshold) "1" else "0", label.toString)
       }
       val f = testDiscrete.getF(alpha, "1")
-      (if (f.isNaN) 0 else f, testDiscrete.getPrecision("1"), testDiscrete.getRecall("1"))
+      val p = testDiscrete.getPrecision("1")
+      val r = testDiscrete.getRecall("1")
+      (if (f.isNaN) 0 else f, if (p.isNaN) 0 else p, if (r.isNaN) 0 else r)
     }
 
     val (topThreshold, topScore) = tryGridOfThresholds() // singleIteration(initialThreshold, totalIterations, -1)

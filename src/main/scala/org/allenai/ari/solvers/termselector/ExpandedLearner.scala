@@ -17,7 +17,7 @@ class ExpandedLearner(
   override def dataModel = expandedDataModel
 
   // implement for trait Learnable[Constituent]
-  override def label = if (classifier.isInstanceOf[StochasticGradientDescent]) dataModel.goldRealConfidence else dataModel.goldLabel
+  override def label = dataModel.goldLabel // if (classifier.isInstanceOf[StochasticGradientDescent]) dataModel.goldRealConfidence else dataModel.goldLabel
 
   override lazy val classifier = classifierModel match {
     case "SVM" => new SupportVectorMachine()
@@ -39,10 +39,11 @@ object ExpandedLearner extends Logging {
     */
   def makeNewLearner(
     loadSavedModel: Boolean,
-    classifierModel: String
-  ): (BaselineDataModel, BaselineLearners, ExpandedDataModel, ExpandedLearner) = {
-    val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel)
-    val salienceLearners = SalienceBaseline.makeNewLearners()
+    classifierModel: String,
+    baselineLearners: BaselineLearners,
+    baselineDataModel: BaselineDataModel,
+    salienceLearners: SalienceBaselines
+  ): (ExpandedDataModel, ExpandedLearner) = {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
     val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
     expandedLearner.modelSuffix = classifierModel
@@ -50,6 +51,6 @@ object ExpandedLearner extends Logging {
       logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
       expandedLearner.load()
     }
-    (baselineDataModel, baselineLearners, expandedDataModel, expandedLearner)
+    (expandedDataModel, expandedLearner)
   }
 }
