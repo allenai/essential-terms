@@ -96,18 +96,12 @@ class BaselineDataModel extends IllinoisDataModel {
 
   val maxSalience = property(essentialTermTokens) { x: Constituent =>
     val salienceOpt = EssentialTermsSensors.constituentToAnnotationMap(x).maxSalience
-    salienceOpt match {
-      case Some(s) => s.getOrElse(wordForm(x), 0d)
-      case None => 0d
-    }
+    salienceOpt.flatMap(_.get(wordForm(x))).getOrElse(0d)
   }
 
   val sumSalience = property(essentialTermTokens) { x: Constituent =>
     val salienceOpt = EssentialTermsSensors.constituentToAnnotationMap(x).sumSalience
-    salienceOpt match {
-      case Some(s) => s.getOrElse(wordForm(x), 0d)
-      case None => 0d
-    }
+    salienceOpt.flatMap(_.get(wordForm(x))).getOrElse(0d)
   }
 
 }

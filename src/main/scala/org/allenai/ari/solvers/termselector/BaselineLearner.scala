@@ -2,7 +2,6 @@ package org.allenai.ari.solvers.termselector
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
-import org.allenai.ari.models.Question
 import org.allenai.common.Logging
 
 /** A baseline learner based on simply counting the label frequency per word
