@@ -17,7 +17,7 @@ class ExpandedLearner(
   override def dataModel = expandedDataModel
 
   // implement for trait Learnable[Constituent]
-  override def label = dataModel.goldLabel // if (classifier.isInstanceOf[StochasticGradientDescent]) dataModel.goldRealConfidence else dataModel.goldLabel
+  override def label = if (classifier.isInstanceOf[StochasticGradientDescent]) dataModel.goldRealConfidence else dataModel.goldLabel
 
   override lazy val classifier = classifierModel match {
     case "SVM" => new SupportVectorMachine()
@@ -27,7 +27,7 @@ class ExpandedLearner(
     case _ => throw new Exception("Wrong classifier type or not specified ")
   }
 
-  override def feature = dataModel.allProperties()
+  override def feature = dataModel.allProperties
   override val logging = true
 }
 

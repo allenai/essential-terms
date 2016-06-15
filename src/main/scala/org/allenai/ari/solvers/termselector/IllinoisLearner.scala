@@ -6,8 +6,8 @@ import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
 import org.allenai.common.Logging
 import org.allenai.ari.models.Question
-
 import com.quantifind.charts.Highcharts
+import edu.illinois.cs.cogcomp.lbjava.learn.StochasticGradientDescent
 
 import scala.collection.JavaConverters._
 
@@ -86,10 +86,14 @@ abstract class IllinoisLearner(
 
   /** Predict the probability of a given term being essential. */
   def predictProbOfBeingEssential(c: Constituent): Double = {
-    val scores = classifier.scores(c).toArray
-    val rawScore = scores.find {
-      case score => score.value == EssentialTermsConstants.IMPORTANT_LABEL
-    }.get.score
+    val rawScore = if (classifier.isInstanceOf[StochasticGradientDescent]) {
+      classifier.realValue(c)
+    } else {
+      val scores = classifier.scores(c).toArray
+      scores.find {
+        case score => score.value == EssentialTermsConstants.IMPORTANT_LABEL
+      }.get.score
+    }
     convertRealsToProbabilities(rawScore)
   }
 

@@ -151,21 +151,25 @@ object EssentialTermsSensors extends Logging {
     questions.map { q => decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
   }
 
-  lazy val (trainConstituents, testConstituents, trainSentences, testSentences) = {
+  lazy val (trainConstituents, testConstituents, devConstituents, trainSentences, testSentences, devSentences) = {
     val trainProb = 0.7
+    val devProb = 0.4 // 40% after removing training question
     // in order to be consistent across runs
     Random.setSeed(10)
     val (regents, nonRegents) = allQuestions.partition(q => regentsSet.contains(q.aristoQuestion.text))
     val trainSize = (trainProb * allQuestions.size).toInt
-    val (train, test_nonRegents) = Random.shuffle(nonRegents).splitAt(trainSize)
-    val test = test_nonRegents ++ regents // add regents to the test data
+    val (train, nonTrain_nonRegents) = Random.shuffle(nonRegents).splitAt(trainSize)
+    val devSize = (devProb * nonTrain_nonRegents.size).toInt
+    val (dev, nonDev_nonTrain_nonRegents) = Random.shuffle(nonTrain_nonRegents).splitAt(devSize)
+    val test = nonDev_nonTrain_nonRegents ++ regents // add regents to the test data
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
+    val devSen = getSentence(dev)
 
     // TODO(daniel): make it parameter in application.conf
     val filterMidScoreConsitutents = true
     val filteredTrainSen = if (filterMidScoreConsitutents) {
-      trainSen.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.4 || c.getConstituentScore <= 0.2 } }
+      trainSen.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.65 || c.getConstituentScore <= 0.35 } }
     } else {
       trainSen
     }
@@ -174,7 +178,8 @@ object EssentialTermsSensors extends Logging {
     // different hashcode than the test constituents
     trainSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("trainidx", s"$idx") }
     testSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("testidx", s"${9999 + idx}") }
-    (trainSen.flatten, testSen.flatten, trainSen, testSen)
+    devSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("devidx", s"${999999 + idx}") }
+    (filteredTrainSen.flatten, testSen.flatten, devSen.flatten, filteredTrainSen, testSen, devSen)
   }
 
   lazy val allConstituents = trainConstituents ++ testConstituents
