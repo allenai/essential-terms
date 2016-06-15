@@ -19,5 +19,3 @@ libraryDependencies ++= Seq(
   redisClient,
   wispPotting
 )
-
-resolvers += Resolver.mavenLocal

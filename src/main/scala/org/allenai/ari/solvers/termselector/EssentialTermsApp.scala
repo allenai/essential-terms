@@ -285,50 +285,51 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   def printMistakes(): Unit = {
     expandedLearner.printMistakes(0.2)
   }
-}
 
-/** An EssentialTermsApp companion object with main() method. */
-object EssentialTermsApp extends Logging {
-  def main(args: Array[String]): Unit = {
-    //        println(salienceMap.size)
-    //        println(allQuestions.size)
-    //        println(allQuestions.map{_.numAnnotators.get }.toSet)
-    //        println(allQuestions.count{_.numAnnotators.get == 10 })
-    //        println(allQuestions.count{_.numAnnotators.get > 4 })
-    //        println(allQuestions.count{_.numAnnotators.get == 5 })
-    //        println(allQuestions.count{_.numAnnotators.get == 4 })
-    //        println(allQuestions.count{_.numAnnotators.get == 3 })
-    //        println(allQuestions.count{_.numAnnotators.get == 2 })
-    //
-    //        println(trainSentences.size)
-    //        println(testSentences.size)
-    //
-    //        val a = allConstituents.toList.groupBy{ _.getConstituentScore }.map{ case (a,b) => (a, b.size)}.toList.sortBy{ case (a,b) => a }
-    //        println(a)
-    //
-    //        a.foreach{ case (b,c) => print(b + "\t" + c + "\n")   }
-    //
-    //        a.foreach{ case (c,b) => print(c+ "\t" )   }
-    //        println("\n")
-    //        a.foreach{ case (c,b) => print(b+ "\t" )   }
-    //
-    //        println(allConstituents.size)
-    //        //
+  def printStatistics(): Unit = {
+    println(salienceMap.size)
+    println(allQuestions.size)
+    println(allQuestions.map { _.numAnnotators.get }.toSet)
+    println(allQuestions.count { _.numAnnotators.get == 10 })
+    println(allQuestions.count { _.numAnnotators.get > 4 })
+    println(allQuestions.count { _.numAnnotators.get == 5 })
+    println(allQuestions.count { _.numAnnotators.get == 4 })
+    println(allQuestions.count { _.numAnnotators.get == 3 })
+    println(allQuestions.count { _.numAnnotators.get == 2 })
+
+    println(trainSentences.size)
+    println(testSentences.size)
+
+    val a = allConstituents.toList.groupBy { _.getConstituentScore }.map { case (a, b) => (a, b.size) }.toList.sortBy { case (a, b) => a }
+    println(a)
+
+    a.foreach { case (b, c) => print(b + "\t" + c + "\n") }
+
+    a.foreach { case (c, b) => print(c + "\t") }
+    println("\n")
+    a.foreach { case (c, b) => print(b + "\t") }
+
+    println(allConstituents.size)
 
     // whatQuestions, whichQuestions, whereQuestions, whenQuestions, howQuestions, nonWhQuestions
     println("all test questions = " + testSentences.size)
     println("all train questions = " + trainSentences.size)
     println("all test constituents = " + testConstituents.size)
     println("all train constituents = " + trainConstituents.size)
-    //    println("whatQuestions = " + whatQuestions.size)
-    //    println("whichQuestions= " + whichQuestions.size)
-    //    println("whereQuestions = " + whereQuestions.size)
-    //    println("whenQuestions = " + whenQuestions.size)
-    //    println("howQuestions = " + howQuestions.size)
-    //    println("nonWhQuestions = " + nonWhQuestions.size)
+    println("whatQuestions = " + whatQuestions.size)
+    println("whichQuestions= " + whichQuestions.size)
+    println("whereQuestions = " + whereQuestions.size)
+    println("whenQuestions = " + whenQuestions.size)
+    println("howQuestions = " + howQuestions.size)
+    println("nonWhQuestions = " + nonWhQuestions.size)
 
     println("size of salience map" + salienceMap.size)
+  }
+}
 
+/** An EssentialTermsApp companion object with main() method. */
+object EssentialTermsApp extends Logging {
+  def main(args: Array[String]): Unit = {
     val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
       "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (TestConstrainedLearnerWithAristoQuestion) | " +
       "6 (CacheSalienceScores) | 7 (PrintMistakes) | 8 (PrintFeatures) | " +
@@ -375,6 +376,9 @@ object EssentialTermsApp extends Logging {
         case "12" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
           essentialTermsApp.saveRedisAnnotationCache()
+        case "13" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
+          essentialTermsApp.printStatistics()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }

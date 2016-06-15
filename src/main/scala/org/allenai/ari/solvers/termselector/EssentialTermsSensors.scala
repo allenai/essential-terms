@@ -132,7 +132,7 @@ object EssentialTermsSensors extends Logging {
 
   lazy val salienceMap = {
     val salienceCache = EssentialTermsUtils.getDatastoreFileAsSource(
-      "public", "org.allenai.termselector", EssentialTermsConstants.SALIENCE_CACHE, 2
+      "public", "org.allenai.termselector", EssentialTermsConstants.SALIENCE_CACHE, 3
     )
     val lines = salienceCache.getLines
     val cache = lines.grouped(2).map {
@@ -185,6 +185,25 @@ object EssentialTermsSensors extends Logging {
   lazy val allConstituents = trainConstituents ++ testConstituents
 
   lazy val allSentences = trainSentences ++ testSentences
+
+  // splitting questions based on their types, like wh-question, etc
+  lazy val (whatQuestions, whichQuestions, whereQuestions, whenQuestions, howQuestions, nonWhQuestions) = {
+    def split(input: Iterable[Constituent], keyword: String) = {
+      input.partition { c =>
+        val annotation = constituentToAnnotationMap(c)
+        annotation.rawQuestion.toLowerCase.contains(keyword)
+      }
+    }
+    constituentToAnnotationMap
+
+    val (what, rest1) = split(testConstituents, "what")
+    val (which, rest2) = split(rest1, "which")
+    val (where, rest3) = split(rest2, "where")
+    val (when, rest4) = split(rest3, "when")
+    val (how, nonWh) = split(rest4, "how")
+
+    (what, which, where, when, how, nonWh)
+  }
 
   // This creates a map from constituents, to its corresponding [[QuestionStruct]] which contains
   // the annotations of the question containing it.
