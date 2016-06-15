@@ -401,14 +401,14 @@ object EssentialTermsSensors extends Logging {
 
   /** given an aristo question it looks up the salience annotation, either from an static map, or queries salience service */
   def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
-    val mapOpt = salienceMap.get(q.rawQuestion)
+    val redisSalienceKey = EssentialTermsConstants.SALIENCE_PREFIX + q.rawQuestion
+    val mapOpt = salienceMap.get(redisSalienceKey)
     // TODO(daniel) move it to application.conf as an option
     val checkForMissingSalienceScores = true
     if (mapOpt.isDefined) {
       //logger.debug("Found the salience score in the static map . . . ")
       mapOpt
     } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
-      val redisSalienceKey = EssentialTermsConstants.SALIENCE_PREFIX + q.rawQuestion
       val salienceFromRedis = redisGet(redisSalienceKey)
       if (salienceFromRedis.isDefined) {
         logger.debug("Found the salience score in the redis map . . . ")
@@ -425,7 +425,8 @@ object EssentialTermsSensors extends Logging {
       }
     } else {
       if (!checkForMissingSalienceScores) {
-        logger.debug("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
+        logger.error("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
+        throw new Exception
       } else {
         logger.debug("Question does not options . . . ")
       }
