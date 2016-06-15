@@ -2,17 +2,16 @@ package org.allenai.ari.solvers.termselector
 
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.common.Logging
+
 import com.redis._
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
-import edu.illinois.cs.cogcomp.lbjava.learn.{ SparseNetworkLearner, SupportVectorMachine }
 import spray.json._
-import DefaultJsonProtocol._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
-import java.io.{ File, PrintWriter }
+import java.io._
 
 /** A sample application to train, test, save, and load essential terms classifiers. */
 class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extends Logging {
@@ -151,9 +150,6 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     dataModel.essentialTermTokens.populate(targetConstituents)
     dataModel.essentialTermTokens.populate(testConstituents, train = false)
 
-    println("training set inside DM: " + expandedDataModel.essentialTermTokens.trainingSet.size)
-    println("testing set inside DM: " + expandedDataModel.essentialTermTokens.testingSet.size)
-
     // train
     logger.debug(s"Training learner ${learner.getSimpleName} for $numIterations iterations")
     learner.learn(numIterations)
@@ -208,7 +204,6 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 
   /* this would print the feature values on disk */
   private def printFeatures(train: Boolean): Unit = {
-    import java.io._
     val pw = new PrintWriter(new File(s"src/main/resources/outputFeatures_${if (train) "train" else "test"}.arff"))
     val featureLength = expandedLearner.classifier.getPrunedLexiconSize
 
@@ -218,10 +213,10 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     pw.write("@DATA\n")
 
     val goldLabel = expandedLearner.dataModel.goldLabel
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](if (train) trainSentences else testSentences)
-    testReader.reset()
+    val exampleReader = new LBJIteratorParserScala[Iterable[Constituent]](if (train) trainSentences else testSentences)
+    exampleReader.reset()
 
-    testReader.data.foreach { consIt =>
+    exampleReader.data.foreach { consIt =>
       val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
       cons.foreach { c =>
         val out = expandedLearner.classifier.getExampleArray(c, true)
@@ -251,30 +246,36 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       case "expanded" => expandedLearner
     }
 
-    testWithAlpha(0.1)
-    testWithAlpha(0.3)
-    testWithAlpha(0.5)
-    testWithAlpha(0.7)
-    testWithAlpha(0.9)
-    testWithAlpha(1.0)
-    testWithAlpha(1.1)
-    testWithAlpha(1.3)
-    testWithAlpha(1.5)
-    testWithAlpha(1.7)
-    testWithAlpha(1.9)
+    testWithAlpha((-30 to 20 by 1).map(x => math.exp(x / 5.0)))
 
-    def testWithAlpha(alpha: Double): Unit = {
-      println("-------")
-      val threshold = c.tuneThreshold(alpha)
-      val trainScore = c.testAcrossSentences(devSentences, threshold, alpha)
-      println("train = " + trainScore.get(EssentialTermsConstants.IMPORTANT_LABEL))
-      val testScores = c.testAcrossSentences(threshold, alpha)
-      println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
-      c.hammingMeasure(threshold)
+    //    testWithAlpha(0.1)
+    //    testWithAlpha(0.3)
+    //    testWithAlpha(0.5)
+    //    testWithAlpha(0.7)
+    //    testWithAlpha(0.9)
+    //    testWithAlpha(1.0)
+    //    testWithAlpha(1.1)
+    //    testWithAlpha(1.3)
+    //    testWithAlpha(1.5)
+    //    testWithAlpha(1.7)
+    //    testWithAlpha(1.9)
+
+    def testWithAlpha(alphas: Seq[Double]): Unit = {
+      alphas.foreach { alpha =>
+        println("-------")
+        val threshold = c.tuneThreshold(alpha)
+        val devScores = c.testAcrossSentences(devSentences, threshold, alpha)
+        println("dev = " + devScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        val testScores = c.testAcrossSentences(testSentences, threshold, alpha)
+        println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        c.hammingMeasure(threshold)
+      }
     }
 
-    val featureLength = expandedLearner.classifier.getPrunedLexiconSize
-    println("Feature length = " + featureLength)
+    if (c.isInstanceOf[ExpandedLearner]) {
+      val featureLength = expandedLearner.classifier.getPrunedLexiconSize
+      println("Feature length = " + featureLength)
+    }
   }
 
   def printMistakes(): Unit = {
@@ -295,14 +296,15 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     println(trainSentences.size)
     println(testSentences.size)
 
-    val a = allConstituents.toList.groupBy { _.getConstituentScore }.map { case (a, b) => (a, b.size) }.toList.sortBy { case (a, b) => a }
-    println(a)
-
-    a.foreach { case (b, c) => print(b + "\t" + c + "\n") }
-
-    a.foreach { case (c, b) => print(c + "\t") }
+    // group together the constituents with the same scores
+    val scoreSizePairs = allConstituents.toList.groupBy { _.getConstituentScore }.map {
+      case (score, constituents) => (score, constituents.size)
+    }.toList.sortBy { case (score, _) => score }
+    println(scoreSizePairs)
+    scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
+    scoreSizePairs.foreach { case (score, size) => print(score + "\t") }
     println("\n")
-    a.foreach { case (c, b) => print(b + "\t") }
+    scoreSizePairs.foreach { case (score, size) => print(size + "\t") }
 
     println(allConstituents.size)
 
@@ -325,15 +327,26 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 /** An EssentialTermsApp companion object with main() method. */
 object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
-    val usageStr = "\nUSAGE: run 1 (TrainAndTestMainLearner) | 2 (LoadAndTestMainLearner) | " +
-      "3 (TrainAndTestBaseline) | 4 (TestWithAristoQuestion) | 5 (TestConstrainedLearnerWithAristoQuestion) | " +
-      "6 (CacheSalienceScores) | 7 (PrintMistakes) | 8 (PrintFeatures) | " +
-      "9 (TestSalienceBaslineWithAristoQuestion) <classifier model>"
-    if (args.isEmpty || args.length > 2) {
+    val usageStr = "\nUSAGE: " +
+      "\n run 1  <classifier model>  (TrainAndTestMainLearner) " +
+      "\n run 2  <classifier model>  (LoadAndTestMainLearner) " +
+      "\n run 3  <classifier model>  (TrainAndTestBaseline) " +
+      "\n run 4  <classifier model>  (TestWithAristoQuestion) " +
+      "\n run 5  <classifier model>  (TestConstrainedLearnerWithAristoQuestion) " +
+      "\n run 6  <classifier model>  (CacheSalienceScores) " +
+      "\n run 7  <classifier model>  (PrintMistakes) " +
+      "\n run 8  <classifier model>  (PrintFeatures) " +
+      "\n run 9  <max/sum>           (TestSalienceBaslineWithAristoQuestion)" +
+      "\n run 10 <max/sum>          (TestSalienceBasline)" +
+      "\n run 11 <maxSalience/sumSalience/wordBaseline/lemmaBaseline/expanded> <classifier model>  (TuneClassifiers)" +
+      "\n run 12 <classifier model>  (SaveRedisAnnotationCache)" +
+      "\n run 13 <classifier model>  (PrintStatistics)"
+    if (args.length <= 0 || args.length >= 3) {
       throw new IllegalArgumentException(usageStr)
     } else {
       val testType = args(0)
       val arg1 = args.lift(1).getOrElse("")
+      val arg2 = args.lift(1).getOrElse("")
       testType match {
         case "1" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, arg1)
@@ -342,7 +355,7 @@ object EssentialTermsApp extends Logging {
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.loadAndTestExpandedLearner()
         case "3" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, arg1)
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, "")
           essentialTermsApp.trainAndTestBaselineLearners(test = true, testOnSentences = false, trainOnDev = false)
         case "4" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
@@ -351,7 +364,7 @@ object EssentialTermsApp extends Logging {
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.testConstrainedLearnerWithSampleAristoQuestion()
         case "6" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, arg1)
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, "")
           essentialTermsApp.cacheSalienceScoresForAllQuestionsInRedis()
         case "7" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
@@ -360,19 +373,19 @@ object EssentialTermsApp extends Logging {
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.printAllFeatures()
         case "9" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
           essentialTermsApp.testSalienceWithSampleAristoQuestion(arg1)
         case "10" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
           essentialTermsApp.testSalienceLearner(arg1)
         case "11" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
-          essentialTermsApp.tuneClassifierThreshold(arg1)
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
+          essentialTermsApp.tuneClassifierThreshold(arg2)
         case "12" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "")
           essentialTermsApp.saveRedisAnnotationCache()
         case "13" =>
-          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, "SVM")
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.printStatistics()
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")

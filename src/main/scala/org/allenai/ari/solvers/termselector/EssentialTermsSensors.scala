@@ -1,6 +1,5 @@
 package org.allenai.ari.solvers.termselector
 
-import ch.qos.logback.classic.Level
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
@@ -8,11 +7,14 @@ import org.allenai.ari.solvers.common.salience.SalienceScorer
 import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
+
+import ch.qos.logback.classic.Level
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence, TextAnnotation, TokenLabelView }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
 import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
+import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
@@ -24,7 +26,6 @@ import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
 import spray.json._
 import DefaultJsonProtocol._
-
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -32,8 +33,6 @@ import scala.io.Codec
 import scala.util.Random
 import java.io.File
 import java.util.Properties
-
-import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 
 protected case object EssentialTermsConstants {
   val VIEW_NAME = "ESSENTIAL_TERMS"
