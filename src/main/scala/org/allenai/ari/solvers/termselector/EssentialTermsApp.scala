@@ -50,8 +50,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = true)
-    testLearner(baselineLearners.lemma, test = true, testOnSentences = true)
+    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = false)
+    testLearner(baselineLearners.lemma, test = true, testOnSentences = false)
     testLearner(baselineLearners.posConjLemma, test = true, testOnSentences = false)
     testLearner(baselineLearners.wordFormConjNer, test = true, testOnSentences = false)
     testLearner(baselineLearners.wordFormConjNerConjPos, test = true, testOnSentences = false)
@@ -106,7 +106,6 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 
   def cacheSalienceScoresForAllQuestionsInRedis(): Unit = {
     allQuestions.foreach { q => getSalienceScores(q.aristoQuestion) }
-    actorSystem.terminate()
   }
 
   /** saving the salience cache of the questions in the training data */
@@ -128,15 +127,11 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     val keys = annotationRedisCache.keys().get
     logger.info(s"Saving ${keys.size} elements in the cache. ")
     val writer = new PrintWriter(new File(EssentialTermsConstants.SALIENCE_CACHE))
-    keys.foreach { key =>
-      val value = if (key.isDefined && key.get.contains(EssentialTermsConstants.SALIENCE_PREFIX)) {
-        annotationRedisCache.get(key.get)
-      } else {
-        None
-      }
-      if (value.isDefined && key.isDefined) {
-        writer.write(s"${key.get}\n${value.get}\n")
-      }
+    keys.foreach {
+      case Some(key) if key.contains(EssentialTermsConstants.SALIENCE_PREFIX) =>
+        annotationRedisCache.get(key).map { value =>
+          writer.write(s"$key\n$value\n")
+        }
     }
     writer.close()
   }
