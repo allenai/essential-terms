@@ -218,8 +218,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     val featureLength = expandedLearner.classifier.getPrunedLexiconSize
 
     pw.write("@RELATION EssentialTerms\n")
-    (0 until featureLength).foreach { idx => pw.write(s"@ATTRIBUTE $idx NUMERIC\n") }
-    pw.write("@ATTRIBUTE f60531 {IMPORTANT, NOT-IMPORTANT}\n")
+    (0 until featureLength).foreach { idx => pw.write(s"@ATTRIBUTE f$idx NUMERIC\n") }
+    pw.write("@ATTRIBUTE class {IMPORTANT, NOT-IMPORTANT}\n")
     pw.write("@DATA\n")
 
     val goldLabel = expandedLearner.dataModel.goldLabel
