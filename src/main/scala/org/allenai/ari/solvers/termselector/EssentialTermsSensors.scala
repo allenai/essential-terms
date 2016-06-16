@@ -193,8 +193,6 @@ object EssentialTermsSensors extends Logging {
         annotation.rawQuestion.toLowerCase.contains(keyword)
       }
     }
-    constituentToAnnotationMap
-
     val (what, rest1) = split(testConstituents, "what")
     val (which, rest2) = split(rest1, "which")
     val (where, rest3) = split(rest2, "where")
