@@ -425,7 +425,7 @@ object EssentialTermsSensors extends Logging {
         logger.error("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
         throw new Exception
       } else {
-        logger.debug("Question does not options . . . ")
+        logger.debug("Question does not have options . . . ")
       }
       logger.debug(q.rawQuestion)
       logger.debug(q.toString)

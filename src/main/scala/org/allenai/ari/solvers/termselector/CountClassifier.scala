@@ -26,7 +26,7 @@ class CountClassifier extends POSBaselineLearner {
       val countSum = if (countsMap.values.size > 1) {
         countsMapScala.values.foldRight(0)(_ + _)
       } else {
-        countsMapScala.values.toList.head.toInt
+        countsMapScala.values.head.toInt
       }
       countsMapScala.foreach {
         case (label, count) =>

@@ -223,7 +223,7 @@ abstract class IllinoisLearner(
           (predScore, goldBinaryLabel)
         }
         val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-        meanAverageRank(rankedGold)
+        meanAverageRankOfPositive(rankedGold)
       }
     }
     ai2Logger.info(s"Average ranked precision: ${averagePrecisionList.sum / averagePrecisionList.size}")
@@ -271,12 +271,25 @@ abstract class IllinoisLearner(
     //    Highcharts.yAxis("Precision")
     //    Thread.sleep(10000L)
     //    Highcharts.stopServer
+
+    // mean average precision/recall
+    val avgPList = testReader.data.map { consIt =>
+      val scoreLabelPairs = consIt.toList.map { cons =>
+        val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
+        val predScore = predictProbOfBeingEssential(cons)
+        (predScore, goldBinaryLabel)
+      }
+      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+      meanAverageRankOfPositive(rankedGold)
+    }
+    val map = avgPList.sum / avgPList.size
+    ai2Logger.info(s"Mean Average Precision: ${map}")
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
     * The higher the score is, the earlier the element shows up in the gold list
     */
-  def meanAverageRank(gold: Seq[Int]): Double = {
+  def meanAverageRankOfPositive(gold: Seq[Int]): Double = {
     require(gold.sum > 0, "There is no essential term in this sentence! ")
     val totalPrecisionScore = gold.zipWithIndex.collect {
       case (1, idx) => gold.slice(0, idx + 1).sum.toDouble / (idx + 1)
@@ -417,6 +430,7 @@ abstract class IllinoisLearner(
 
     val (topThreshold, topScore) = tryGridOfThresholds() // singleIteration(initialThreshold, totalIterations, -1)
     ai2Logger.info(s"Score after tuning: $topScore / threshold after tuning: $topThreshold / alpha: $alpha")
+
     topThreshold
   }
 }

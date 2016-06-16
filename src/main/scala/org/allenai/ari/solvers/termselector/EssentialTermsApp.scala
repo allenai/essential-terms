@@ -29,14 +29,14 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       testRankingMeasures, saveModel = true, trainOnDev)
     trainAndTestLearner(baselineLearners.lemma, 1, test,
       testRankingMeasures, saveModel = true, trainOnDev)
-        trainAndTestLearner(baselineLearners.posConjLemma, 1, test,
-          testRankingMeasures, saveModel = true, trainOnDev)
-        trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test,
-          testRankingMeasures, saveModel = true, trainOnDev)
-        trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test,
-          testRankingMeasures, saveModel = true, trainOnDev)
-        trainAndTestLearner(baselineLearners.baselineLearnerLemmaPair, 1, test,
-          testRankingMeasures, saveModel = true, trainOnDev)
+    trainAndTestLearner(baselineLearners.posConjLemma, 1, test,
+      testRankingMeasures, saveModel = true, trainOnDev)
+    trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test,
+      testRankingMeasures, saveModel = true, trainOnDev)
+    trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test,
+      testRankingMeasures, saveModel = true, trainOnDev)
+    trainAndTestLearner(baselineLearners.baselineLearnerLemmaPair, 1, test,
+      testRankingMeasures, saveModel = true, trainOnDev)
   }
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
@@ -242,10 +242,12 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       case "sumSalience" => salienceLearners.sum
       case "wordBaseline" => baselineLearners.surfaceForm
       case "lemmaBaseline" => baselineLearners.lemma
-      case "expanded"  => expandedLearner
+      case "expanded" => expandedLearner
       case name: String => throw new Exception(s"Wrong classisifer name ${name}!")
     }
 
+    // TODO(danielk): this is a little inefficient. We don't need to re-evaluate in on all the dataset from scract; you
+    // just need to evaluate once and reuse it later, with different threshold.
     def testWithAlpha(alphas: Seq[Double]): Unit = {
       alphas.foreach { alpha =>
         println("-------")
@@ -258,7 +260,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       }
     }
 
-    testWithAlpha((-30 to 8).map(x => math.exp(x / 5.0)))
+    //    testWithAlpha((-30 to 8).map(x => math.exp(x / 5.0)))
+    testWithAlpha((-4 to 8).map(x => math.exp(x / 5.0)))
 
     if (c.isInstanceOf[ExpandedLearner]) {
       val featureLength = expandedLearner.classifier.getPrunedLexiconSize
@@ -369,7 +372,7 @@ object EssentialTermsApp extends Logging {
           essentialTermsApp.loadAndTestExpandedLearner()
         case "3" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, "")
-          val trainOnDev = arg2 match {
+          val trainOnDev = arg1 match {
             case "train" => false
             case "dev" => true
           }

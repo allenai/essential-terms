@@ -28,10 +28,9 @@ class BaselineLearner(
 
   override def predictProbOfBeingEssential(c: Constituent): Double = {
     val scores = classifier.scores(c).toArray
-    val essentialScore = scores.collect {
+    scores.collectFirst {
       case score if score.value == EssentialTermsConstants.IMPORTANT_LABEL => score.score
-    }
-    essentialScore.toList.headOption.getOrElse(0.0) // if we have not seen the word in the training data it is never important
+    }.getOrElse(0.0) // if we have not seen the word in the training data it is never important
   }
 }
 
