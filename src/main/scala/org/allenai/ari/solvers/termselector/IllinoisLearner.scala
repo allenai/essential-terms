@@ -1,15 +1,19 @@
 package org.allenai.ari.solvers.termselector
 
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
-import edu.illinois.cs.cogcomp.saul.classifier.Learnable
-import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
 import org.allenai.common.Logging
 import org.allenai.ari.models.Question
-import com.quantifind.charts.Highcharts
+
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
+import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.StochasticGradientDescent
+import edu.illinois.cs.cogcomp.saul.classifier.Learnable
+import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
+
+import com.quantifind.charts.Highcharts
 
 import scala.collection.JavaConverters._
+
+import java.io.{ File, PrintWriter }
 
 object ai2Logger extends Logging {
   def trace(message: => String): Unit =
@@ -156,39 +160,48 @@ abstract class IllinoisLearner(
     }
     ai2Logger.info("Average hamming distance = " + hammingDistances.sum.toDouble / hammingDistances.size)
 
-    //    testReader.data.slice(0, 30).foreach { consIt =>
-    //      val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
-    //      (0 until numSen).foreach(id =>
-    //        ai2Logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
-    //
-    //      val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
-    //      val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
-    //      val predicted = consIt.map(cons => convertToZeroOne(predictLabel(cons, threshold))).toSeq
-    //      val goldStr = gold.mkString("")
-    //      val predictedStr = predicted.mkString("")
-    //      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
-    //      ai2Logger.info(goldImportantSentence)
-    //      ai2Logger.info(goldStr)
-    //      ai2Logger.info(predictedStr)
-    //      ai2Logger.info(s"hamming distance = $hammingDistance")
-    //      ai2Logger.info("----")
-    //    }
-    //
-    //    // harsh exact evaluation
-    //    testReader.data.foreach { consIt =>
-    //      val gold = consIt.map(goldLabel(_)).mkString
-    //      val predicted = consIt.map(predictLabel(_, threshold)).mkString
-    //
-    //      val fakePred = if (gold == predicted) "same" else "different"
-    //      testerExact.reportPrediction(fakePred, "same")
-    //    }
-    //    testerExact.printPerformance(System.out)
     hammingDistances.sum.toDouble / hammingDistances.size
+  }
+
+  def printHammingDistances(threshold: Double): Unit = {
+    val goldLabel = dataModel.goldLabel
+    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    testReader.data.slice(0, 30).foreach { consIt =>
+      val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
+      (0 until numSen).foreach(id =>
+        ai2Logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
+
+      val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
+      val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
+      val predicted = consIt.map(cons => convertToZeroOne(predictLabel(cons, threshold))).toSeq
+      val goldStr = gold.mkString("")
+      val predictedStr = predicted.mkString("")
+      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
+      ai2Logger.info(goldImportantSentence)
+      ai2Logger.info(goldStr)
+      ai2Logger.info(predictedStr)
+      ai2Logger.info(s"hamming distance = $hammingDistance")
+      ai2Logger.info("----")
+    }
+  }
+
+  def accuracyPerSentence(threshold: Double): Unit = {
+    // harsh exact evaluation
+    val testerExact = new TestDiscrete
+    val goldLabel = dataModel.goldLabel
+    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    testReader.data.foreach { consIt =>
+      val gold = consIt.map(goldLabel(_)).mkString
+      val predicted = consIt.map(predictLabel(_, threshold)).mkString
+
+      val fakePred = if (gold == predicted) "same" else "different"
+      testerExact.reportPrediction(fakePred, "same")
+    }
+    testerExact.printPerformance(System.out)
   }
 
   def rankingMeasures(): Unit = {
     val goldLabel = dataModel.goldLabel
-    val testerExact = new TestDiscrete
     val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.testSentences)
     testReader.reset()
 
@@ -215,8 +228,7 @@ abstract class IllinoisLearner(
     }
     ai2Logger.info(s"Average ranked precision: ${averagePrecisionList.sum / averagePrecisionList.size}")
 
-    // precision recall curve
-    //       evaluating PR-curve over all tokens
+    // evaluating PR-curve over all tokens
     val scoreLabelPairs = testReader.data.flatMap { consIt =>
       consIt.toList.map { cons =>
         val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
@@ -226,7 +238,11 @@ abstract class IllinoisLearner(
     }.toList
     val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
     val (precision, recall, _) = rankedPrecisionRecallYield(rankedGold).unzip3
-    Highcharts.areaspline(recall, precision)
+    val writer = new PrintWriter(new File(this.getSimpleName + this.modelSuffix + "_rankingFeatures.txt"))
+    writer.write(precision.mkString("\t") + "\n")
+    writer.write(recall.mkString("\t") + "\n")
+    writer.close()
+    //Highcharts.areaspline(recall, precision)
 
     // per sentence
     val (perSenPList, perSenRList, perSenYList) = testReader.data.map { consIt =>
@@ -246,15 +262,15 @@ abstract class IllinoisLearner(
     assert(averagePList.length == averageRList.length)
     assert(averagePList.length == averageYList.length)
 
-    ai2Logger.info(averageRList.mkString("/"))
-    ai2Logger.info(averagePList.mkString("/"))
-    ai2Logger.info(averageYList.mkString("/"))
-    //Highcharts.areaspline(averageRList, averagePList)
-
-    Highcharts.xAxis("Recall")
-    Highcharts.yAxis("Precision")
-    Thread.sleep(10000L)
-    Highcharts.stopServer
+    ai2Logger.info("Per sentence: ")
+    ai2Logger.info(averageRList.mkString(", "))
+    ai2Logger.info(averagePList.mkString(", "))
+    ai2Logger.info(averageYList.mkString(", "))
+    //    Highcharts.areaspline(averageRList, averagePList)
+    //    Highcharts.xAxis("Recall")
+    //    Highcharts.yAxis("Precision")
+    //    Thread.sleep(10000L)
+    //    Highcharts.stopServer
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
@@ -306,10 +322,8 @@ abstract class IllinoisLearner(
     testReader.data.foreach { consIt =>
       val consList = consIt.toList
       val numSen = consList.head.getTextAnnotation.getNumberOfSentences
-      //if (internalLogger.isInfoEnabled()) {
       (0 until numSen).foreach(id =>
         ai2Logger.info(consList.head.getTextAnnotation.getSentence(id).toString))
-      //}
       val goldImportantSentence = consList.map { cons => cons.getSurfaceForm }.mkString("//")
       val gold = consList.map(cons => convertToZeroOne(goldLabel(cons)))
       val predicted = consList.map(cons => convertToZeroOne(predictLabel(cons, threshold)))

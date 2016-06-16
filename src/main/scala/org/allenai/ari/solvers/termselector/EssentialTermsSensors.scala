@@ -157,16 +157,16 @@ object EssentialTermsSensors extends Logging {
     Random.setSeed(10)
     val (regents, nonRegents) = allQuestions.partition(q => regentsSet.contains(q.aristoQuestion.text))
     val trainSize = (trainProb * allQuestions.size).toInt
-    val (train, nonTrain_nonRegents) = Random.shuffle(nonRegents).splitAt(trainSize)
-    val devSize = (devProb * nonTrain_nonRegents.size).toInt
-    val (dev, nonDev_nonTrain_nonRegents) = Random.shuffle(nonTrain_nonRegents).splitAt(devSize)
+    val (train, nonTrainNonRegents) = Random.shuffle(nonRegents).splitAt(trainSize)
+    val devSize = (devProb * nonTrainNonRegents.size).toInt
+    val (dev, nonDev_nonTrain_nonRegents) = Random.shuffle(nonTrainNonRegents).splitAt(devSize)
     val test = nonDev_nonTrain_nonRegents ++ regents // add regents to the test data
     val trainSen = getSentence(train)
     val testSen = getSentence(test)
     val devSen = getSentence(dev)
 
     // TODO(daniel): make it parameter in application.conf
-    val filterMidScoreConsitutents = true
+    val filterMidScoreConsitutents = false
     val filteredTrainSen = if (filterMidScoreConsitutents) {
       trainSen.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.65 || c.getConstituentScore <= 0.35 } }
     } else {
@@ -181,9 +181,9 @@ object EssentialTermsSensors extends Logging {
     (filteredTrainSen.flatten, testSen.flatten, devSen.flatten, filteredTrainSen, testSen, devSen)
   }
 
-  lazy val allConstituents = trainConstituents ++ testConstituents
+  lazy val allConstituents = trainConstituents ++ testConstituents ++ devConstituents
 
-  lazy val allSentences = trainSentences ++ testSentences
+  lazy val allSentences = trainSentences ++ testSentences ++ devSentences
 
   // splitting questions based on their types, like wh-question, etc
   lazy val (whatQuestions, whichQuestions, whereQuestions, whenQuestions, howQuestions, nonWhQuestions) = {

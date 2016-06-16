@@ -26,7 +26,8 @@ class EssentialTermsService @Inject() (
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
       case "Lookup" => new LookupLearner()
-      case "Salience" => SalienceBaseline.makeNewLearners().max
+      case "maxSalience" => SalienceBaseline.makeNewLearners().max
+      case "sumSalience" => SalienceBaseline.makeNewLearners().sum
       case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.surfaceForm
       case "Expanded" =>
         val salienceBaselines = SalienceBaseline.makeNewLearners()
