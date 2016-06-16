@@ -24,37 +24,36 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   )
   private lazy val constrainedLearner = ConstrainedLearner.makeNewLearner(expandedLearner, expandedDataModel)
 
-  def trainAndTestBaselineLearners(test: Boolean = true, testOnSentences: Boolean = false, trainOnDev: Boolean): Unit = {
+  def trainAndTestBaselineLearners(test: Boolean = true, testRankingMeasures: Boolean = false, trainOnDev: Boolean): Unit = {
     trainAndTestLearner(baselineLearners.surfaceForm, 1, test,
-      testOnSentences, saveModel = true, trainOnDev)
+      testRankingMeasures, saveModel = true, trainOnDev)
     trainAndTestLearner(baselineLearners.lemma, 1, test,
-      testOnSentences, saveModel = true, trainOnDev)
-    trainAndTestLearner(baselineLearners.posConjLemma, 1, test,
-      testOnSentences, saveModel = true, trainOnDev)
-    trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test,
-      testOnSentences, saveModel = true, trainOnDev)
-    trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test,
-      testOnSentences, saveModel = true, trainOnDev)
-    trainAndTestLearner(baselineLearners.baselineLearnerLemmaPair, 1, test,
-      testOnSentences, saveModel = true, trainOnDev)
+      testRankingMeasures, saveModel = true, trainOnDev)
+        trainAndTestLearner(baselineLearners.posConjLemma, 1, test,
+          testRankingMeasures, saveModel = true, trainOnDev)
+        trainAndTestLearner(baselineLearners.wordFormConjNer, 1, test,
+          testRankingMeasures, saveModel = true, trainOnDev)
+        trainAndTestLearner(baselineLearners.wordFormConjNerConjPos, 1, test,
+          testRankingMeasures, saveModel = true, trainOnDev)
+        trainAndTestLearner(baselineLearners.baselineLearnerLemmaPair, 1, test,
+          testRankingMeasures, saveModel = true, trainOnDev)
   }
 
   def trainAndTestExpandedLearner(testOnSentences: Boolean = false): Unit = {
     // since baselineLearners is used in expandedLearner, first train the baselines
-    trainAndTestBaselineLearners(testOnSentences = false, trainOnDev = true)
-    //loadAndTestExpandedLearner()
+    trainAndTestBaselineLearners(testRankingMeasures = false, trainOnDev = true)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
     val featureLength = expandedLearner.classifier.getPrunedLexiconSize
     println("Feature length = " + featureLength)
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearners.surfaceForm, test = true, testOnSentences = false)
-    testLearner(baselineLearners.lemma, test = true, testOnSentences = false)
-    testLearner(baselineLearners.posConjLemma, test = true, testOnSentences = false)
-    testLearner(baselineLearners.wordFormConjNer, test = true, testOnSentences = false)
-    testLearner(baselineLearners.wordFormConjNerConjPos, test = true, testOnSentences = false)
-    testLearner(expandedLearner, test = true, testOnSentences = true)
+    testLearner(baselineLearners.surfaceForm, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearners.lemma, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearners.posConjLemma, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearners.wordFormConjNer, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearners.wordFormConjNerConjPos, test = true, testWithRankingMeasures = false)
+    testLearner(expandedLearner, test = true, testWithRankingMeasures = true)
   }
 
   def testSalienceLearner(salienceType: String): Unit = {
@@ -62,7 +61,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       case "max" => salienceLearners.max
       case "sum" => salienceLearners.sum
     }
-    testLearner(salienceLearner, test = false, testOnSentences = true)
+    testLearner(salienceLearner, test = false, testWithRankingMeasures = true)
   }
 
   def testLearnerWithSampleAristoQuestion(): Unit = {
@@ -139,7 +138,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     learner: IllinoisLearner,
     numIterations: Int,
     test: Boolean = true,
-    testOnSentences: Boolean = true,
+    testWithRankingMeasures: Boolean = true,
     saveModel: Boolean = false,
     trainOnDev: Boolean = false
   ): Unit = {
@@ -159,13 +158,13 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       learner.save()
     }
 
-    testLearner(learner, test, testOnSentences)
+    testLearner(learner, test, testWithRankingMeasures)
   }
 
   private def testLearner(
     learner: IllinoisLearner,
     test: Boolean,
-    testOnSentences: Boolean,
+    testWithRankingMeasures: Boolean,
     testOnTraining: Boolean = false
   ): Unit = {
     val dataModel = learner.dataModel
@@ -180,8 +179,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       learner.test(constituents)
     }
     // microAvgTest(baselineLearner)
-    if (testOnSentences) {
-      logger.debug(s"Testing learner ${learner.getSimpleName} over sentences")
+    if (testWithRankingMeasures) {
+      logger.debug(s"Testing learner ${learner.getSimpleName} with ranking measures")
       learner.rankingMeasures()
     }
   }
@@ -243,34 +242,48 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       case "sumSalience" => salienceLearners.sum
       case "wordBaseline" => baselineLearners.surfaceForm
       case "lemmaBaseline" => baselineLearners.lemma
-      case "expanded" => expandedLearner
+      case "expanded"  => expandedLearner
+      case name: String => throw new Exception(s"Wrong classisifer name ${name}!")
     }
-
-    testWithAlpha((-30 to 20 by 1).map(x => math.exp(x / 5.0)))
-
-    //    testWithAlpha(0.1)
-    //    testWithAlpha(0.3)
-    //    testWithAlpha(0.5)
-    //    testWithAlpha(0.7)
-    //    testWithAlpha(0.9)
-    //    testWithAlpha(1.0)
-    //    testWithAlpha(1.1)
-    //    testWithAlpha(1.3)
-    //    testWithAlpha(1.5)
-    //    testWithAlpha(1.7)
-    //    testWithAlpha(1.9)
 
     def testWithAlpha(alphas: Seq[Double]): Unit = {
       alphas.foreach { alpha =>
         println("-------")
         val threshold = c.tuneThreshold(alpha)
-        val devScores = c.testAcrossSentences(devSentences, threshold, alpha)
-        println("dev = " + devScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        val trainScores = c.testAcrossSentences(trainSentences, threshold, alpha)
+        println("train = " + trainScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
         val testScores = c.testAcrossSentences(testSentences, threshold, alpha)
         println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
         c.hammingMeasure(threshold)
       }
     }
+
+    testWithAlpha((-30 to 8).map(x => math.exp(x / 5.0)))
+
+    if (c.isInstanceOf[ExpandedLearner]) {
+      val featureLength = expandedLearner.classifier.getPrunedLexiconSize
+      println("Feature length = " + featureLength)
+    }
+  }
+
+  def testClassifierAcrossThresholds(classifier: String): Unit = {
+    val c = classifier match {
+      case "maxSalience" => salienceLearners.max
+      case "sumSalience" => salienceLearners.sum
+      case "wordBaseline" => baselineLearners.surfaceForm
+      case "lemmaBaseline" => baselineLearners.lemma
+      case "expanded" => expandedLearner
+    }
+
+    def testWithAlpha(thresholds: Seq[Double]): Unit = {
+      thresholds.foreach { threshold =>
+        println("-------")
+        val testScores = c.testAcrossSentences(testSentences, threshold, 1)
+        println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        c.hammingMeasure(threshold)
+      }
+    }
+    testWithAlpha(-0.1 to 1.1 by 0.05)
 
     if (c.isInstanceOf[ExpandedLearner]) {
       val featureLength = expandedLearner.classifier.getPrunedLexiconSize
@@ -329,7 +342,7 @@ object EssentialTermsApp extends Logging {
   def main(args: Array[String]): Unit = {
     val usageStr = "\nUSAGE: " +
       "\n run 1  <classifier model>  (TrainAndTestMainLearner) " +
-      "\n run 2  <classifier model>  (LoadAndTestMainLearner) " +
+      "\n run 2  <classifier model> <train/dev>  (LoadAndTestMainLearner) " +
       "\n run 3  <classifier model>  (TrainAndTestBaseline) " +
       "\n run 4  <classifier model>  (TestWithAristoQuestion) " +
       "\n run 5  <classifier model>  (TestConstrainedLearnerWithAristoQuestion) " +
@@ -341,12 +354,12 @@ object EssentialTermsApp extends Logging {
       "\n run 11 <maxSalience/sumSalience/wordBaseline/lemmaBaseline/expanded> <classifier model>  (TuneClassifiers)" +
       "\n run 12 <classifier model>  (SaveRedisAnnotationCache)" +
       "\n run 13 <classifier model>  (PrintStatistics)"
-    if (args.length <= 0 || args.length >= 3) {
+    if (args.length <= 0 || args.length > 3) {
       throw new IllegalArgumentException(usageStr)
     } else {
       val testType = args(0)
       val arg1 = args.lift(1).getOrElse("")
-      val arg2 = args.lift(1).getOrElse("")
+      val arg2 = args.lift(2).getOrElse("")
       testType match {
         case "1" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, arg1)
@@ -356,7 +369,11 @@ object EssentialTermsApp extends Logging {
           essentialTermsApp.loadAndTestExpandedLearner()
         case "3" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = false, "")
-          essentialTermsApp.trainAndTestBaselineLearners(test = true, testOnSentences = false, trainOnDev = false)
+          val trainOnDev = arg2 match {
+            case "train" => false
+            case "dev" => true
+          }
+          essentialTermsApp.trainAndTestBaselineLearners(test = true, testRankingMeasures = true, trainOnDev)
         case "4" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.testLearnerWithSampleAristoQuestion()
@@ -387,6 +404,9 @@ object EssentialTermsApp extends Logging {
         case "13" =>
           val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
           essentialTermsApp.printStatistics()
+        case "14" =>
+          val essentialTermsApp = new EssentialTermsApp(loadSavedModel = true, arg1)
+          essentialTermsApp.testClassifierAcrossThresholds(arg2)
         case _ =>
           throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
       }

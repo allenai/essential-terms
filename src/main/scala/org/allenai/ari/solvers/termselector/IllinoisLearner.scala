@@ -349,7 +349,7 @@ abstract class IllinoisLearner(
   /** given a set of training instances it returns the optimal threshold */
   def tuneThreshold(alpha: Double): Double = {
     val goldLabel = dataModel.goldLabel
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.trainSentences)
+    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.devSentences)
     testReader.reset()
 
     // first get the real predictions per sentence
