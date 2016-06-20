@@ -2,7 +2,7 @@ name := "termselector"
 
 description := "A pre-processing tool to identify important terms in questions"
 
-jvmMemory := "12g"
+jvmMemory := "9g"
 
 libraryDependencies ++= Seq(
   allenAiCommon exclude("edu.stanford.nlp", "stanford-corenlp"),

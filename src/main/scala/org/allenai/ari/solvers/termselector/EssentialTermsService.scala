@@ -11,12 +11,10 @@ import DefaultJsonProtocol._
 /** A service for identifying essential terms in Aristo questions.
   *
   * @param classifierType whether and how to identify and use essential terms in the model
-  * @param confidenceThreshold Threshold to call terms essential. If set to a negative value, use
   * the classifier predictions directly
   */
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
-    @Named("essentialTerms.confidenceThreshold") val confidenceThreshold: Double,
     @Named("essentialTerms.classifierModel") val classifierModel: String,
     @Named("essentialTerms.useRedisCaching") val useRedisCaching: Boolean
 ) extends Logging {
@@ -41,29 +39,29 @@ class EssentialTermsService @Inject() (
   /** Get essential term scores for a given question. */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
     if (useRedisCaching) {
-      getEssentialTermsAndScoresFromRedis(aristoQ)._2
+      getEssentialTermsAndScoresFromRedis(aristoQ, 0.5)._2
     } else {
       computeEssentialTermScores(aristoQ)
     }
   }
 
   /** Get essential terms for a given question; use confidenceThreshold if provided. */
-  def getEssentialTerms(aristoQ: Question): Seq[String] = {
+  def getEssentialTerms(aristoQ: Question, confidenceThreshold: Double): Seq[String] = {
     if (useRedisCaching) {
-      getEssentialTermsAndScoresFromRedis(aristoQ)._1
+      getEssentialTermsAndScoresFromRedis(aristoQ, confidenceThreshold)._1
     } else {
-      computeEssentialTerms(aristoQ)
+      computeEssentialTerms(aristoQ, confidenceThreshold)
     }
   }
 
   /** Get essential terms for a given question (selected via confidenceThreshold, if provided),
     * as well as essential term scores for a given question.
     */
-  def getEssentialTermsAndScores(aristoQ: Question): (Seq[String], Map[String, Double]) = {
+  def getEssentialTermsAndScores(aristoQ: Question, confidenceThreshold: Double): (Seq[String], Map[String, Double]) = {
     if (useRedisCaching) {
-      getEssentialTermsAndScoresFromRedis(aristoQ)
+      getEssentialTermsAndScoresFromRedis(aristoQ, confidenceThreshold)
     } else {
-      computeEssentialTermsAndScores(aristoQ)
+      computeEssentialTermsAndScores(aristoQ, confidenceThreshold)
     }
   }
 
@@ -73,7 +71,7 @@ class EssentialTermsService @Inject() (
   }
 
   /** Compute essential terms for a given question; use confidenceThreshold if provided. */
-  private def computeEssentialTerms(aristoQ: Question): Seq[String] = {
+  private def computeEssentialTerms(aristoQ: Question, confidenceThreshold: Double): Seq[String] = {
     require(confidenceThreshold >= 0, "The defined threshold must be bigger than zero . . . ")
     val termsWithScores = computeEssentialTermScores(aristoQ)
     termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
@@ -81,9 +79,10 @@ class EssentialTermsService @Inject() (
 
   /** Compute essential terms for a given question (selected via confidenceThreshold, if provided),
     * as well as essential term scores for a given question.
+    * @param confidenceThreshold Threshold to call terms essential. If set to a negative value, use
     */
   private def computeEssentialTermsAndScores(
-    aristoQ: Question
+    aristoQ: Question, confidenceThreshold: Double
   ): (Seq[String], Map[String, Double]) = {
     require(confidenceThreshold >= 0, "The defined threshold must be bigger than zero . . . ")
     val termsWithScores = computeEssentialTermScores(aristoQ)
@@ -94,7 +93,7 @@ class EssentialTermsService @Inject() (
 
   /** Retrieve essential terms and scores from Redis cache; if not present, compute and store. */
   private def getEssentialTermsAndScoresFromRedis(
-    aristoQ: Question
+    aristoQ: Question, confidenceThreshold: Double
   ): (Seq[String], Map[String, Double]) = {
     // use the raw question in the cache as the essential term prediction depends on the options
     val cacheKey = "EssentialTermsServiceCache***" + aristoQ.rawQuestion + classifierType +
@@ -106,7 +105,7 @@ class EssentialTermsService @Inject() (
       case Some(termsAndScoreJson) =>
         termsAndScoreJson.parseJson.convertTo[(Seq[String], Map[String, Double])]
       case None =>
-        val (terms, scores) = computeEssentialTermsAndScores(aristoQ)
+        val (terms, scores) = computeEssentialTermsAndScores(aristoQ, confidenceThreshold)
         EssentialTermsSensors.synchronized {
           EssentialTermsSensors.annotationRedisCache.set(
             cacheKey, (terms, scores).toJson.compactPrint
