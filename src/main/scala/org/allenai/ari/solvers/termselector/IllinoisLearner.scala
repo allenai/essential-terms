@@ -15,6 +15,7 @@ import scala.collection.JavaConverters._
 
 import java.io.{ File, PrintWriter }
 
+//TODO(danielk) get rid of this after fixing Saul logging
 object ai2Logger extends Logging {
   def trace(message: => String): Unit =
     if (internalLogger.isTraceEnabled) {

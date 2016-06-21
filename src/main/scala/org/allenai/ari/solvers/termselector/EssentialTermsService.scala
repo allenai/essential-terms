@@ -11,7 +11,6 @@ import DefaultJsonProtocol._
 /** A service for identifying essential terms in Aristo questions.
   *
   * @param classifierType whether and how to identify and use essential terms in the model
-  * the classifier predictions directly
   */
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
@@ -19,19 +18,21 @@ class EssentialTermsService @Inject() (
     @Named("essentialTerms.useRedisCaching") val useRedisCaching: Boolean
 ) extends Logging {
 
-  /** Create a learner object. Lazy to avoid creating a learner if the service is not used. */
-  private lazy val learner: EssentialTermsLearner = {
+  /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
+    * The default thresholds are chosen to maximize F1 on the dev set, given the threshold
+    */
+  private lazy val (learner, defaultThreshold) = {
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
-      case "Lookup" => new LookupLearner()
-      case "maxSalience" => SalienceBaseline.makeNewLearners().max
-      case "sumSalience" => SalienceBaseline.makeNewLearners().sum
-      case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.surfaceForm
+      case "Lookup" => new LookupLearner() -> 0.5
+      case "maxSalience" => SalienceBaseline.makeNewLearners().max -> 0.02
+      case "sumSalience" => SalienceBaseline.makeNewLearners().sum -> 0.07
+      case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.lemma -> 0.19
       case "Expanded" =>
         val salienceBaselines = SalienceBaseline.makeNewLearners()
         val (baselineDataModel, baselineClassifiers) = BaselineLearner.makeNewLearners(loadSavedModel = true)
         ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel, baselineClassifiers,
-          baselineDataModel, salienceBaselines)._2
+          baselineDataModel, salienceBaselines)._2 -> 0.46
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
   }
@@ -39,79 +40,58 @@ class EssentialTermsService @Inject() (
   /** Get essential term scores for a given question. */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
     if (useRedisCaching) {
-      getEssentialTermsAndScoresFromRedis(aristoQ, 0.5)._2
+      getEssentialScoresFromRedis(aristoQ)
     } else {
-      computeEssentialTermScores(aristoQ)
+      learner.getEssentialTermScores(aristoQ)
     }
   }
 
-  /** Get essential terms for a given question; use confidenceThreshold if provided. */
-  def getEssentialTerms(aristoQ: Question, confidenceThreshold: Double): Seq[String] = {
-    if (useRedisCaching) {
-      getEssentialTermsAndScoresFromRedis(aristoQ, confidenceThreshold)._1
+  /** Get essential terms for a given question; use threshold if provided, otherwise defaultThreshold */
+  def getEssentialTerms(aristoQ: Question, threshold: Double = defaultThreshold): Seq[String] = {
+    require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
+    val termsWithScores = if (useRedisCaching) {
+      getEssentialScoresFromRedis(aristoQ)
     } else {
-      computeEssentialTerms(aristoQ, confidenceThreshold)
+      learner.getEssentialTermScores(aristoQ)
     }
+    termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
   }
 
-  /** Get essential terms for a given question (selected via confidenceThreshold, if provided),
+  /** Get essential terms for a given question (selected via threshold, if provided; otherwise defaultThreshold),
     * as well as essential term scores for a given question.
     */
-  def getEssentialTermsAndScores(aristoQ: Question, confidenceThreshold: Double): (Seq[String], Map[String, Double]) = {
-    if (useRedisCaching) {
-      getEssentialTermsAndScoresFromRedis(aristoQ, confidenceThreshold)
+  def getEssentialTermsAndScores(aristoQ: Question, threshold: Double = defaultThreshold): (Seq[String], Map[String, Double]) = {
+    require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
+    val termsWithScores = if (useRedisCaching) {
+      getEssentialScoresFromRedis(aristoQ)
     } else {
-      computeEssentialTermsAndScores(aristoQ, confidenceThreshold)
+      learner.getEssentialTermScores(aristoQ)
     }
-  }
-
-  /** Compute essential term scores for a given question. */
-  private def computeEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    learner.getEssentialTermScores(aristoQ)
-  }
-
-  /** Compute essential terms for a given question; use confidenceThreshold if provided. */
-  private def computeEssentialTerms(aristoQ: Question, confidenceThreshold: Double): Seq[String] = {
-    require(confidenceThreshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = computeEssentialTermScores(aristoQ)
-    termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
-  }
-
-  /** Compute essential terms for a given question (selected via confidenceThreshold, if provided),
-    * as well as essential term scores for a given question.
-    * @param confidenceThreshold Threshold to call terms essential. If set to a negative value, use
-    */
-  private def computeEssentialTermsAndScores(
-    aristoQ: Question, confidenceThreshold: Double
-  ): (Seq[String], Map[String, Double]) = {
-    require(confidenceThreshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = computeEssentialTermScores(aristoQ)
-    val essentialTerms = termsWithScores.collect { case (term, score) if score >= confidenceThreshold => term }.toSeq
-
+    val essentialTerms = termsWithScores.collect { case (term, score) if score >= threshold => term }.toSeq
     (essentialTerms, termsWithScores)
   }
 
-  /** Retrieve essential terms and scores from Redis cache; if not present, compute and store. */
-  private def getEssentialTermsAndScoresFromRedis(
-    aristoQ: Question, confidenceThreshold: Double
-  ): (Seq[String], Map[String, Double]) = {
+  /** Retrieve essential scores from Redis cache; if not present, compute and store. */
+  private def getEssentialScoresFromRedis(
+    aristoQ: Question
+  ): Map[String, Double] = {
     // use the raw question in the cache as the essential term prediction depends on the options
-    val cacheKey = "EssentialTermsServiceCache***" + aristoQ.rawQuestion + classifierType +
+    val cacheKey = "EssentialTermsServiceCache***scores***" + aristoQ.rawQuestion + classifierType +
       classifierModel
     val termsAndScoreJsonOpt = EssentialTermsSensors.synchronized {
       EssentialTermsSensors.annotationRedisCache.get(cacheKey)
     }
     termsAndScoreJsonOpt match {
       case Some(termsAndScoreJson) =>
-        termsAndScoreJson.parseJson.convertTo[(Seq[String], Map[String, Double])]
+        termsAndScoreJson.parseJson.convertTo[Map[String, Double]]
       case None =>
-        val (terms, scores) = computeEssentialTermsAndScores(aristoQ, confidenceThreshold)
+        val scores = learner.getEssentialTermScores(aristoQ)
         EssentialTermsSensors.synchronized {
           EssentialTermsSensors.annotationRedisCache.set(
-            cacheKey, (terms, scores).toJson.compactPrint
+            cacheKey, scores.toJson.compactPrint
           )
         }
-        (terms, scores)
+        scores
     }
   }
 }
