@@ -1,23 +1,24 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.evaluation
 
+import org.allenai.ari.solvers.termselector.Constants
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
+import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
 
 import com.redis._
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
-import spray.json._
+
+import java.io._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-
-import java.io._
 
 /** A sample application to train, test, save, and load essential terms classifiers. */
 class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extends Logging {
   // lazily create the baseline and expanded data models and learners
   private lazy val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel)
-  private lazy val salienceLearners = SalienceBaseline.makeNewLearners()
+  private lazy val salienceLearners = SalienceLearner.makeNewLearners()
   private lazy val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(
     loadSavedModel,
     classifierModel, baselineLearners, baselineDataModel, salienceLearners
@@ -70,7 +71,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val aristoQuestion = decomposeQuestion(q)
-    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner, threshold = EssentialTermsConstants.EXPANDED_UP_THRESHOLD)
+    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner, threshold = Constants.EXPANDED_UP_THRESHOLD)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
   }
@@ -93,8 +94,8 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     //      "December (B) June (C) March (D) September"
     val aristoQuestion = decomposeQuestion(q)
     val (salienceLearner, th) = salienceType match {
-      case "max" => (salienceLearners.max, EssentialTermsConstants.MAX_SALIENCE_UP_THRESHOLD)
-      case "sum" => (salienceLearners.sum, EssentialTermsConstants.SUM_SALIENCE_UP_THRESHOLD)
+      case "max" => (salienceLearners.max, Constants.MAX_SALIENCE_UP_THRESHOLD)
+      case "sum" => (salienceLearners.sum, Constants.SUM_SALIENCE_UP_THRESHOLD)
     }
     val scores = salienceLearner.getEssentialTermScores(aristoQuestion)
     logger.debug("Identified essentiality scores: " + scores.toString)
@@ -109,7 +110,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   /** saving the salience cache of the questions in the training data */
   def saveSalienceCacheOnDisk(): Unit = {
     val r = new RedisClient("localhost", 6379)
-    val writer = new PrintWriter(new File(EssentialTermsConstants.SALIENCE_CACHE))
+    val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
     allQuestions.foreach { q =>
       if (r.exists(q.rawQuestion) && q.aristoQuestion.selections.nonEmpty) {
         writer.write(s"${q.rawQuestion}\n${r.get(q.rawQuestion).get}\n")
@@ -124,9 +125,9 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
   def saveRedisAnnotationCache(): Unit = {
     val keys = annotationRedisCache.keys().get
     logger.info(s"Saving ${keys.size} elements in the cache. ")
-    val writer = new PrintWriter(new File(EssentialTermsConstants.SALIENCE_CACHE))
+    val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
     keys.foreach {
-      case Some(key) if key.contains(EssentialTermsConstants.SALIENCE_PREFIX) =>
+      case Some(key) if key.contains(Constants.SALIENCE_PREFIX) =>
         annotationRedisCache.get(key).map { value =>
           writer.write(s"$key\n$value\n")
         }
@@ -191,7 +192,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
 
     // one time dry run, to add all the lexicon
     testReader.data.foreach { consIt =>
-      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+      val cons = consIt.head.getTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala
       cons.foreach { c => expandedLearner.classifier.getExampleArray(c, true) }
     }
 
@@ -216,7 +217,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
     exampleReader.reset()
 
     exampleReader.data.foreach { consIt =>
-      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala
+      val cons = consIt.head.getTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala
       cons.foreach { c =>
         val out = expandedLearner.classifier.getExampleArray(c, true)
         val intArray = out(0).asInstanceOf[Array[Int]].toList
@@ -253,9 +254,9 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
         println("-------")
         val threshold = c.tuneThreshold(alpha)
         val trainScores = c.testAcrossSentences(trainSentences, threshold, alpha)
-        println("train = " + trainScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        println("train = " + trainScores.get(Constants.IMPORTANT_LABEL))
         val testScores = c.testAcrossSentences(testSentences, threshold, alpha)
-        println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        println("test = " + testScores.get(Constants.IMPORTANT_LABEL))
         c.hammingMeasure(threshold)
       }
     }
@@ -282,7 +283,7 @@ class EssentialTermsApp(loadSavedModel: Boolean, classifierModel: String) extend
       thresholds.foreach { threshold =>
         println("-------")
         val testScores = c.testAcrossSentences(testSentences, threshold, 1)
-        println("test = " + testScores.get(EssentialTermsConstants.IMPORTANT_LABEL))
+        println("test = " + testScores.get(Constants.IMPORTANT_LABEL))
         c.hammingMeasure(threshold)
       }
     }

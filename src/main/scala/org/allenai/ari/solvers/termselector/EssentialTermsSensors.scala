@@ -4,6 +4,7 @@ import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question }
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
+import org.allenai.ari.solvers.termselector.learners.{ ExpandedDataModel, IllinoisLearner }
 import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
@@ -34,36 +35,11 @@ import scala.util.Random
 import java.io.File
 import java.util.Properties
 
-protected case object EssentialTermsConstants {
-  val VIEW_NAME = "ESSENTIAL_TERMS"
-  val IMPORTANT_LABEL = "IMPORTANT"
-  val UNIMPORTANT_LABEL = "NOT-IMPORTANT"
-  val LABEL_SEPARATOR = "*|*|*"
-
-  // annotation keys
-  val ANNOTATION_PREFIX = "AnnotationCache***"
-  val SALIENCE_PREFIX = "***SalienceScore="
-  val TOKENIZATION_PREFIX = "**essentialTermTokenization:"
-
-  // cache files
-  val SALIENCE_CACHE = "salienceCache.txt"
-
-  // the threshold used in prediction of discrete values; these values are usually set by tuning.
-  val EXPANDED_UP_THRESHOLD = 1.5
-  val EXPANDED_DOWN_THRESHOLD = 0.5
-  val MAX_SALIENCE_UP_THRESHOLD = 1.5
-  val MAX_SALIENCE_DOWN_THRESHOLD = 0.5
-  val SUM_SALIENCE_UP_THRESHOLD = 1.5
-  val SUM_SALIENCE_DOWN_THRESHOLD = 0.5
-  val WORD_BASELINE_UP_THRESHOLD = 1.5
-  val WORD_BASELINE_DOWN_THRESHOLD = 0.5
-}
-
 object EssentialTermsSensors extends Logging {
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
-    lazy val stopWordsFile = EssentialTermsUtils.getDatastoreFileAsSource(
+    lazy val stopWordsFile = Utils.getDatastoreFileAsSource(
       "public", "org.allenai.termselector", "stopwords.txt", 1
     )
     val stopWords = stopWordsFile.getLines().toList
@@ -80,7 +56,7 @@ object EssentialTermsSensors extends Logging {
   // a hashmap from sentences to [[TextAnnotation]]s
   // TODO(daniel): this is not used currently; decide if you want to use this file, or use redis
   lazy val annotationFileCache = {
-    val annotationCacheFile = EssentialTermsUtils.getDatastoreFileAsSource(
+    val annotationCacheFile = Utils.getDatastoreFileAsSource(
       "private", "org.allenai.termselector", "annotationCache.json", 1
     )
     val lines = annotationCacheFile.getLines().toList
@@ -130,8 +106,8 @@ object EssentialTermsSensors extends Logging {
   lazy val w2vNoMatchStr = "</s>" // string used by word2vec when there is no match
 
   lazy val salienceMap = {
-    val salienceCache = EssentialTermsUtils.getDatastoreFileAsSource(
-      "public", "org.allenai.termselector", EssentialTermsConstants.SALIENCE_CACHE, 3
+    val salienceCache = Utils.getDatastoreFileAsSource(
+      "public", "org.allenai.termselector", Constants.SALIENCE_CACHE, 3
     )
     val lines = salienceCache.getLines
     val cache = lines.grouped(2).map {
@@ -208,7 +184,7 @@ object EssentialTermsSensors extends Logging {
   lazy val constituentToAnnotationMap = collection.mutable.Map(allQuestions.flatMap { q =>
     val constituents =
       q.questionTextAnnotation
-        .getView(EssentialTermsConstants.VIEW_NAME)
+        .getView(Constants.VIEW_NAME)
         .getConstituents
         .asScala
     constituents.map(_ -> q)
@@ -235,7 +211,7 @@ object EssentialTermsSensors extends Logging {
     val group = "org.allenai.nlp.resources"
     val name = "science_terms.txt"
     val version = 1
-    val file = EssentialTermsUtils.getDatastoreFileAsSource(datastoreName, group, name, version)
+    val file = Utils.getDatastoreFileAsSource(datastoreName, group, name, version)
     val terms = file.getLines().filterNot(_.startsWith("#")).toSet
     file.close()
     terms
@@ -328,7 +304,7 @@ object EssentialTermsSensors extends Logging {
 
   def decomposeQuestion(question: String): Question = {
     val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
-    val multipleChoiceSelection = EssentialTermsUtils.fallbackDecomposer(maybeSplitQuestion)
+    val multipleChoiceSelection = Utils.fallbackDecomposer(maybeSplitQuestion)
     Question(question, Some(maybeSplitQuestion.question),
       multipleChoiceSelection)
   }
@@ -340,7 +316,7 @@ object EssentialTermsSensors extends Logging {
   ): EssentialTermsQuestion = {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
-    val cacheKey = EssentialTermsConstants.ANNOTATION_PREFIX + aristoQuestion.text.get + views.asScala.mkString
+    val cacheKey = Constants.ANNOTATION_PREFIX + aristoQuestion.text.get + views.asScala.mkString
     val redisAnnotation = redisGet(cacheKey)
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
@@ -398,7 +374,7 @@ object EssentialTermsSensors extends Logging {
 
   /** given an aristo question it looks up the salience annotation, either from an static map, or queries salience service */
   def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
-    val redisSalienceKey = EssentialTermsConstants.SALIENCE_PREFIX + q.rawQuestion
+    val redisSalienceKey = Constants.SALIENCE_PREFIX + q.rawQuestion
     val mapOpt = salienceMap.get(redisSalienceKey)
     // TODO(daniel) move it to application.conf as an option
     val checkForMissingSalienceScores = true
@@ -459,7 +435,7 @@ object EssentialTermsSensors extends Logging {
     // since the annotated questions have different tokenizations, we first tokenize then assign
     // scores to tokens of spans
     val viewNamesForParsingEssentialTermTokens = if (combineNamedEntities) Set(ViewNames.TOKENS, ViewNames.NER_CONLL) else Set(ViewNames.TOKENS)
-    val view = new TokenLabelView(EssentialTermsConstants.VIEW_NAME, ta)
+    val view = new TokenLabelView(Constants.VIEW_NAME, ta)
     val combinedConsAll = if (combineNamedEntities) {
       getCombinedConsituents(ta)
     } else {
@@ -469,7 +445,7 @@ object EssentialTermsSensors extends Logging {
       case Some(tokenScoreMap) =>
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
-            val cacheKey = EssentialTermsConstants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
+            val cacheKey = Constants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
             val redisAnnotation = redisGet(cacheKey)
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
@@ -495,21 +471,21 @@ object EssentialTermsSensors extends Logging {
             view.addSpanLabel(
               cons.getStartSpan,
               cons.getEndSpan,
-              EssentialTermsConstants.IMPORTANT_LABEL,
+              Constants.IMPORTANT_LABEL,
               validTokens(cons.getSurfaceForm.toLowerCase)
             )
           } else if (!stopWords.contains(cons.getSurfaceForm.toLowerCase())) {
             view.addSpanLabel(
               cons.getStartSpan,
               cons.getEndSpan,
-              EssentialTermsConstants.UNIMPORTANT_LABEL,
+              Constants.UNIMPORTANT_LABEL,
               validTokens.getOrElse(cons.getSurfaceForm.toLowerCase(), 0)
             )
           }
         }
       case None => combinedConsAll.foreach { cons => view.addSpanLabel(cons.getStartSpan, cons.getEndSpan, "", 0) }
     }
-    ta.addView(EssentialTermsConstants.VIEW_NAME, view)
+    ta.addView(Constants.VIEW_NAME, view)
     ta
   }
 
@@ -525,7 +501,7 @@ object EssentialTermsSensors extends Logging {
   private def getSentence(qs: Seq[EssentialTermsQuestion]): Iterable[Iterable[Constituent]] = {
     qs.map(
       _.questionTextAnnotation
-      .getView(EssentialTermsConstants.VIEW_NAME)
+      .getView(Constants.VIEW_NAME)
       .getConstituents
       .asScala
     )
@@ -574,7 +550,7 @@ object EssentialTermsSensors extends Logging {
     // update the inverse map with the new constituents
     constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
     dataModel.essentialTermTokens.populate(constituents)
-    constituents.collect { case c if learner(c) == EssentialTermsConstants.IMPORTANT_LABEL => c.getSurfaceForm } ++
+    constituents.collect { case c if learner(c) == Constants.IMPORTANT_LABEL => c.getSurfaceForm } ++
       essentialConstituents.map(_.getSurfaceForm)
   }
 }

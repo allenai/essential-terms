@@ -1,15 +1,14 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.common.Logging
 import org.allenai.ari.models.Question
+import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.StochasticGradientDescent
 import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
-
-import com.quantifind.charts.Highcharts
 
 import scala.collection.JavaConverters._
 
@@ -76,15 +75,15 @@ abstract class IllinoisLearner(
   /** Predict the class label of a given term. */
   def predictLabel(c: Constituent, threshold: Double): String = {
     if (predictProbOfBeingEssential(c) > threshold) {
-      EssentialTermsConstants.IMPORTANT_LABEL
+      Constants.IMPORTANT_LABEL
     } else {
-      EssentialTermsConstants.UNIMPORTANT_LABEL
+      Constants.UNIMPORTANT_LABEL
     }
   }
 
   /** Predict whether a given term is essential. */
   def predictIsEssential(c: Constituent, threshold: Double): Boolean = {
-    predictLabel(c, threshold) == EssentialTermsConstants.IMPORTANT_LABEL
+    predictLabel(c, threshold) == Constants.IMPORTANT_LABEL
   }
 
   private def convertRealsToProbabilities(realScore: Double): Double = 1 / (1 + Math.exp(-realScore))
@@ -96,7 +95,7 @@ abstract class IllinoisLearner(
     } else {
       val scores = classifier.scores(c).toArray
       scores.find {
-        case score => score.value == EssentialTermsConstants.IMPORTANT_LABEL
+        case score => score.value == Constants.IMPORTANT_LABEL
       }.get.score
     }
     convertRealsToProbabilities(rawScore)
@@ -208,10 +207,10 @@ abstract class IllinoisLearner(
 
     // ranking-based measures
     val averagePrecisionList = testReader.data.map { consIt =>
-      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME)
+      val cons = consIt.head.getTextAnnotation.getView(Constants.VIEW_NAME)
         .getConstituents.asScala
       val goldLabelList = consIt.toList.map { cons =>
-        if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+        if (goldLabel(cons) == Constants.IMPORTANT_LABEL) 1 else 0
       }
       if (goldLabelList.sum <= 0) {
         ai2Logger.warn("no essential term in gold found in the gold annotation of this question .... ")
@@ -284,7 +283,7 @@ abstract class IllinoisLearner(
       meanAverageRankOfPositive(rankedGold)
     }
     val map = avgPList.sum / avgPList.size
-    ai2Logger.info(s"Mean Average Precision: ${map}")
+    ai2Logger.info(s"Mean Average Precision: $map")
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores
@@ -313,7 +312,7 @@ abstract class IllinoisLearner(
   }
 
   private def convertToZeroOne(label: String): Int = {
-    if (label == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+    if (label == Constants.IMPORTANT_LABEL) 1 else 0
   }
 
   private def avg(list: List[Double]): Double = {
@@ -368,10 +367,10 @@ abstract class IllinoisLearner(
 
     // first get the real predictions per sentence
     val scoreLabelPairs = testReader.data.map { consIt =>
-      val cons = consIt.head.getTextAnnotation.getView(EssentialTermsConstants.VIEW_NAME)
+      val cons = consIt.head.getTextAnnotation.getView(Constants.VIEW_NAME)
         .getConstituents.asScala
       val goldLabelList = consIt.toList.map { cons =>
-        if (goldLabel(cons) == EssentialTermsConstants.IMPORTANT_LABEL) 1 else 0
+        if (goldLabel(cons) == Constants.IMPORTANT_LABEL) 1 else 0
       }
       consIt.toList.map { cons =>
         val goldBinaryLabel = convertToZeroOne(goldLabel(cons))

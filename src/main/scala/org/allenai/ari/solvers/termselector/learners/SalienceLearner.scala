@@ -1,16 +1,16 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
 
-import EssentialTermsSensors._
+import org.allenai.ari.models.Question
+import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
+import org.allenai.common.Logging
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.{ Learner, SparseNetworkLearner }
-import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector
-import org.allenai.common.Logging
 
 /** @param baselineDataModel
   * @param useMax whether to use max or summation. If true, would return maxSalience; sumSalience otherwise
   */
-class SalienceBaseline(baselineDataModel: BaselineDataModel, useMax: Boolean) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
+class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
 
   override def dataModel: IllinoisDataModel = baselineDataModel
 
@@ -21,13 +21,16 @@ class SalienceBaseline(baselineDataModel: BaselineDataModel, useMax: Boolean) ex
   override def feature = List.empty
 
   override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    val questionStruct = annotateQuestion(aristoQuestion, None, None)
-    val (stopwordConstituents, constituents) = questionStruct.getConstituents(stopWords)
-    val (essentialConstituents, nonEssentialConstituents) = questionStruct.getConstituents(stopwordConstituents, essentialStopWords)
+    val questionStruct = EssentialTermsSensors.annotateQuestion(aristoQuestion, None, None)
+    val (stopwordConstituents, constituents) = questionStruct
+      .getConstituents(EssentialTermsSensors.stopWords)
+    val (essentialConstituents, nonEssentialConstituents) = questionStruct
+      .getConstituents(stopwordConstituents, EssentialTermsSensors.essentialStopWords)
     // update the inverse map with the new constituents
     logger.debug("MaxSalience: " + questionStruct.maxSalience)
     logger.debug("SumSalience: " + questionStruct.sumSalience)
-    constituents.foreach(c => constituentToAnnotationMap.put(c, questionStruct))
+    constituents.foreach(c =>
+      EssentialTermsSensors.constituentToAnnotationMap.put(c, questionStruct))
     (constituents.map(c => c.getSurfaceForm -> (if (useMax) baselineDataModel.maxSalience(c) else baselineDataModel.sumSalience(c))) // ++
     /*essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
       nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }*/ ).toMap
@@ -44,21 +47,21 @@ class SalienceBaseline(baselineDataModel: BaselineDataModel, useMax: Boolean) ex
 
   override def predictLabel(c: Constituent, threshold: Double): String = {
     if (predictProbOfBeingEssential(c) > threshold) {
-      EssentialTermsConstants.IMPORTANT_LABEL
+      Constants.IMPORTANT_LABEL
     } else {
-      EssentialTermsConstants.UNIMPORTANT_LABEL
+      Constants.UNIMPORTANT_LABEL
     }
   }
 }
 
-object SalienceBaseline extends Logging {
-  def makeNewLearners(): SalienceBaselines = {
+object SalienceLearner extends Logging {
+  def makeNewLearners(): SalienceLearners = {
     val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel = false)
-    val max = new SalienceBaseline(baselineDataModel, true)
-    val sum = new SalienceBaseline(baselineDataModel, false)
-    SalienceBaselines(max, sum)
+    val max = new SalienceLearner(baselineDataModel, true)
+    val sum = new SalienceLearner(baselineDataModel, false)
+    SalienceLearners(max, sum)
   }
 }
 
-case class SalienceBaselines(max: SalienceBaseline, sum: SalienceBaseline)
+case class SalienceLearners(max: SalienceLearner, sum: SalienceLearner)
 

@@ -1,11 +1,8 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.common.Logging
 
-import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn._
-import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 
 /** An expanded learner with a number of syntactic and semantic features. */
 class ExpandedLearner(
@@ -42,7 +39,7 @@ object ExpandedLearner extends Logging {
     classifierModel: String,
     baselineLearners: BaselineLearners,
     baselineDataModel: BaselineDataModel,
-    salienceLearners: SalienceBaselines
+    salienceLearners: SalienceLearners
   ): (ExpandedDataModel, ExpandedLearner) = {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
     val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)

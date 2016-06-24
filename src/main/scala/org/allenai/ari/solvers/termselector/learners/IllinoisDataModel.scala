@@ -1,4 +1,4 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel

@@ -1,6 +1,7 @@
 package org.allenai.ari.solvers.termselector
 
 import org.allenai.ari.models.Question
+import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
 
 import com.google.inject.Inject
@@ -25,11 +26,11 @@ class EssentialTermsService @Inject() (
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
       case "Lookup" => new LookupLearner() -> 0.5
-      case "maxSalience" => SalienceBaseline.makeNewLearners().max -> 0.02
-      case "sumSalience" => SalienceBaseline.makeNewLearners().sum -> 0.07
+      case "maxSalience" => SalienceLearner.makeNewLearners().max -> 0.02
+      case "sumSalience" => SalienceLearner.makeNewLearners().sum -> 0.07
       case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.lemma -> 0.19
       case "Expanded" =>
-        val salienceBaselines = SalienceBaseline.makeNewLearners()
+        val salienceBaselines = SalienceLearner.makeNewLearners()
         val (baselineDataModel, baselineClassifiers) = BaselineLearner.makeNewLearners(loadSavedModel = true)
         ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel, baselineClassifiers,
           baselineDataModel, salienceBaselines)._2 -> 0.46

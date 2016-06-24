@@ -1,4 +1,6 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
+
+import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
@@ -12,7 +14,7 @@ class BaselineDataModel extends IllinoisDataModel {
 
   override val goldLabel = property(essentialTermTokens) { x: Constituent =>
     x.getTextAnnotation
-      .getView(EssentialTermsConstants.VIEW_NAME)
+      .getView(Constants.VIEW_NAME)
       .getConstituentsCovering(x)
       .get(0)
       .getLabel
@@ -21,7 +23,7 @@ class BaselineDataModel extends IllinoisDataModel {
   // the gold label of two consecutive constituents
   val goldLabelPair = property(essentialTermTokens) { x: Constituent =>
     val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
-    goldLabel(xBefore) + EssentialTermsConstants.LABEL_SEPARATOR + goldLabel(x)
+    goldLabel(xBefore) + Constants.LABEL_SEPARATOR + goldLabel(x)
   }
 
   val wordForm = property(essentialTermTokens) { x: Constituent =>
@@ -30,7 +32,7 @@ class BaselineDataModel extends IllinoisDataModel {
 
   val wordFormPair = property(essentialTermTokens) { x: Constituent =>
     val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
-    wordForm(xBefore) + EssentialTermsConstants.LABEL_SEPARATOR + wordForm(x)
+    wordForm(xBefore) + Constants.LABEL_SEPARATOR + wordForm(x)
   }
 
   val pos = property(essentialTermTokens) { x: Constituent =>
@@ -50,7 +52,7 @@ class BaselineDataModel extends IllinoisDataModel {
 
   val lemmaPair = property(essentialTermTokens) { x: Constituent =>
     val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
-    lemma(xBefore) + EssentialTermsConstants.LABEL_SEPARATOR + lemma(x)
+    lemma(xBefore) + Constants.LABEL_SEPARATOR + lemma(x)
   }
 
   val ner = property(essentialTermTokens) { x: Constituent =>

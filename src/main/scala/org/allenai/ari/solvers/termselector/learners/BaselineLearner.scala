@@ -1,4 +1,6 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
+
+import org.allenai.ari.solvers.termselector.Constants
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
@@ -29,7 +31,7 @@ class BaselineLearner(
   override def predictProbOfBeingEssential(c: Constituent): Double = {
     val scores = classifier.scores(c).toArray
     scores.collectFirst {
-      case score if score.value == EssentialTermsConstants.IMPORTANT_LABEL => score.score
+      case score if score.value == Constants.IMPORTANT_LABEL => score.score
     }.getOrElse(0.0) // if we have not seen the word in the training data it is never important
   }
 }

@@ -8,7 +8,7 @@ import com.typesafe.config.Config
 
 import scala.io.{ BufferedSource, Source }
 
-object EssentialTermsUtils extends Logging {
+object Utils extends Logging {
 
   // copied from Controller.scala, the method is private
   def fallbackDecomposer(splitQuestion: SplitQuestion): Seq[MultipleChoiceSelection] = {

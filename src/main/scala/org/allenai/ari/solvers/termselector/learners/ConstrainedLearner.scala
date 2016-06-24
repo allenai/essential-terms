@@ -1,4 +1,6 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
+
+import org.allenai.ari.solvers.termselector.Constants
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Sentence, Constituent }
 import edu.illinois.cs.cogcomp.lbjava.infer.OJalgoHook
@@ -19,8 +21,8 @@ class ConstrainedLearner(
   // constraints
   val essentialTermsConstraints = ConstrainedClassifier.constraint[Sentence] { x: Sentence =>
     // trivial constraint: all words should be essential
-    x.getView(EssentialTermsConstants.VIEW_NAME).getConstituents.asScala.toSeq._forall { c =>
-      (learner on c).is(EssentialTermsConstants.IMPORTANT_LABEL)
+    x.getView(Constants.VIEW_NAME).getConstituents.asScala.toSeq._forall { c =>
+      (learner on c).is(Constants.IMPORTANT_LABEL)
     }
   }
 }

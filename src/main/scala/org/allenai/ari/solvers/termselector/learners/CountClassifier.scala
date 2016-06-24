@@ -1,4 +1,4 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
 
 import edu.illinois.cs.cogcomp.lbj.pos.POSBaselineLearner
 import edu.illinois.cs.cogcomp.lbjava.classify.ScoreSet

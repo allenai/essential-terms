@@ -1,4 +1,4 @@
-package org.allenai.ari.solvers.termselector
+package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.ari.models.Question
 
