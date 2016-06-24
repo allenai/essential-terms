@@ -11,8 +11,7 @@ object MathUtils {
   }
 
   def avgTuple(a: (Double, Double, Double), size: Int): (Double, Double, Double) = {
+    require(size > 0, "size must be positive")
     (a._1 / size, a._2 / size, a._3 / size)
   }
-
-  def avg(list: List[Double]): Double = list.sum / list.size
 }
