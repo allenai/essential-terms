@@ -12,6 +12,8 @@ import DefaultJsonProtocol._
 /** A service for identifying essential terms in Aristo questions.
   *
   * @param classifierType whether and how to identify and use essential terms in the model
+  * @param classifierModel the type of the underlying model used for predictions
+  * @param useRedisCaching whethet to cache the output scores in a redis cache; would require you to run redis upon using
   */
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
@@ -38,7 +40,10 @@ class EssentialTermsService @Inject() (
     }
   }
 
-  /** Get essential term scores for a given question. */
+  /** Get essential term scores for a given question.
+    * @param aristoQ an input question, in Aristo's standard datastructure for questions
+    * @return a hashmap of the terms and their importance
+    */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
     if (useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
@@ -47,7 +52,11 @@ class EssentialTermsService @Inject() (
     }
   }
 
-  /** Get essential terms for a given question; use threshold if provided, otherwise defaultThreshold */
+  /** Get essential terms for a given question; use threshold if provided, otherwise defaultThreshold
+    * @param aristoQ an input question, in Aristo's standard datastructure for questions
+    * @param threshold the threshold above which a term is considered essential
+    * @return a sequence of essential terms in the input questions
+    */
   def getEssentialTerms(aristoQ: Question, threshold: Double = defaultThreshold): Seq[String] = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
     val termsWithScores = if (useRedisCaching) {
@@ -60,6 +69,9 @@ class EssentialTermsService @Inject() (
 
   /** Get essential terms for a given question (selected via threshold, if provided; otherwise defaultThreshold),
     * as well as essential term scores for a given question.
+    * @param aristoQ an input question, in Aristo's standard datastructure for questions
+    * @param threshold the threshold above which a term is considered essential
+    * @return a tuple containing a sequence of essential terms as well as a hashmap of terms and their essentiality scores
     */
   def getEssentialTermsAndScores(aristoQ: Question, threshold: Double = defaultThreshold): (Seq[String], Map[String, Double]) = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
@@ -72,7 +84,10 @@ class EssentialTermsService @Inject() (
     (essentialTerms, termsWithScores)
   }
 
-  /** Retrieve essential scores from Redis cache; if not present, compute and store. */
+  /** Retrieve essential scores from Redis cache; if not present, compute and store.
+    * @param aristoQ an input question in Aristo's standard question datastructure
+    * @return a hashmap of the terms and their importance
+    */
   private def getEssentialScoresFromRedis(
     aristoQ: Question
   ): Map[String, Double] = {
