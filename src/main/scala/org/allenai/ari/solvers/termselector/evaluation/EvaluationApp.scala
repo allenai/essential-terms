@@ -4,11 +4,9 @@ import org.allenai.ari.solvers.termselector.Constants
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
-
 import com.redis.RedisClient
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
-
+import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 import java.io.{ File, PrintWriter }
 
 import scala.collection.JavaConverters._
@@ -188,7 +186,7 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
   }
 
   def printAllFeatures() = {
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](trainSentences ++ testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](trainSentences ++ testSentences)
     testReader.reset()
 
     // one time dry run, to add all the lexicon
@@ -214,7 +212,7 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
     pw.write("@DATA\n")
 
     val goldLabel = expandedLearner.dataModel.goldLabel
-    val exampleReader = new LBJIteratorParserScala[Iterable[Constituent]](if (train) trainSentences else testSentences)
+    val exampleReader = new IterableToLBJavaParser[Iterable[Constituent]](if (train) trainSentences else testSentences)
     exampleReader.reset()
 
     exampleReader.data.foreach { consIt =>

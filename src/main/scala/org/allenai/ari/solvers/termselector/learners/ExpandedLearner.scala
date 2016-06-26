@@ -25,7 +25,6 @@ class ExpandedLearner(
   }
 
   override def feature = dataModel.allProperties
-  override val logging = true
 }
 
 object ExpandedLearner extends Logging {

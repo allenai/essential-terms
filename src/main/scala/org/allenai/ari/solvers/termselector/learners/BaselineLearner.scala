@@ -26,7 +26,6 @@ class BaselineLearner(
   override lazy val classifier = new CountClassifier
 
   override def feature = using(input)
-  override val logging = true
 
   override def predictProbOfBeingEssential(c: Constituent): Double = {
     val scores = classifier.scores(c).toArray

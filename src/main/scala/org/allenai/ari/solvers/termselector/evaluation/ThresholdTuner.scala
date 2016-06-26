@@ -2,17 +2,17 @@ package org.allenai.ari.solvers.termselector.evaluation
 
 import org.allenai.ari.solvers.termselector.learners.IllinoisLearner
 import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
-
+import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
-import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
+import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
 
 /** Threshold tuner for a learner. */
-class ThresholdTuner(learner: IllinoisLearner) {
+class ThresholdTuner(learner: IllinoisLearner) extends Logging {
 
   private val initialThreshold = 0.5
   private val totalIterations = 20
@@ -21,7 +21,7 @@ class ThresholdTuner(learner: IllinoisLearner) {
   /** given a set of training instances it returns the optimal threshold */
   def tuneThreshold(alpha: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new LBJIteratorParserScala[Iterable[Constituent]](EssentialTermsSensors.devSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.devSentences)
     testReader.reset()
 
     // first get the real predictions per sentence
@@ -44,7 +44,7 @@ class ThresholdTuner(learner: IllinoisLearner) {
     val (topThreshold, topScore) = tryGridOfThresholds(scoreLabelPairs, alpha, thresholdRange)
     //    val (topThreshold, topScore) = singleIteration(scoreLabelPairs, alpha, initialThreshold,
     //      totalIterations, -1)
-    ai2Logger.info(s"Score after tuning: $topScore / threshold: $topThreshold / alpha: $alpha")
+    logger.info(s"Score after tuning: $topScore / threshold: $topThreshold / alpha: $alpha")
 
     topThreshold
   }
@@ -78,7 +78,7 @@ class ThresholdTuner(learner: IllinoisLearner) {
       val FDown = evaluateFAllSentences(scoreLabelPairs, thresholdDown, alpha)._1
       val thresholdScoresPairs = List((thresholdUp, FUp), (thresholdDown, FDown), (currentThreshold, currentScore))
       val (topTh, topF) = thresholdScoresPairs.sortBy(_._2).last
-      ai2Logger.debug(s"Iteration:$remainingIterations / score: $currentScore / threshold: $topTh")
+      logger.debug(s"Iteration:$remainingIterations / score: $currentScore / threshold: $topTh")
       singleIteration(scoreLabelPairs, alpha, topTh, remainingIterations - 1, topF)
     }
   }
