@@ -2,7 +2,8 @@
 
 ## About 
 
-This project contains a supervised learning classifier for identifying. 
+This project contains a supervised learning classifier for identifying *essential* terms 
+in a given a question (terms which are defintely needed for answering a question). 
 Here is an example: 
 
 TODO 
