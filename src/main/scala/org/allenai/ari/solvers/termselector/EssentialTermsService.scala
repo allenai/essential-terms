@@ -27,15 +27,17 @@ class EssentialTermsService @Inject() (
   private lazy val (learner, defaultThreshold) = {
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
-      case "Lookup" => new LookupLearner() -> 0.5
-      case "maxSalience" => SalienceLearner.makeNewLearners().max -> 0.02
-      case "sumSalience" => SalienceLearner.makeNewLearners().sum -> 0.07
-      case "Baseline" => BaselineLearner.makeNewLearners(loadSavedModel = true)._2.lemma -> 0.19
+      case "Lookup" => new LookupLearner() -> Constants.LOOKUP_THRESHOLD
+      case "maxSalience" => SalienceLearner.makeNewLearners().max -> Constants.MAX_SALIENCE_THRESHOLD
+      case "sumSalience" => SalienceLearner.makeNewLearners().sum -> Constants.SUM_SALIENCE_THRESHOLD
+      case "Baseline" => BaselineLearner.makeNewLearners(
+        loadModelType = "loadPreTrained", "train"
+      )._2.lemma -> Constants.LEMMA_BASELINE_THRESHOLD
       case "Expanded" =>
         val salienceBaselines = SalienceLearner.makeNewLearners()
-        val (baselineDataModel, baselineClassifiers) = BaselineLearner.makeNewLearners(loadSavedModel = true)
-        ExpandedLearner.makeNewLearner(loadSavedModel = true, classifierModel, baselineClassifiers,
-          baselineDataModel, salienceBaselines)._2 -> 0.46
+        val (baselineDataModel, baselineClassifiers) = BaselineLearner.makeNewLearners(loadModelType = "loadPreTrained", "dev")
+        ExpandedLearner.makeNewLearner(loadModelType = "loadPreTrained", classifierModel, baselineClassifiers,
+          baselineDataModel, salienceBaselines)._2 -> Constants.EXPANDED_LEARNER_THRESHOLD
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
   }

@@ -15,13 +15,10 @@ protected case object Constants {
   // cache files
   val SALIENCE_CACHE = "salienceCache.txt"
 
-  // the threshold used in prediction of discrete values; these values are usually set by tuning.
-  val EXPANDED_UP_THRESHOLD = 1.5
-  val EXPANDED_DOWN_THRESHOLD = 0.5
-  val MAX_SALIENCE_UP_THRESHOLD = 1.5
-  val MAX_SALIENCE_DOWN_THRESHOLD = 0.5
-  val SUM_SALIENCE_UP_THRESHOLD = 1.5
-  val SUM_SALIENCE_DOWN_THRESHOLD = 0.5
-  val WORD_BASELINE_UP_THRESHOLD = 1.5
-  val WORD_BASELINE_DOWN_THRESHOLD = 0.5
+  // thresholds are chosen to maximize F1 on the dev set, given the threshold
+  val LOOKUP_THRESHOLD = 0.5
+  val MAX_SALIENCE_THRESHOLD = 0.02
+  val SUM_SALIENCE_THRESHOLD = 0.07
+  val LEMMA_BASELINE_THRESHOLD = 0.19
+  val EXPANDED_LEARNER_THRESHOLD = 0.46
 }

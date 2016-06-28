@@ -1,8 +1,11 @@
 package org.allenai.ari.solvers.termselector.learners
 
+import org.allenai.ari.solvers.termselector.EssentialTermsSensors
 import org.allenai.common.Logging
 
 import edu.illinois.cs.cogcomp.lbjava.learn._
+
+import java.io.File
 
 /** An expanded learner with a number of syntactic and semantic features. */
 class ExpandedLearner(
@@ -31,10 +34,10 @@ object ExpandedLearner extends Logging {
 
   /** Make a new ExpandedLearner; also return the underlying BaselineLearner and data models.
     *
-    * @param loadSavedModel whether to load a previously saved model
+    * @param loadModelType load the pre-trained model, or the one on disk, or don't load any model
     */
   def makeNewLearner(
-    loadSavedModel: Boolean,
+    loadModelType: String,
     classifierModel: String,
     baselineLearners: BaselineLearners,
     baselineDataModel: BaselineDataModel,
@@ -43,9 +46,15 @@ object ExpandedLearner extends Logging {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
     val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
     expandedLearner.modelSuffix = classifierModel
-    if (loadSavedModel) {
-      logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
-      expandedLearner.load()
+    loadModelType match {
+      case "loadPreTrained" =>
+        expandedLearner.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
+        logger.debug(s"Loading baseline classifier from the pre-trained models ")
+        expandedLearner.load()
+      case "loadFromDisk" =>
+        logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
+        expandedLearner.load()
+      case _ => // do nothing
     }
     (expandedDataModel, expandedLearner)
   }

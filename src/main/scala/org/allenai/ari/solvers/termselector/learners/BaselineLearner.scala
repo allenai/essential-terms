@@ -1,10 +1,12 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.Constants
+import org.allenai.ari.solvers.termselector.{ EssentialTermsSensors, Constants }
+import org.allenai.common.Logging
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
-import org.allenai.common.Logging
+
+import java.io.File
 
 /** A baseline learner based on simply counting the label frequency per word
   *
@@ -39,33 +41,43 @@ object BaselineLearner extends Logging {
 
   /** Make a collection of [[BaselineLearner]]s. Also return the underlying data model.
     *
-    * @param loadSavedModel whether to load a previously saved model
+    * @param loadModelType load the pre-trained model, or the one on disk, or don't load any model
     */
-  def makeNewLearners(loadSavedModel: Boolean): (BaselineDataModel, BaselineLearners) = {
+  def makeNewLearners(loadModelType: String, classifierModel: String): (BaselineDataModel, BaselineLearners) = {
+    // the baselines are trained either on train or test
+    require(classifierModel == "dev" || classifierModel == "train")
     // create the baseline data model and the corresponding learner object
     // TODO: make the creation of the baselines simpler
     val baselineDataModel = new BaselineDataModel
-    val baselineLearnerSurfaceForm = createASingleBaseline(baselineDataModel, baselineDataModel.wordForm, baselineDataModel.goldLabel, "surfaceForm", loadSavedModel)
-    val baselineLearnerLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "lemma", loadSavedModel)
-    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.posConjLemma, baselineDataModel.goldLabel, "PosConjLemma", loadSavedModel)
-    val baselineLearnerWordFormConjNer = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNer, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNer", loadSavedModel)
-    val baselineLearnerWordFormConjNerCojPos = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNerConjPOS, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNerCojPos", loadSavedModel)
-    val baselineLearnerLemmaPair = createASingleBaseline(baselineDataModel, baselineDataModel.lemmaPair, baselineDataModel.goldLabelPair, "baselineLearnerLemmaPair", loadSavedModel)
+    val baselineLearnerSurfaceForm = createASingleBaseline(baselineDataModel, baselineDataModel.wordForm, baselineDataModel.goldLabel, "surfaceForm-" + classifierModel, loadModelType)
+    val baselineLearnerLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "lemma-" + classifierModel, loadModelType)
+    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.posConjLemma, baselineDataModel.goldLabel, "PosConjLemma-" + classifierModel, loadModelType)
+    val baselineLearnerWordFormConjNer = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNer, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNer-" + classifierModel, loadModelType)
+    val baselineLearnerWordFormConjNerCojPos = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNerConjPOS, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNerCojPos-" + classifierModel, loadModelType)
+    val baselineLearnerLemmaPair = createASingleBaseline(baselineDataModel, baselineDataModel.lemmaPair, baselineDataModel.goldLabelPair, "baselineLearnerLemmaPair-" + classifierModel, loadModelType)
     (baselineDataModel, BaselineLearners(baselineLearnerSurfaceForm, baselineLearnerLemma, baselineLearnerPosConjLemma,
       baselineLearnerWordFormConjNer, baselineLearnerWordFormConjNerCojPos, baselineLearnerLemmaPair))
   }
 
   /** This creates a single [[BaselineLearner]].
+    *
     * @param suffix suffix use when saving the models on disk
     * @return
     */
   def createASingleBaseline(baselineDataModel: BaselineDataModel, input: Property[Constituent],
-    output: Property[Constituent], suffix: String, loadSavedModel: Boolean): BaselineLearner = {
+    output: Property[Constituent], suffix: String, loadSavedModel: String): BaselineLearner = {
     val baseline = new BaselineLearner(baselineDataModel, input, output)
     baseline.modelSuffix = suffix
-    if (loadSavedModel) {
-      logger.debug(s"Loading baseline classifier ${baseline.getSimpleName} ")
-      baseline.load()
+    loadSavedModel match {
+      case "loadPreTrained" =>
+        baseline.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
+        logger.info(s"Loading baseline classifier from the pre-trained models ")
+        baseline.load()
+      case "loadFromDisk" =>
+        logger.info(s"Loading baseline classifier ${baseline.getSimpleName} ")
+        baseline.load()
+      case _ =>
+        logger.debug("Not loading any model . . .")
     }
     baseline
   }

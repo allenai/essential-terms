@@ -4,26 +4,30 @@ import org.allenai.ari.solvers.termselector.Constants
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
+
 import com.redis.RedisClient
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
-import java.io.{ File, PrintWriter }
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
+import java.io.{ File, PrintWriter }
+
 /** A sample application to train, test, save, and load essential terms classifiers. */
-class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Logging {
+class EvaluationApp(loadModelType: String, classifierModel: String) extends Logging {
   // lazily create the baseline and expanded data models and learners
-  private lazy val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel)
+  // baseline-train is used independently, while baseline-dev is used within expanded learner as feature
+  private lazy val (baselineDataModelTrain, baselineLearnersTrain) = BaselineLearner.makeNewLearners(loadModelType, "train")
+  private lazy val (baselineDataModelDev, baselineLearnersDev) = BaselineLearner.makeNewLearners(loadModelType, "dev")
   private lazy val salienceLearners = SalienceLearner.makeNewLearners()
   private lazy val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(
-    loadSavedModel,
-    classifierModel, baselineLearners, baselineDataModel, salienceLearners
+    loadModelType, classifierModel, baselineLearnersDev, baselineDataModelDev, salienceLearners
   )
   private lazy val constrainedLearner = ConstrainedLearner.makeNewLearner(expandedLearner, expandedDataModel)
 
   def trainAndTestBaselineLearners(test: Boolean = true, testRankingMeasures: Boolean = false, trainOnDev: Boolean): Unit = {
+    val baselineLearners = if (trainOnDev) baselineLearnersDev else baselineLearnersTrain
     trainAndTestLearner(baselineLearners.surfaceForm, 1, test,
       testRankingMeasures, saveModel = true, trainOnDev)
     trainAndTestLearner(baselineLearners.lemma, 1, test,
@@ -43,15 +47,15 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
     trainAndTestBaselineLearners(testRankingMeasures = false, trainOnDev = true)
     trainAndTestLearner(expandedLearner, 20, test = true, testOnSentences, saveModel = true)
     val featureLength = expandedLearner.classifier.getPrunedLexiconSize
-    println("Feature length = " + featureLength)
+    logger.debug("Feature length = " + featureLength)
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearners.surfaceForm, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearners.lemma, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearners.posConjLemma, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearners.wordFormConjNer, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearners.wordFormConjNerConjPos, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearnersDev.surfaceForm, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearnersDev.lemma, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearnersDev.posConjLemma, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearnersDev.wordFormConjNer, test = true, testWithRankingMeasures = false)
+    testLearner(baselineLearnersDev.wordFormConjNerConjPos, test = true, testWithRankingMeasures = false)
     testLearner(expandedLearner, test = true, testWithRankingMeasures = true)
   }
 
@@ -69,7 +73,8 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val aristoQuestion = decomposeQuestion(q)
-    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner, threshold = Constants.EXPANDED_UP_THRESHOLD)
+    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner,
+      threshold = Constants.EXPANDED_LEARNER_THRESHOLD)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
   }
@@ -92,8 +97,8 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
     //      "December (B) June (C) March (D) September"
     val aristoQuestion = decomposeQuestion(q)
     val (salienceLearner, th) = salienceType match {
-      case "max" => (salienceLearners.max, Constants.MAX_SALIENCE_UP_THRESHOLD)
-      case "sum" => (salienceLearners.sum, Constants.SUM_SALIENCE_UP_THRESHOLD)
+      case "max" => (salienceLearners.max, Constants.MAX_SALIENCE_THRESHOLD)
+      case "sum" => (salienceLearners.sum, Constants.SUM_SALIENCE_THRESHOLD)
     }
     val scores = salienceLearner.getEssentialTermScores(aristoQuestion)
     logger.debug("Identified essentiality scores: " + scores.toString)
@@ -240,8 +245,8 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
     val learner = learnerName match {
       case "maxSalience" => salienceLearners.max
       case "sumSalience" => salienceLearners.sum
-      case "wordBaseline" => baselineLearners.surfaceForm
-      case "lemmaBaseline" => baselineLearners.lemma
+      case "wordBaseline" => baselineLearnersTrain.surfaceForm
+      case "lemmaBaseline" => baselineLearnersTrain.lemma
       case "expanded" => expandedLearner
       case name: String => throw new Exception(s"Wrong classisifer name $name!")
     }
@@ -276,8 +281,8 @@ class EvaluationApp(loadSavedModel: Boolean, classifierModel: String) extends Lo
     val learner = learnerName match {
       case "maxSalience" => salienceLearners.max
       case "sumSalience" => salienceLearners.sum
-      case "wordBaseline" => baselineLearners.surfaceForm
-      case "lemmaBaseline" => baselineLearners.lemma
+      case "wordBaseline" => baselineLearnersTrain.surfaceForm
+      case "lemmaBaseline" => baselineLearnersTrain.lemma
       case "expanded" => expandedLearner
     }
 
@@ -372,50 +377,50 @@ object EvaluationApp extends Logging {
     val arg2 = args.lift(2).getOrElse("")
     testType match {
       case "1" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = false, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "", arg1)
         essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
       case "2" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.loadAndTestExpandedLearner()
       case "3" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = false, "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = "", "")
         val trainOnDev = arg1 match {
           case "train" => false
           case "dev" => true
         }
         essentialTermsApp.trainAndTestBaselineLearners(test = true, testRankingMeasures = true, trainOnDev)
       case "4" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.testLearnerWithSampleAristoQuestion()
       case "5" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.testConstrainedLearnerWithSampleAristoQuestion()
       case "6" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = false, "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
         essentialTermsApp.cacheSalienceScoresForAllQuestionsInRedis()
       case "7" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.printMistakes()
       case "8" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.printAllFeatures()
       case "9" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
         essentialTermsApp.testSalienceWithSampleAristoQuestion(arg1)
       case "10" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
         essentialTermsApp.testSalienceLearner(arg1)
       case "11" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.tuneClassifierThreshold(arg2)
       case "12" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
         essentialTermsApp.saveRedisAnnotationCache()
       case "13" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.printStatistics()
       case "14" =>
-        val essentialTermsApp = new EvaluationApp(loadSavedModel = true, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
         essentialTermsApp.testClassifierAcrossThresholds(arg2)
       case _ =>
         throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")

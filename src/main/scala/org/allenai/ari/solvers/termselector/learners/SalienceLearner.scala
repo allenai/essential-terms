@@ -56,7 +56,7 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
 
 object SalienceLearner extends Logging {
   def makeNewLearners(): SalienceLearners = {
-    val (baselineDataModel, baselineLearners) = BaselineLearner.makeNewLearners(loadSavedModel = false)
+    val baselineDataModel = new BaselineDataModel
     val max = new SalienceLearner(baselineDataModel, true)
     val sum = new SalienceLearner(baselineDataModel, false)
     SalienceLearners(max, sum)
