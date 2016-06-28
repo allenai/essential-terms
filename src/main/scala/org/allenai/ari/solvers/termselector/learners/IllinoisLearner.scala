@@ -7,6 +7,12 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.StochasticGradientDescent
 import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 
+/** how to load the models */
+sealed trait LoadType
+case object LoadFromDisk extends LoadType { override def toString = "Load the pre-trained model from disk" }
+case object LoadFromDatastore extends LoadType { override def toString = "Load the pre-trained model from datastore" }
+case object TrainModel extends LoadType { override def toString = "Train a new model" }
+
 /** A parameterized abstract class for UIUC learners for essential terms detection. */
 abstract class IllinoisLearner(
     essentialTermsDataModel: IllinoisDataModel

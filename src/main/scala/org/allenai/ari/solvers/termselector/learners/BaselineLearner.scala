@@ -43,7 +43,7 @@ object BaselineLearner extends Logging {
     *
     * @param loadModelType load the pre-trained model, or the one on disk, or don't load any model
     */
-  def makeNewLearners(loadModelType: String, classifierModel: String): (BaselineDataModel, BaselineLearners) = {
+  def makeNewLearners(loadModelType: LoadType, classifierModel: String): (BaselineDataModel, BaselineLearners) = {
     // the baselines are trained either on train or test
     require(classifierModel == "dev" || classifierModel == "train")
     // create the baseline data model and the corresponding learner object
@@ -65,15 +65,15 @@ object BaselineLearner extends Logging {
     * @return
     */
   def createASingleBaseline(baselineDataModel: BaselineDataModel, input: Property[Constituent],
-    output: Property[Constituent], suffix: String, loadSavedModel: String): BaselineLearner = {
+    output: Property[Constituent], suffix: String, loadSavedModel: LoadType): BaselineLearner = {
     val baseline = new BaselineLearner(baselineDataModel, input, output)
     baseline.modelSuffix = suffix
     loadSavedModel match {
-      case "loadPreTrained" =>
+      case LoadFromDatastore =>
         baseline.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
         logger.info(s"Loading baseline classifier from the pre-trained models ")
         baseline.load()
-      case "loadFromDisk" =>
+      case LoadFromDisk =>
         logger.info(s"Loading baseline classifier ${baseline.getSimpleName} ")
         baseline.load()
       case _ =>

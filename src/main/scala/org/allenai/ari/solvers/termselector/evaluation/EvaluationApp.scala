@@ -15,7 +15,7 @@ import scala.language.postfixOps
 import java.io.{ File, PrintWriter }
 
 /** A sample application to train, test, save, and load essential terms classifiers. */
-class EvaluationApp(loadModelType: String, classifierModel: String) extends Logging {
+class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Logging {
   // lazily create the baseline and expanded data models and learners
   // baseline-train is used independently, while baseline-dev is used within expanded learner as feature
   private lazy val (baselineDataModelTrain, baselineLearnersTrain) = BaselineLearner.makeNewLearners(loadModelType, "train")
@@ -377,50 +377,50 @@ object EvaluationApp extends Logging {
     val arg2 = args.lift(2).getOrElse("")
     testType match {
       case "1" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = TrainModel, arg1)
         essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
       case "2" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.loadAndTestExpandedLearner()
       case "3" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "", "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = TrainModel, "")
         val trainOnDev = arg1 match {
           case "train" => false
           case "dev" => true
         }
         essentialTermsApp.trainAndTestBaselineLearners(test = true, testRankingMeasures = true, trainOnDev)
       case "4" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testLearnerWithSampleAristoQuestion()
       case "5" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testConstrainedLearnerWithSampleAristoQuestion()
       case "6" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.cacheSalienceScoresForAllQuestionsInRedis()
       case "7" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.printMistakes()
       case "8" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.printAllFeatures()
       case "9" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.testSalienceWithSampleAristoQuestion(arg1)
       case "10" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.testSalienceLearner(arg1)
       case "11" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.tuneClassifierThreshold(arg2)
       case "12" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", "")
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.saveRedisAnnotationCache()
       case "13" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.printStatistics()
       case "14" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = "loadPreTrained", arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testClassifierAcrossThresholds(arg2)
       case _ =>
         throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")

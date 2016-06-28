@@ -37,7 +37,7 @@ object ExpandedLearner extends Logging {
     * @param loadModelType load the pre-trained model, or the one on disk, or don't load any model
     */
   def makeNewLearner(
-    loadModelType: String,
+    loadModelType: LoadType,
     classifierModel: String,
     baselineLearners: BaselineLearners,
     baselineDataModel: BaselineDataModel,
@@ -47,11 +47,11 @@ object ExpandedLearner extends Logging {
     val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
     expandedLearner.modelSuffix = classifierModel
     loadModelType match {
-      case "loadPreTrained" =>
+      case LoadFromDatastore =>
         expandedLearner.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
-        logger.debug(s"Loading baseline classifier from the pre-trained models ")
+        logger.debug(s"Loading baseline classifier from the pre-trained models from datastore. ")
         expandedLearner.load()
-      case "loadFromDisk" =>
+      case LoadFromDisk =>
         logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
         expandedLearner.load()
       case _ => // do nothing

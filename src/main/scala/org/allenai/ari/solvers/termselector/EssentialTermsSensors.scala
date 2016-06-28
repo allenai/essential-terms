@@ -38,7 +38,7 @@ import java.util.Properties
 object EssentialTermsSensors extends Logging {
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
 
-  lazy val preTrainedModels = Datastore("public").directoryPath("org.allenai.termselector", "models", 1)
+  lazy val preTrainedModels = Datastore("public").directoryPath("org.allenai.termselector", "models", 4)
 
   lazy val stopWords = {
     lazy val stopWordsFile = Utils.getDatastoreFileAsSource(
