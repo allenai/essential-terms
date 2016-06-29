@@ -1,7 +1,5 @@
 package org.allenai.ari.solvers.termselector
 
-import java.io.File
-
 import org.allenai.ari.models.{ MultipleChoiceSelection, SplitQuestion }
 import org.allenai.common.Logging
 import org.allenai.datastore.Datastore
@@ -9,6 +7,8 @@ import org.allenai.datastore.Datastore
 import com.typesafe.config.Config
 
 import scala.io.{ BufferedSource, Source }
+
+import java.io.File
 
 object Utils extends Logging {
 

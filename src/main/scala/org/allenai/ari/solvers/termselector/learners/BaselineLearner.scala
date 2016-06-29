@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.{ EssentialTermsSensors, Constants }
+import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
 import org.allenai.common.Logging
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
