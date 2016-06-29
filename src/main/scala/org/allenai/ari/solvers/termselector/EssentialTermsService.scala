@@ -30,7 +30,7 @@ class EssentialTermsService @Inject() (
       case "Lookup" => new LookupLearner() -> Constants.LOOKUP_THRESHOLD
       case "MaxSalience" => SalienceLearner.makeNewLearners().max -> Constants.MAX_SALIENCE_THRESHOLD
       case "SumSalience" => SalienceLearner.makeNewLearners().sum -> Constants.SUM_SALIENCE_THRESHOLD
-      case "BaselineLearner" => BaselineLearner.makeNewLearners(
+      case "LemmaBaseline" => BaselineLearner.makeNewLearners(
         loadModelType = LoadFromDatastore, "train"
       )._2.lemma -> Constants.LEMMA_BASELINE_THRESHOLD
       case "Expanded" =>

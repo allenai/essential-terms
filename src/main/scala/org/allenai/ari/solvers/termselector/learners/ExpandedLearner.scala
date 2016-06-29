@@ -32,9 +32,9 @@ class ExpandedLearner(
 
 object ExpandedLearner extends Logging {
 
-  /** Make a new ExpandedLearner; also return the underlying BaselineLearner and data models.
+  /** Make a new ExpandedLearner; also return the underlying data models.
     *
-    * @param loadModelType load the pre-trained model, or the one on disk, or don't load any model
+    * @param loadModelType load the pre-trained model from disk or from datastore, or the one on disk, or don't load any model
     */
   def makeNewLearner(
     loadModelType: LoadType,
@@ -49,12 +49,12 @@ object ExpandedLearner extends Logging {
     loadModelType match {
       case LoadFromDatastore =>
         expandedLearner.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
-        logger.debug(s"Loading baseline classifier from the pre-trained models from datastore. ")
+        logger.debug(s"Loading expanded classifier from the pre-trained models from datastore. ")
         expandedLearner.load()
       case LoadFromDisk =>
         logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
         expandedLearner.load()
-      case _ => // do nothing
+      case _ => logger.trace("Not loading any model . . .")
     }
     (expandedDataModel, expandedLearner)
   }

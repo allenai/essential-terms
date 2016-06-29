@@ -36,14 +36,16 @@ import java.io.File
 import java.util.Properties
 
 object EssentialTermsSensors extends Logging {
+  // reading the config file
+  private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+  private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+
   lazy val allQuestions = readAndAnnotateEssentialTermsData()
 
-  lazy val preTrainedModels = Datastore("public").directoryPath("org.allenai.termselector", "models", 4)
+  lazy val preTrainedModels = Utils.getDatastoreDirectoryAsFolder(localConfig.getString("modelsDatastoreFolder"))
 
   lazy val stopWords = {
-    lazy val stopWordsFile = Utils.getDatastoreFileAsSource(
-      "public", "org.allenai.termselector", "stopwords.txt", 1
-    )
+    lazy val stopWordsFile = Utils.getDatastoreFileAsSource(localConfig.getString("stopwordsDatastoreFile"))
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
     stopWords.toSet ++ Set("__________")

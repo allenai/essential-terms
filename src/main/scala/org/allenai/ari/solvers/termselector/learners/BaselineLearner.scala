@@ -74,10 +74,10 @@ object BaselineLearner extends Logging {
         logger.info(s"Loading baseline classifier from the pre-trained models ")
         baseline.load()
       case LoadFromDisk =>
-        logger.info(s"Loading baseline classifier ${baseline.getSimpleName} ")
+        logger.info(s"Loading baseline classifier ${baseline.lcFilePath} ")
         baseline.load()
       case _ =>
-        logger.debug("Not loading any model . . .")
+        logger.trace("Not loading any model . . .")
     }
     baseline
   }
