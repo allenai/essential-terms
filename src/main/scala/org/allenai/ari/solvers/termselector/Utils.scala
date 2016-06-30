@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.{ MultipleChoiceSelection, SplitQuestion }
+import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, Question, MultipleChoiceSelection, SplitQuestion }
 import org.allenai.common.Logging
 import org.allenai.datastore.Datastore
 
@@ -108,5 +108,12 @@ object Utils extends Logging {
 
     def printDistance(s1: String, s2: String) =
       println("%s -> %s : %d".format(s1, s2, distance(s1, s2)))
+  }
+
+  def decomposeQuestion(question: String): Question = {
+    val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
+    val multipleChoiceSelection = Utils.fallbackDecomposer(maybeSplitQuestion)
+    Question(question, Some(maybeSplitQuestion.question),
+      multipleChoiceSelection)
   }
 }
