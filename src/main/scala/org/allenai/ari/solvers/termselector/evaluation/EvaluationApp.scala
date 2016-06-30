@@ -1,17 +1,15 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
-import org.allenai.ari.solvers.termselector.Constants
+import org.allenai.ari.solvers.termselector.{ Annotations, Constants, QuestionHelpers, Utils }
 import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
-
 import com.redis.RedisClient
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-
 import java.io.{ File, PrintWriter }
 
 /** A sample application to train, test, save, and load essential terms classifiers. */
@@ -72,8 +70,8 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
       "December (B) June (C) March (D) September"
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
-    val aristoQuestion = decomposeQuestion(q)
-    val essentialTerms = getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner,
+    val aristoQuestion = Utils.decomposeQuestion(q)
+    val essentialTerms = QuestionHelpers.getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner,
       threshold = Constants.EXPANDED_LEARNER_THRESHOLD)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
@@ -84,8 +82,8 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
       "December (B) June (C) March (D) September"
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
-    val aristoQuestion = decomposeQuestion(q)
-    val essentialTerms = getEssentialTermsForAristoQuestionConstrainedLearner(aristoQuestion, expandedDataModel, constrainedLearner)
+    val aristoQuestion = Utils.decomposeQuestion(q)
+    val essentialTerms = QuestionHelpers.getEssentialTermsForAristoQuestionConstrainedLearner(aristoQuestion, expandedDataModel, constrainedLearner)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
   }
 
@@ -95,7 +93,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
       "(A) thermometer  (B) hand lens  (C) graduated cylinder  (D) balance "
     //      "In New York State, the longest period of daylight occurs during which month? (A) " +
     //      "December (B) June (C) March (D) September"
-    val aristoQuestion = decomposeQuestion(q)
+    val aristoQuestion = Utils.decomposeQuestion(q)
     val (salienceLearner, th) = salienceType match {
       case "max" => (salienceLearners.max, Constants.MAX_SALIENCE_THRESHOLD)
       case "sum" => (salienceLearners.sum, Constants.SUM_SALIENCE_THRESHOLD)
@@ -107,7 +105,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   def cacheSalienceScoresForAllQuestionsInRedis(): Unit = {
-    allQuestions.foreach { q => getSalienceScores(q.aristoQuestion) }
+    allQuestions.foreach { q => Annotations.getSalienceScores(q.aristoQuestion) }
   }
 
   /** saving the salience cache of the questions in the training data */
@@ -126,12 +124,12 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
 
   /** saving all the salience annotations in the cache */
   def saveRedisAnnotationCache(): Unit = {
-    val keys = annotationRedisCache.keys().get
+    val keys = Annotations.annotationRedisCache.keys().get
     logger.info(s"Saving ${keys.size} elements in the cache. ")
     val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
     keys.foreach {
       case Some(key) if key.contains(Constants.SALIENCE_PREFIX) =>
-        annotationRedisCache.get(key).foreach { value =>
+        Annotations.annotationRedisCache.get(key).foreach { value =>
           writer.write(s"$key\n$value\n")
         }
     }

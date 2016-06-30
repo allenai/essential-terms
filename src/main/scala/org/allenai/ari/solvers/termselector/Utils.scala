@@ -10,8 +10,7 @@ import scala.io.{ BufferedSource, Source }
 
 import java.io.File
 
-/**
-  * Supposed to contain miscellaneous utility functions
+/** Supposed to contain miscellaneous utility functions
   */
 object Utils extends Logging {
   /** Get a datastore file as a buffered Source. Caller is responsible for closing this stream. */

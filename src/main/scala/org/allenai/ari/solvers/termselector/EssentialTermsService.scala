@@ -97,7 +97,7 @@ class EssentialTermsService @Inject() (
     val cacheKey = "EssentialTermsServiceCache***scores***" + aristoQ.rawQuestion + classifierType +
       classifierModel
     val termsAndScoreJsonOpt = EssentialTermsSensors.synchronized {
-      EssentialTermsSensors.annotationRedisCache.get(cacheKey)
+      Annotations.annotationRedisCache.get(cacheKey)
     }
     termsAndScoreJsonOpt match {
       case Some(termsAndScoreJson) =>
@@ -105,7 +105,7 @@ class EssentialTermsService @Inject() (
       case None =>
         val scores = learner.getEssentialTermScores(aristoQ)
         EssentialTermsSensors.synchronized {
-          EssentialTermsSensors.annotationRedisCache.set(
+          Annotations.annotationRedisCache.set(
             cacheKey, scores.toJson.compactPrint
           )
         }

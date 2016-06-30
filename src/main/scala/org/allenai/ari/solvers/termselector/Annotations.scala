@@ -22,6 +22,8 @@ import scala.concurrent.duration.Duration
 import scala.io.Codec
 import java.util.Properties
 
+/** Object containing methods rlated to annotating the data with various tools
+  */
 object Annotations extends Logging {
   def annotateQuestion(
     aristoQuestion: Question,

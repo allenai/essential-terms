@@ -1,7 +1,6 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
-
+import org.allenai.ari.solvers.termselector.{ Annotations, Constants, EssentialTermsSensors, QuestionHelpers }
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
@@ -22,7 +21,7 @@ class BaselineDataModel extends IllinoisDataModel {
 
   // the gold label of two consecutive constituents
   val goldLabelPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = Annotations.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     goldLabel(xBefore) + Constants.LABEL_SEPARATOR + goldLabel(x)
   }
 
@@ -31,7 +30,7 @@ class BaselineDataModel extends IllinoisDataModel {
   }
 
   val wordFormPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = Annotations.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     wordForm(xBefore) + Constants.LABEL_SEPARATOR + wordForm(x)
   }
 
@@ -51,7 +50,7 @@ class BaselineDataModel extends IllinoisDataModel {
   }
 
   val lemmaPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = EssentialTermsSensors.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = Annotations.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     lemma(xBefore) + Constants.LABEL_SEPARATOR + lemma(x)
   }
 
@@ -105,5 +104,4 @@ class BaselineDataModel extends IllinoisDataModel {
     val salienceOpt = EssentialTermsSensors.constituentToAnnotationMap(x).sumSalience
     salienceOpt.flatMap(_.get(wordForm(x))).getOrElse(0d)
   }
-
 }

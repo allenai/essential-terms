@@ -1,9 +1,8 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
-
+import org.allenai.ari.solvers.termselector.{ Annotations, Constants, EssentialTermsSensors, QuestionHelpers }
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Sentence, Constituent }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence }
 import edu.illinois.cs.cogcomp.edison.features.factory._
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 
@@ -334,8 +333,8 @@ class ExpandedDataModel(
   }
 
   private val labelOneBefore = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentBefore(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentBefore(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
       if (b.isTraining) goldLabel(cons) else b(cons)
@@ -345,8 +344,8 @@ class ExpandedDataModel(
   }
 
   private val labelTwoBefore = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentTwoBefore(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentTwoBefore(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
       if (b.isTraining) goldLabel(cons) else b(cons)
@@ -356,15 +355,15 @@ class ExpandedDataModel(
   }
 
   private val labelOneAfter = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentAfter(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentAfter(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) labelOrBaseline(b)(cons) else ""
   }
 
   private val labelTwoAfter = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentTwoAfter(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentTwoAfter(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) labelOrBaseline(b)(cons) else ""
   }
@@ -464,28 +463,28 @@ class ExpandedDataModel(
   private val whKeyWords = Set("which", "what", "where", "when", "how")
 
   private val afterWHword = property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentBefore(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentBefore(y.head)
     whKeyWords.contains(wordForm(cons).toLowerCase)
   }
 
   private val afterWHwordWorForm = property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentBefore(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentBefore(y.head)
     if (whKeyWords.contains(wordForm(cons).toLowerCase)) wordForm(x) else ""
   }
 
   private val twoAfterWHword = property(essentialTermTokens) { x: Constituent =>
-    val y = EssentialTermsSensors.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = EssentialTermsSensors.getConstituentTwoBefore(y.head)
+    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotations.getConstituentTwoBefore(y.head)
     whKeyWords.contains(wordForm(cons).toLowerCase)
   }
 
   // returns the word after the given word in the given view
   private val wordAfter = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = EssentialTermsSensors.getConstituentCoveringInView(x, view).asScala
-      val c = EssentialTermsSensors.getConstituentAfter(y.head, view)
+      val y = Annotations.getConstituentCoveringInView(x, view).asScala
+      val c = Annotations.getConstituentAfter(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -499,8 +498,8 @@ class ExpandedDataModel(
 
   private val wordTwoAfter = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = EssentialTermsSensors.getConstituentCoveringInView(x, view).asScala
-      val c = EssentialTermsSensors.getConstituentTwoAfter(y.head, view)
+      val y = Annotations.getConstituentCoveringInView(x, view).asScala
+      val c = Annotations.getConstituentTwoAfter(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -513,8 +512,8 @@ class ExpandedDataModel(
 
   private val wordBefore = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = EssentialTermsSensors.getConstituentCoveringInView(x, view).asScala
-      val c = EssentialTermsSensors.getConstituentBefore(y.head, view)
+      val y = Annotations.getConstituentCoveringInView(x, view).asScala
+      val c = Annotations.getConstituentBefore(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -527,8 +526,8 @@ class ExpandedDataModel(
 
   private val wordTwoBefore = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = EssentialTermsSensors.getConstituentCoveringInView(x, view).asScala
-      val c = EssentialTermsSensors.getConstituentTwoBefore(y.head, view)
+      val y = Annotations.getConstituentCoveringInView(x, view).asScala
+      val c = Annotations.getConstituentTwoBefore(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -549,15 +548,6 @@ class ExpandedDataModel(
 
   private val isItCloseToEnd = property(essentialTermTokens) { x: Constituent =>
     x.getSentenceId / x.getTextAnnotation.getNumberOfSentences
-  }
-
-  private val w2v = property(essentialTermTokens, cache = true) { x: Constituent =>
-    val key = if (EssentialTermsSensors.w2vModel.forSearch().contains(wordForm(x))) {
-      wordForm(x)
-    } else {
-      EssentialTermsSensors.w2vNoMatchStr
-    }
-    EssentialTermsSensors.w2vModel.forSearch().getRawVector(key).asScala.map(_.doubleValue()).toList.head
   }
 
   private val chunkLabel = property(essentialTermTokens) { x: Constituent =>
@@ -656,58 +646,4 @@ class ExpandedDataModel(
   val allProperties: List[Property[Constituent]] = {
     denseProperties ++ sparseProperties
   }
-
-  // features commented out due to poor effect
-  //    parsePhraseType,
-  //    parseHeadWordPOS,
-  //    nomLexClassFeature,
-  //    dropped at feature selection
-  //    pos,
-  //    confaltedPos,
-  //    ner,
-  //    lemmaConjNer,
-  //    wordnetVerbFramesAllSenses, // not helped much
-  //    wordnetVerbFramesFirstSenses // not helped much
-  //    wordnetExistsEntry // not helped much
-  //    corlexFeatureExtractor // data not loaded
-  //    clauseFeatureExtractor // not helped much
-  //    chunkPropertyFeatureFactoryHasModal, // not helped much
-  //    chunkPropertyFeatureFactoryIsNegated // not helped much
-  //    conflatedPosConjNer,
-  //    deAdjectivalAbstractNounsSuffixes,
-  //    deNominalNounProducingSuffixes
-  //    xuPalmerFeature,
-  //    chunkPathPattern,
-  //    wordnetHypernymsFirstSense,
-  //    wordnetHypernymsAllSenses,
-  //    wordnetMemberHolonymsAllSenses,
-  //    wordnetMemberHolonymsFirstSense,
-  //    wordnetPartHolonymsAllSensesLexicographerFileNames,
-  //    wordnetPartHolonymsFirstSenseLexicographerFileNames,
-  //    wordnetPartHolonymsFirstSense,
-  //    wordnetPartHolonymsAllSenses,
-  //    wordnetSubstanceHolonymsAllSenses,
-  //    wordnetSubstanceHolonymsFirstSense,
-  //    subcategoriationFeature,
-  //    spanFeaturesUnorderedChunkBigram,
-  //    spanFeaturesUnorderedPosBigram,
-  //    spanFeaturesUnorderedPosTrigram,
-  //    spanFeaturesUnorderedChunkUnigram,
-  //    spanFeaturesUnorderedChunkBigram,
-  //    spanFeaturesOrderedChunkBigram,
-  //    spanFeaturesOrderedPosBigram,
-  //    spanFeaturesOrderedPosTrigram,
-  //    spanFeaturesOrderedChunkUnigram,
-  //    spanFeaturesOrderedChunkBigram,
-  //    rogetThesaurusFeatures,
-  //    parseSiblingsFeatures,
-  //    parsePhraseTypeOnly,
-  //    chunkEmbeddingShallowParse,
-  //    chunkEmbeddingNer
-  //    afterWHword,
-  //    afterWHwordWorForm,
-  //    twoAfterWHword,
-  //    isItSecondToLastSentence,
-  //    isItCloseToEnd,
-  //     isAScienceTermConjPos,
 }

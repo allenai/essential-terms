@@ -1,8 +1,7 @@
 package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
-
+import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors, QuestionHelpers }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.StochasticGradientDescent
 import edu.illinois.cs.cogcomp.saul.classifier.Learnable
@@ -25,12 +24,12 @@ abstract class IllinoisLearner(
 
   // implement for trait MyLearner
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    EssentialTermsSensors.getEssentialTermProbForAristoQuestion(aristoQuestion, this)
+    QuestionHelpers.getEssentialTermProbForAristoQuestion(aristoQuestion, this)
   }
 
   // implement for trait MyLearner
   def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = {
-    EssentialTermsSensors.getEssentialTermsForAristoQuestion(aristoQuestion, this, threshold)
+    QuestionHelpers.getEssentialTermsForAristoQuestion(aristoQuestion, this, threshold)
   }
 
   /** Predict the class label of a given term. */

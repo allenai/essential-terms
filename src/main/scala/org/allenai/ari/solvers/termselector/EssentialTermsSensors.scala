@@ -149,8 +149,9 @@ object EssentialTermsSensors extends Logging {
     (what, which, where, when, how, nonWh)
   }
 
-  // This creates a map from constituents, to its corresponding [[QuestionStruct]] which contains
-  // the annotations of the question containing it.
+  /** This creates a map from constituents, to its corresponding [[EssentialTermsQuestion]] which contains
+    * the annotations of the question containing it.
+    */
   // TODO(daniel): we might consider making this immutable; although it might make things complicated
   lazy val constituentToAnnotationMap = collection.mutable.Map(allQuestions.flatMap { q =>
     val constituents =

@@ -1,9 +1,8 @@
 package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
+import org.allenai.ari.solvers.termselector.{ Annotations, Constants, EssentialTermsSensors, QuestionHelpers }
 import org.allenai.common.Logging
-
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.{ Learner, SparseNetworkLearner }
 
@@ -21,11 +20,11 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
   override def feature = List.empty
 
   override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    val questionStruct = EssentialTermsSensors.annotateQuestion(aristoQuestion, None, None)
+    val questionStruct = Annotations.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = questionStruct
       .getConstituents(EssentialTermsSensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct
-      .getConstituents(stopwordConstituents, EssentialTermsSensors.essentialStopWords)
+      .getConstituents(stopwordConstituents, Constants.essentialStopWords)
     // update the inverse map with the new constituents
     logger.debug("MaxSalience: " + questionStruct.maxSalience)
     logger.debug("SumSalience: " + questionStruct.sumSalience)
