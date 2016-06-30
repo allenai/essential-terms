@@ -10,17 +10,10 @@ import scala.io.{ BufferedSource, Source }
 
 import java.io.File
 
+/**
+  * Supposed to contain miscellaneous utility functions
+  */
 object Utils extends Logging {
-
-  // copied from Controller.scala, the method is private
-  def fallbackDecomposer(splitQuestion: SplitQuestion): Seq[MultipleChoiceSelection] = {
-    for {
-      ((key, answer), i) <- splitQuestion.keyAnswerPairs.zipWithIndex
-      question = splitQuestion.question.stripSuffix("?").stripSuffix(".").stripSuffix("!")
-      assertion = s"Is it true that $question $answer?"
-    } yield MultipleChoiceSelection(assertion, Some(answer), answer, key, i)
-  }
-
   /** Get a datastore file as a buffered Source. Caller is responsible for closing this stream. */
   def getDatastoreFileAsSource(
     datastoreName: String,
@@ -108,6 +101,15 @@ object Utils extends Logging {
 
     def printDistance(s1: String, s2: String) =
       println("%s -> %s : %d".format(s1, s2, distance(s1, s2)))
+  }
+
+  // copied from Controller.scala, the method is private
+  def fallbackDecomposer(splitQuestion: SplitQuestion): Seq[MultipleChoiceSelection] = {
+    for {
+      ((key, answer), i) <- splitQuestion.keyAnswerPairs.zipWithIndex
+      question = splitQuestion.question.stripSuffix("?").stripSuffix(".").stripSuffix("!")
+      assertion = s"Is it true that $question $answer?"
+    } yield MultipleChoiceSelection(assertion, Some(answer), answer, key, i)
   }
 
   def decomposeQuestion(question: String): Question = {
