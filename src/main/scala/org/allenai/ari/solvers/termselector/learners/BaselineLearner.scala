@@ -1,10 +1,10 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.{ Constants, Models, Sensors }
+import org.allenai.ari.solvers.termselector.{ Constants, Models }
 import org.allenai.common.Logging
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
-import java.io.File
 
 /** A baseline learner based on simply counting the label frequency per word
   *
