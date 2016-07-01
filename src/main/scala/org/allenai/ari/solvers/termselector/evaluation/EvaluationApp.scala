@@ -16,8 +16,10 @@ import java.io.{ File, PrintWriter }
 class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Logging {
   // lazily create the baseline and expanded data models and learners
   // baseline-train is used independently, while baseline-dev is used within expanded learner as feature
-  private lazy val (baselineDataModelTrain, baselineLearnersTrain) = BaselineLearner.makeNewLearners(loadModelType, "train")
-  private lazy val (baselineDataModelDev, baselineLearnersDev) = BaselineLearner.makeNewLearners(loadModelType, "dev")
+  private lazy val (baselineDataModelTrain, baselineLearnersTrain) =
+    BaselineLearners.makeNewLearners(loadModelType, "train")
+  private lazy val (baselineDataModelDev, baselineLearnersDev) =
+    BaselineLearners.makeNewLearners(loadModelType, "dev")
   private lazy val salienceLearners = SalienceLearner.makeNewLearners()
   private lazy val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(
     loadModelType, classifierModel, baselineLearnersDev, baselineDataModelDev, salienceLearners

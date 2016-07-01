@@ -8,7 +8,7 @@ import java.io.File
 
 /** A baseline learner based on simply counting the label frequency per word
   *
-  * @param baselineDataModel
+  * @param baselineDataModel TODO(daniel) add description
   * @param input what can be used to make the prediction; usually [[baselineDataModel.wordForm]]
   * @param output what needs to be predicted; usually [[baselineDataModel.goldLabel]]
   */
@@ -36,45 +36,24 @@ class BaselineLearner(
 }
 
 object BaselineLearner extends Logging {
-
-  /** Make a collection of [[BaselineLearner]]s. Also return the underlying data model.
+  /** Creates a single [[BaselineLearner]].
     *
-    * @param loadModelType load the pre-trained model, or the one on disk, or don't load any model
+    * @param baselineDataModel TODO(daniel) add description
+    * @param input
+    * @param output
+    * @param suffix suffix to use when saving the models on disk
+    * @param loadSavedModel
+    * @return a baseline learner
     */
-  def makeNewLearners(loadModelType: LoadType, classifierModel: String): (BaselineDataModel, BaselineLearners) = {
-    // the baselines are trained either on train or test
-    require(classifierModel == "dev" || classifierModel == "train")
-    // create the baseline data model and the corresponding learner object
-    // TODO: make the creation of the baselines simpler
-    val baselineDataModel = new BaselineDataModel
-    val baselineLearnerSurfaceForm = createASingleBaseline(baselineDataModel, baselineDataModel.wordForm, baselineDataModel.goldLabel, "surfaceForm-" + classifierModel, loadModelType)
-    val baselineLearnerLemma = createASingleBaseline(baselineDataModel, baselineDataModel.lemma, baselineDataModel.goldLabel, "lemma-" + classifierModel, loadModelType)
-    val baselineLearnerPosConjLemma = createASingleBaseline(baselineDataModel, baselineDataModel.posConjLemma, baselineDataModel.goldLabel, "PosConjLemma-" + classifierModel, loadModelType)
-    val baselineLearnerWordFormConjNer = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNer, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNer-" + classifierModel, loadModelType)
-    val baselineLearnerWordFormConjNerCojPos = createASingleBaseline(baselineDataModel, baselineDataModel.wordFormConjNerConjPOS, baselineDataModel.goldLabel, "baselineLearnerWordFormConjNerCojPos-" + classifierModel, loadModelType)
-    val baselineLearnerLemmaPair = createASingleBaseline(baselineDataModel, baselineDataModel.lemmaPair, baselineDataModel.goldLabelPair, "baselineLearnerLemmaPair-" + classifierModel, loadModelType)
-    (baselineDataModel, BaselineLearners(baselineLearnerSurfaceForm, baselineLearnerLemma, baselineLearnerPosConjLemma,
-      baselineLearnerWordFormConjNer, baselineLearnerWordFormConjNerCojPos, baselineLearnerLemmaPair))
-  }
-
-  /** This creates a single [[BaselineLearner]].
-    *
-    * @param suffix suffix use when saving the models on disk
-    * @return
-    */
-  def createASingleBaseline(baselineDataModel: BaselineDataModel, input: Property[Constituent],
-    output: Property[Constituent], suffix: String, loadSavedModel: LoadType): BaselineLearner = {
+  def makeNewLearner(
+    baselineDataModel: BaselineDataModel,
+    input: Property[Constituent],
+    output: Property[Constituent],
+    suffix: String,
+    loadSavedModel: LoadType
+  ): BaselineLearner = {
     val baseline = new BaselineLearner(baselineDataModel, input, output)
     Models.setModel(baseline, suffix, loadSavedModel)
     baseline
   }
 }
-
-case class BaselineLearners(
-  surfaceForm: BaselineLearner,
-  lemma: BaselineLearner,
-  posConjLemma: BaselineLearner,
-  wordFormConjNer: BaselineLearner,
-  wordFormConjNerConjPos: BaselineLearner,
-  baselineLearnerLemmaPair: BaselineLearner
-)

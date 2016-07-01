@@ -30,12 +30,13 @@ class EssentialTermsService @Inject() (
       case "Lookup" => new LookupLearner() -> Constants.LOOKUP_THRESHOLD
       case "MaxSalience" => SalienceLearner.makeNewLearners().max -> Constants.MAX_SALIENCE_THRESHOLD
       case "SumSalience" => SalienceLearner.makeNewLearners().sum -> Constants.SUM_SALIENCE_THRESHOLD
-      case "LemmaBaseline" => BaselineLearner.makeNewLearners(
+      case "LemmaBaseline" => BaselineLearners.makeNewLearners(
         loadModelType = LoadFromDatastore, "train"
       )._2.lemma -> Constants.LEMMA_BASELINE_THRESHOLD
       case "Expanded" =>
         val salienceBaselines = SalienceLearner.makeNewLearners()
-        val (baselineDataModel, baselineClassifiers) = BaselineLearner.makeNewLearners(LoadFromDatastore, "dev")
+        val (baselineDataModel, baselineClassifiers) =
+          BaselineLearners.makeNewLearners(LoadFromDatastore, "dev")
         ExpandedLearner.makeNewLearner(LoadFromDatastore, classifierModel, baselineClassifiers,
           baselineDataModel, salienceBaselines)._2 -> Constants.EXPANDED_LEARNER_THRESHOLD
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
