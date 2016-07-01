@@ -1,11 +1,9 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
+import org.allenai.ari.solvers.termselector.{ Constants, Models, Sensors }
 import org.allenai.common.Logging
-
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
-
 import java.io.File
 
 /** A baseline learner based on simply counting the label frequency per word
@@ -67,18 +65,7 @@ object BaselineLearner extends Logging {
   def createASingleBaseline(baselineDataModel: BaselineDataModel, input: Property[Constituent],
     output: Property[Constituent], suffix: String, loadSavedModel: LoadType): BaselineLearner = {
     val baseline = new BaselineLearner(baselineDataModel, input, output)
-    baseline.modelSuffix = suffix
-    loadSavedModel match {
-      case LoadFromDatastore =>
-        baseline.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
-        logger.info(s"Loading baseline classifier from the pre-trained models ")
-        baseline.load()
-      case LoadFromDisk =>
-        logger.info(s"Loading baseline classifier ${baseline.lcFilePath} ")
-        baseline.load()
-      case _ =>
-        logger.trace("Not loading any model . . .")
-    }
+    Models.setModel(baseline, suffix, loadSavedModel)
     baseline
   }
 }

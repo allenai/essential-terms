@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
+import org.allenai.ari.solvers.termselector.Sensors._
 import org.allenai.ari.solvers.termselector.evaluation.Evaluator
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.testkit.UnitSpec

@@ -1,10 +1,8 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.EssentialTermsSensors
+import org.allenai.ari.solvers.termselector.Models
 import org.allenai.common.Logging
-
 import edu.illinois.cs.cogcomp.lbjava.learn._
-
 import java.io.File
 
 /** An expanded learner with a number of syntactic and semantic features. */
@@ -45,17 +43,7 @@ object ExpandedLearner extends Logging {
   ): (ExpandedDataModel, ExpandedLearner) = {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
     val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
-    expandedLearner.modelSuffix = classifierModel
-    loadModelType match {
-      case LoadFromDatastore =>
-        expandedLearner.modelDir = EssentialTermsSensors.preTrainedModels.toString + File.separator
-        logger.debug(s"Loading expanded classifier from the pre-trained models from datastore. ")
-        expandedLearner.load()
-      case LoadFromDisk =>
-        logger.debug(s"Loading ExpandedLearner model from ${expandedLearner.lcFilePath}")
-        expandedLearner.load()
-      case _ => logger.trace("Not loading any model . . .")
-    }
+    Models.setModel(expandedLearner, classifierModel, loadModelType)
     (expandedDataModel, expandedLearner)
   }
 }

@@ -23,10 +23,10 @@ protected case object Constants {
   val EXPANDED_LEARNER_THRESHOLD = 0.46
 
   // stopwords
-  /** since we never to learning on the above stopwords, we choose a subset of the stopwords to
+  /** since we never do learning on the above stopwords, we choose a subset of the stopwords to
     * ALWAYS be essential
     */
-  val essentialStopWords = Set("all", "any", "because", "before", "both", "but")
+  val essentialStopWords = Set("all", "any", "because", "before", "both", "but", "not", "except")
   val ESSENTIAL_STOPWORD_SCORE = 0.8
   val NONESSENTIAL_STOPWORD_SCORE = 0.0
 }

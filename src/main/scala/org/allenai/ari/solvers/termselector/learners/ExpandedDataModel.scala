@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.{ Annotations, Constants, EssentialTermsSensors, QuestionHelpers }
+import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Sensors }
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence }
 import edu.illinois.cs.cogcomp.edison.features.factory._
@@ -333,8 +333,8 @@ class ExpandedDataModel(
   }
 
   private val labelOneBefore = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentBefore(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentBefore(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
       if (b.isTraining) goldLabel(cons) else b(cons)
@@ -344,8 +344,8 @@ class ExpandedDataModel(
   }
 
   private val labelTwoBefore = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentTwoBefore(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentTwoBefore(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
       if (b.isTraining) goldLabel(cons) else b(cons)
@@ -355,15 +355,15 @@ class ExpandedDataModel(
   }
 
   private val labelOneAfter = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentAfter(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentAfter(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) labelOrBaseline(b)(cons) else ""
   }
 
   private val labelTwoAfter = (b: BaselineLearner) => property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentTwoAfter(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentTwoAfter(y.head)
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) labelOrBaseline(b)(cons) else ""
   }
@@ -437,15 +437,15 @@ class ExpandedDataModel(
   private val baselinePropertiesSurfaceConjNerConjPos = baselineProperties(baselineClassifiers.wordFormConjNerConjPos)
 
   private val isAScienceTerm = property(essentialTermTokens) { x: Constituent =>
-    EssentialTermsSensors.scienceTerms.contains(wordForm(x))
+    Sensors.scienceTerms.contains(wordForm(x))
   }
 
   private val isAScienceTermConjPos = property(essentialTermTokens) { x: Constituent =>
-    EssentialTermsSensors.scienceTerms.contains(wordForm(x)) + pos(x)
+    Sensors.scienceTerms.contains(wordForm(x)) + pos(x)
   }
 
   private val isAScienceTermLemma = property(essentialTermTokens) { x: Constituent =>
-    EssentialTermsSensors.scienceTerms.contains(lemma(x))
+    Sensors.scienceTerms.contains(lemma(x))
   }
 
   private val srlLabel = property(essentialTermTokens) { x: Constituent =>
@@ -463,28 +463,28 @@ class ExpandedDataModel(
   private val whKeyWords = Set("which", "what", "where", "when", "how")
 
   private val afterWHword = property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentBefore(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentBefore(y.head)
     whKeyWords.contains(wordForm(cons).toLowerCase)
   }
 
   private val afterWHwordWorForm = property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentBefore(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentBefore(y.head)
     if (whKeyWords.contains(wordForm(cons).toLowerCase)) wordForm(x) else ""
   }
 
   private val twoAfterWHword = property(essentialTermTokens) { x: Constituent =>
-    val y = Annotations.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
-    val cons = Annotations.getConstituentTwoBefore(y.head)
+    val y = Annotator.getConstituentCoveringInView(x, ViewNames.TOKENS).asScala
+    val cons = Annotator.getConstituentTwoBefore(y.head)
     whKeyWords.contains(wordForm(cons).toLowerCase)
   }
 
   // returns the word after the given word in the given view
   private val wordAfter = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = Annotations.getConstituentCoveringInView(x, view).asScala
-      val c = Annotations.getConstituentAfter(y.head, view)
+      val y = Annotator.getConstituentCoveringInView(x, view).asScala
+      val c = Annotator.getConstituentAfter(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -498,8 +498,8 @@ class ExpandedDataModel(
 
   private val wordTwoAfter = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = Annotations.getConstituentCoveringInView(x, view).asScala
-      val c = Annotations.getConstituentTwoAfter(y.head, view)
+      val y = Annotator.getConstituentCoveringInView(x, view).asScala
+      val c = Annotator.getConstituentTwoAfter(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -512,8 +512,8 @@ class ExpandedDataModel(
 
   private val wordBefore = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = Annotations.getConstituentCoveringInView(x, view).asScala
-      val c = Annotations.getConstituentBefore(y.head, view)
+      val y = Annotator.getConstituentCoveringInView(x, view).asScala
+      val c = Annotator.getConstituentBefore(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -526,8 +526,8 @@ class ExpandedDataModel(
 
   private val wordTwoBefore = { (view: String) =>
     property(essentialTermTokens) { x: Constituent =>
-      val y = Annotations.getConstituentCoveringInView(x, view).asScala
-      val c = Annotations.getConstituentTwoBefore(y.head, view)
+      val y = Annotator.getConstituentCoveringInView(x, view).asScala
+      val c = Annotator.getConstituentTwoBefore(y.head, view)
       if (view == ViewNames.TOKENS) c.getSurfaceForm else c.getLabel
     }
   }
@@ -551,13 +551,13 @@ class ExpandedDataModel(
   }
 
   private val chunkLabel = property(essentialTermTokens) { x: Constituent =>
-    val chunkView = EssentialTermsSensors.constituentToAnnotationMap(x).questionTextAnnotation
+    val chunkView = Sensors.constituentToAnnotationMap(x).questionTextAnnotation
       .getView(ViewNames.SHALLOW_PARSE)
     chunkView.getLabelsCovering(x).asScala.toList
   }
 
   private val brownClusterFeatures = property(essentialTermTokens) { x: Constituent =>
-    EssentialTermsSensors.brownClusterFeatureExtractor.getFeatures(x).asScala.toString
+    Sensors.brownClusterFeatureExtractor.getFeatures(x).asScala.toString
   }
 
   private def beforeAfterPropertiesGivenWord(view: String, word: String): List[Property[Constituent]] = {

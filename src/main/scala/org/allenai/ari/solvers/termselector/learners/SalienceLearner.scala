@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector.{ Annotations, Constants, EssentialTermsSensors, QuestionHelpers }
+import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Sensors }
 import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.{ Learner, SparseNetworkLearner }
@@ -20,16 +20,16 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
   override def feature = List.empty
 
   override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    val questionStruct = Annotations.annotateQuestion(aristoQuestion, None, None)
+    val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = questionStruct
-      .getConstituents(EssentialTermsSensors.stopWords)
+      .getConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct
       .getConstituents(stopwordConstituents, Constants.essentialStopWords)
     // update the inverse map with the new constituents
     logger.debug("MaxSalience: " + questionStruct.maxSalience)
     logger.debug("SumSalience: " + questionStruct.sumSalience)
     constituents.foreach(c =>
-      EssentialTermsSensors.constituentToAnnotationMap.put(c, questionStruct))
+      Sensors.constituentToAnnotationMap.put(c, questionStruct))
     (constituents.map(c => c.getSurfaceForm -> (if (useMax) baselineDataModel.maxSalience(c) else baselineDataModel.sumSalience(c))) // ++
     /*essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
       nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }*/ ).toMap

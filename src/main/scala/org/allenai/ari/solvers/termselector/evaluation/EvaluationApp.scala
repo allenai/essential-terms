@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
-import org.allenai.ari.solvers.termselector.{ Annotations, Constants, QuestionHelpers, Utils }
-import org.allenai.ari.solvers.termselector.EssentialTermsSensors._
+import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Utils }
+import org.allenai.ari.solvers.termselector.Sensors._
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
 import com.redis.RedisClient
@@ -71,8 +71,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val aristoQuestion = Utils.decomposeQuestion(q)
-    val essentialTerms = QuestionHelpers.getEssentialTermsForAristoQuestion(aristoQuestion, expandedLearner,
-      threshold = Constants.EXPANDED_LEARNER_THRESHOLD)
+    val essentialTerms = expandedLearner.getEssentialTerms(aristoQuestion, threshold = Constants.EXPANDED_LEARNER_THRESHOLD)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
     logger.info(expandedLearner.getEssentialTermScores(aristoQuestion).toString)
   }
@@ -83,7 +82,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     //    val q = " What force causes a feather to fall slower than a rock? " +
     //      "(A) gravity (B) air resistance (C) magnetism (D) electricity"
     val aristoQuestion = Utils.decomposeQuestion(q)
-    val essentialTerms = QuestionHelpers.getEssentialTermsForAristoQuestionConstrainedLearner(aristoQuestion, expandedDataModel, constrainedLearner)
+    val essentialTerms = constrainedLearner.getEssentialTermScores(aristoQuestion)
     logger.debug("Identified essential terms: " + essentialTerms.mkString("/"))
   }
 
@@ -105,7 +104,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   def cacheSalienceScoresForAllQuestionsInRedis(): Unit = {
-    allQuestions.foreach { q => Annotations.getSalienceScores(q.aristoQuestion) }
+    allQuestions.foreach { q => Annotator.getSalienceScores(q.aristoQuestion) }
   }
 
   /** saving the salience cache of the questions in the training data */
@@ -124,12 +123,12 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
 
   /** saving all the salience annotations in the cache */
   def saveRedisAnnotationCache(): Unit = {
-    val keys = Annotations.annotationRedisCache.keys().get
+    val keys = Annotator.synchronizedRedisClient.keys().get
     logger.info(s"Saving ${keys.size} elements in the cache. ")
     val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
     keys.foreach {
       case Some(key) if key.contains(Constants.SALIENCE_PREFIX) =>
-        Annotations.annotationRedisCache.get(key).foreach { value =>
+        Annotator.synchronizedRedisClient.redisGet(key).foreach { value =>
           writer.write(s"$key\n$value\n")
         }
     }

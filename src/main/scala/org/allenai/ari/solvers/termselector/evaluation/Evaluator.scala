@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
 import org.allenai.ari.solvers.termselector.learners.IllinoisLearner
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
+import org.allenai.ari.solvers.termselector.{ Constants, Sensors }
 import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
@@ -42,7 +42,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     * @return TODO(daniel)
     */
   def test(threshold: Double, alpha: Double): Map[String, (Double, Double, Double)] = {
-    test(EssentialTermsSensors.testConstituents, threshold, alpha)
+    test(Sensors.testConstituents, threshold, alpha)
   }
 
   /** test per sentence on test data
@@ -52,7 +52,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     * @return TODO(daniel)
     */
   def testAcrossSentences(threshold: Double, alpha: Double): Map[String, (Double, Double, Double)] = {
-    testAcrossSentences(EssentialTermsSensors.testSentences, threshold, alpha)
+    testAcrossSentences(Sensors.testSentences, threshold, alpha)
   }
 
   /** test multiple sentences on test data
@@ -77,7 +77,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
   def hammingMeasure(threshold: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
     val testerExact = new TestDiscrete
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
 
     val hammingDistances = testReader.data.map { consIt =>
       consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons, threshold)) 1 else 0).sum
@@ -89,7 +89,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
 
   def printHammingDistances(threshold: Double): Unit = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
     testReader.data.slice(0, 30).foreach { consIt =>
       val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
       (0 until numSen).foreach(id =>
@@ -113,7 +113,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     // harsh exact evaluation
     val testerExact = new TestDiscrete
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
     testReader.data.foreach { consIt =>
       val gold = consIt.map(goldLabel(_)).mkString
       val predicted = consIt.map(learner.predictLabel(_, threshold)).mkString
@@ -126,7 +126,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
 
   def rankingMeasures(): Unit = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
     testReader.reset()
 
     // ranking-based measures
@@ -248,9 +248,9 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
   }
 
   def printMistakes(threshold: Double): Unit = {
-    learner.dataModel.essentialTermTokens.populate(EssentialTermsSensors.testConstituents, train = false)
+    learner.dataModel.essentialTermTokens.populate(Sensors.testConstituents, train = false)
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
     testReader.reset()
 
     testReader.data.foreach { consIt =>

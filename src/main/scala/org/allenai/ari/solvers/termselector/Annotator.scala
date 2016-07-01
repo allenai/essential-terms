@@ -5,7 +5,6 @@ import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
 import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.datastore.Datastore
 
-import com.redis.RedisClient
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, TokenLabelView }
 import edu.illinois.cs.cogcomp.core.utilities.configuration.{ Configurator, ResourceManager }
@@ -22,9 +21,9 @@ import scala.concurrent.duration.Duration
 import scala.io.Codec
 import java.util.Properties
 
-/** Object containing methods rlated to annotating the data with various tools
+/** Object containing methods related to annotating the data with various tools
   */
-object Annotations extends Logging {
+object Annotator extends Logging {
   def annotateQuestion(
     aristoQuestion: Question,
     essentialTermMapOpt: Option[Map[String, Double]],
@@ -33,49 +32,49 @@ object Annotations extends Logging {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
     val cacheKey = Constants.ANNOTATION_PREFIX + aristoQuestion.text.get + views.asScala.mkString
-    val redisAnnotation = redisGet(cacheKey)
+    val redisAnnotation = synchronizedRedisClient.redisGet(cacheKey)
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
       val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
       ta.getAvailableViews.asScala.foreach { vu =>
         if (ta.getView(vu) == null) {
-          logger.error(s">>>>>>>>>>>>>>>>>>>>> ${aristoQuestion.text.get}")
+          logger.warn(s"Couldn't find view $vu for question: ${aristoQuestion.text.get}")
         }
       }
-      redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
+      synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
       ta
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
-    // logger.info(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
+    logger.trace(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")
 
     // salience
     val salienceResultOpt = getSalienceScores(aristoQuestion)
 
-    val (avgSalienceOpt, maxSalienceOpt) = {
-      salienceResultOpt match {
-        case Some(result) =>
-          val listOfMaps = result.map { case (_, salience) => salience.scores }
-          // summing the salience scores for different options
-          val avgMap = listOfMaps.foldRight(Map[String, Double]()) { (singleMap, combinedMap) =>
-            singleMap ++ combinedMap.map { case (k, v) => k -> (v + singleMap.getOrElse(k, 0.0)) }
-          }
-          // max-ing the salience scores for different options
-          val maxMap = listOfMaps.foldRight(Map[String, Double]()) { (singleMap, combinedMap) =>
-            val maxMap1 = combinedMap.map {
-              case (k, v) =>
-                k -> Math.max(v, singleMap.getOrElse(k, v))
-            }
-            val maxMap2 = singleMap.map {
-              case (k, v) =>
-                k -> Math.max(v, combinedMap.getOrElse(k, v))
-            }
-            maxMap1 ++ maxMap2
-          }
-          (Some(avgMap), Some(maxMap))
-        case None => (None, None)
+    val avgSalienceOpt = salienceResultOpt map { result =>
+      val listOfMaps = result.map { case (_, salience) => salience.scores }
+      // summing the salience scores for different options
+      listOfMaps.foldRight(Map[String, Double]()) { (singleMap, combinedMap) =>
+        singleMap ++ combinedMap.map { case (k, v) => k -> (v + singleMap.getOrElse(k, 0.0)) }
       }
     }
+
+    val maxSalienceOpt = salienceResultOpt.map { result =>
+      val listOfMaps = result.map { case (_, salience) => salience.scores }
+      // max-ing the salience scores for different options
+      listOfMaps.foldRight(Map[String, Double]()) { (singleMap, combinedMap) =>
+        val maxMap1 = combinedMap.map {
+          case (k, v) =>
+            k -> Math.max(v, singleMap.getOrElse(k, v))
+        }
+        val maxMap2 = singleMap.map {
+          case (k, v) =>
+            k -> Math.max(v, combinedMap.getOrElse(k, v))
+        }
+        maxMap1 ++ maxMap2
+      }
+    }
+
     EssentialTermsQuestion(
       aristoQuestion.rawQuestion,
       essentialTermMapOpt,
@@ -106,13 +105,13 @@ object Annotations extends Logging {
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
             val cacheKey = Constants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
-            val redisAnnotation = redisGet(cacheKey)
+            val redisAnnotation = synchronizedRedisClient.redisGet(cacheKey)
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
               val tokenTaTmp = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 viewNamesForParsingEssentialTermTokens.asJava)
-              redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
+              synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
               tokenTaTmp
             }
             val combinedConstituents = if (combineNamedEntities) {
@@ -134,7 +133,7 @@ object Annotations extends Logging {
               Constants.IMPORTANT_LABEL,
               validTokens(cons.getSurfaceForm.toLowerCase)
             )
-          } else if (!EssentialTermsSensors.stopWords.contains(cons.getSurfaceForm.toLowerCase())) {
+          } else if (!Sensors.stopWords.contains(cons.getSurfaceForm.toLowerCase())) {
             view.addSpanLabel(
               cons.getStartSpan,
               cons.getEndSpan,
@@ -149,34 +148,32 @@ object Annotations extends Logging {
     ta
   }
 
-  /** given an aristo question it looks up the salience annotation, either from an static map, or queries salience service */
+  /** given an Aristo question, get Salience annotation, either from a static cache, or the Salience service */
   def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
     val redisSalienceKey = Constants.SALIENCE_PREFIX + q.rawQuestion
-    val mapOpt = EssentialTermsSensors.salienceMap.get(redisSalienceKey)
+    val mapOpt = Sensors.salienceMap.get(redisSalienceKey)
     // TODO(daniel) move it to application.conf as an option
     val checkForMissingSalienceScores = true
     if (mapOpt.isDefined) {
-      //logger.debug("Found the salience score in the static map . . . ")
+      logger.trace("Found the salience score in the static map . . . ")
       mapOpt
     } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
-      val salienceFromRedis = redisGet(redisSalienceKey)
+      val salienceFromRedis = synchronizedRedisClient.redisGet(redisSalienceKey)
       if (salienceFromRedis.isDefined) {
-        logger.debug("Found the salience score in the redis map . . . ")
+        logger.trace("Found the salience score in the redis map . . . ")
         Some(salienceFromRedis.get.parseJson.convertTo[List[(MultipleChoiceSelection, SalienceResult)]])
       } else {
-        logger.debug(" ===> Caching . . . ")
-        logger.debug(q.rawQuestion)
-        logger.debug(q.toString)
-        val resultFuture = EssentialTermsSensors.salienceScorer.salienceFor(q)
+        logger.debug(s" ===> Caching question ${q.rawQuestion}. . . ")
+        val resultFuture = Sensors.salienceScorer.salienceFor(q)
         val result = Await.result(resultFuture, Duration.Inf)
         val resultJson = result.toList.toJson
-        redisSet(redisSalienceKey, resultJson.compactPrint)
+        synchronizedRedisClient.redisSet(redisSalienceKey, resultJson.compactPrint)
         Some(result.toList)
       }
     } else {
       if (!checkForMissingSalienceScores) {
-        logger.error("Didn't find the Salience annotation in the cache; if you want to look it up, activate it in your settings . . . ")
-        throw new Exception
+        throw new Exception("Didn't find the Salience annotation in the cache; if you want to " +
+          "look it up, activate it in your settings . . . ")
       } else {
         logger.debug("Question does not have options . . . ")
       }
@@ -187,34 +184,7 @@ object Annotations extends Logging {
   }
 
   // redis cache for annotations
-  // TODO(daniel): create a key in application.conf for activating this feature
-  lazy val annotationRedisCache = new RedisClient("localhost", 6379)
-
-  private def redisGet(key: String): Option[String] = {
-    try {
-      this.synchronized(annotationRedisCache.get(key))
-    } catch {
-      case e: Exception => {
-        logger.error("Fetching information from redis failed!")
-        logger.error(s"Key: $key")
-        e.printStackTrace()
-        None
-      }
-    }
-  }
-
-  private def redisSet(key: String, value: String): Unit = {
-    try {
-      this.synchronized(annotationRedisCache.set(key, value))
-    } catch {
-      case e: Exception => {
-        logger.error("Setting information in redis failed!")
-        logger.error(s"Key: $key")
-        e.printStackTrace()
-        None
-      }
-    }
-  }
+  lazy val synchronizedRedisClient = new SynchronizedRedisClient
 
   def readAndAnnotateEssentialTermsData(): Seq[EssentialTermsQuestion] = {
     // only master train: turkerSalientTerms.tsv
@@ -296,7 +266,8 @@ object Annotations extends Logging {
     } ++ nerConstituents
   }
 
-  def getSentence(qs: Seq[EssentialTermsQuestion]): Iterable[Iterable[Constituent]] = {
+  /** a method to extract the constituents of a given set of [[EssentialTermsQuestion]]s */
+  def getConstituents(qs: Seq[EssentialTermsQuestion]): Iterable[Iterable[Constituent]] = {
     qs.map(
       _.questionTextAnnotation
       .getView(Constants.VIEW_NAME)
@@ -332,5 +303,4 @@ object Annotations extends Logging {
   def getConstituentCoveringInView(c: Constituent, view: String): java.util.List[Constituent] = {
     c.getTextAnnotation.getView(view).getConstituentsCovering(c)
   }
-
 }

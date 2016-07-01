@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.MultipleChoiceSelection
+import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
 import org.allenai.common.{ FileUtils, Logging }
@@ -24,16 +24,13 @@ import scala.util.Random
 /** The purpose of this object is to contain the entry points (hence "sensors") to all the datasets and resources
   * used throughout the project.
   */
-object EssentialTermsSensors extends Logging {
+object Sensors extends Logging {
   // reading the config file
   private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
-  private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+  val localConfig = rootConfig.getConfig("ari.solvers.termselector")
 
   // the set of the questions annotated with mechanical turk
-  lazy val allQuestions = Annotations.readAndAnnotateEssentialTermsData()
-
-  // the models trained on the annotaetd and save in datastore
-  lazy val preTrainedModels = Utils.getDatastoreDirectoryAsFolder(localConfig.getString("modelsDatastoreFolder"))
+  lazy val allQuestions = Annotator.readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
     lazy val stopWordsFile = Utils.getDatastoreFileAsSource(localConfig.getString("stopwordsDatastoreFile"))
@@ -41,7 +38,7 @@ object EssentialTermsSensors extends Logging {
     stopWordsFile.close()
     stopWords.toSet ++ Set("__________")
   }
-  lazy val nonessentialStopWords = stopWords.--(Constants.essentialStopWords)
+  lazy val nonessentialStopWords = stopWords.diff(Constants.essentialStopWords)
 
   // a hashmap from sentences to [[TextAnnotation]]s
   // TODO(daniel): in future we can get rid of this, if we decide to never use it
@@ -108,24 +105,24 @@ object EssentialTermsSensors extends Logging {
     val devSize = (devProb * nonTrainNonRegents.size).toInt
     val (dev, nonDev_nonTrain_nonRegents) = Random.shuffle(nonTrainNonRegents).splitAt(devSize)
     val test = nonDev_nonTrain_nonRegents ++ regents // add regents to the test data
-    val trainSen = Annotations.getSentence(train)
-    val testSen = Annotations.getSentence(test)
-    val devSen = Annotations.getSentence(dev)
+    val trainSentences = Annotator.getConstituents(train)
+    val testSentences = Annotator.getConstituents(test)
+    val devSentences = Annotator.getConstituents(dev)
 
     // TODO(daniel): make it parameter in application.conf
     val filterMidScoreConsitutents = false
     val filteredTrainSen = if (filterMidScoreConsitutents) {
-      trainSen.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.65 || c.getConstituentScore <= 0.35 } }
+      trainSentences.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.65 || c.getConstituentScore <= 0.35 } }
     } else {
-      trainSen
+      trainSentences
     }
 
     // add a train attribute to the training constituents, in order to make sure they will have
     // different hashcode than the test constituents
-    trainSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("trainidx", s"$idx") }
-    testSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("testidx", s"${9999 + idx}") }
-    devSen.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("devidx", s"${999999 + idx}") }
-    (filteredTrainSen.flatten, testSen.flatten, devSen.flatten, filteredTrainSen, testSen, devSen)
+    trainSentences.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("trainidx", s"$idx") }
+    testSentences.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("testidx", s"${9999 + idx}") }
+    devSentences.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("devidx", s"${999999 + idx}") }
+    (filteredTrainSen.flatten, testSentences.flatten, devSentences.flatten, filteredTrainSen, testSentences, devSentences)
   }
 
   lazy val allConstituents = trainConstituents ++ testConstituents ++ devConstituents
@@ -164,11 +161,7 @@ object EssentialTermsSensors extends Logging {
 
   /** Load science terms from Datastore */
   lazy val scienceTerms: Set[String] = {
-    val datastoreName = "public"
-    val group = "org.allenai.nlp.resources"
-    val name = "science_terms.txt"
-    val version = 1
-    val file = Utils.getDatastoreFileAsSource(datastoreName, group, name, version)
+    val file = Utils.getDatastoreFileAsSource(localConfig.getString("scienceTermsDatastoreFile"))
     val terms = file.getLines().filterNot(_.startsWith("#")).toSet
     file.close()
     terms

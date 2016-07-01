@@ -22,8 +22,8 @@ case class EssentialTermsQuestion(
   /** Get non-stopword and stopword constituents for the question. */
   def getConstituents(stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
     // whether to combine NER words together or not
-    val cons = if (Annotations.combineNamedEntities) {
-      Annotations.getCombinedConsituents(questionTextAnnotation)
+    val cons = if (Annotator.combineNamedEntities) {
+      Annotator.getCombinedConsituents(questionTextAnnotation)
     } else {
       questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq
     }

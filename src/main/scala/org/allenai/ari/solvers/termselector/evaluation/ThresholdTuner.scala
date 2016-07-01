@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
 import org.allenai.ari.solvers.termselector.learners.IllinoisLearner
-import org.allenai.ari.solvers.termselector.{ Constants, EssentialTermsSensors }
+import org.allenai.ari.solvers.termselector.{ Constants, Sensors }
 import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
@@ -21,7 +21,7 @@ class ThresholdTuner(learner: IllinoisLearner) extends Logging {
   /** given a set of training instances it returns the optimal threshold */
   def tuneThreshold(alpha: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](EssentialTermsSensors.devSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.devSentences)
     testReader.reset()
 
     // first get the real predictions per sentence
