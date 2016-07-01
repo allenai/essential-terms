@@ -3,7 +3,6 @@ package org.allenai.ari.solvers.termselector.learners
 import org.allenai.ari.solvers.termselector.Models
 import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.lbjava.learn._
-import java.io.File
 
 /** An expanded learner with a number of syntactic and semantic features. */
 class ExpandedLearner(
