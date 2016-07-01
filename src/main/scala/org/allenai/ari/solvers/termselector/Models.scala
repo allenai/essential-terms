@@ -1,16 +1,16 @@
 package org.allenai.ari.solvers.termselector
 
-import java.io.File
-
 import org.allenai.ari.solvers.termselector.learners.{ IllinoisLearner, LoadFromDatastore, LoadFromDisk, LoadType }
 import org.allenai.common.Logging
+
+import java.io.File
 
 /** a small object keeping the variables and methods related to handling the models */
 object Models extends Logging {
   //  models trained on the annotatetd data and saved in the datastore
   private lazy val preTrainedModels = Utils.getDatastoreDirectoryAsFolder(Sensors.localConfig.getString("modelsDatastoreFolder"))
 
-  def setModel(illinoisLearner: IllinoisLearner, classifierModel: String, loadModelType: LoadType) = {
+  def setModel(illinoisLearner: IllinoisLearner, classifierModel: String, loadModelType: LoadType): Unit = {
     illinoisLearner.modelSuffix = classifierModel
     loadModelType match {
       case LoadFromDatastore =>
