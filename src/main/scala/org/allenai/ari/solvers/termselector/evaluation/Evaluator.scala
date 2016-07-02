@@ -137,8 +137,8 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
         if (goldLabel(cons) == Constants.IMPORTANT_LABEL) 1 else 0
       }
       if (goldLabelList.sum <= 0) {
-        logger.warn("no essential term in gold found in the gold annotation of this question .... ")
-        logger.warn(s"question: ${consIt.head.getTextAnnotation.sentences().asScala.mkString("*")}")
+        val questionStr = consIt.head.getTextAnnotation.sentences().asScala.mkString("*")
+        logger.warn(s"no essential term found in the gold annotation for question: $questionStr")
         0.5
       } else {
         val scoreLabelPairs = consIt.toList.map { cons =>

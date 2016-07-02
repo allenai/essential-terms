@@ -175,10 +175,8 @@ object Annotator extends Logging {
         throw new Exception("Didn't find the Salience annotation in the cache; if you want to " +
           "look it up, activate it in your settings . . . ")
       } else {
-        logger.debug("Question does not have options . . . ")
+        logger.debug(s"Question does not have options: ${q.rawQuestion} ")
       }
-      logger.debug(q.rawQuestion)
-      logger.debug(q.toString)
       None
     }
   }
