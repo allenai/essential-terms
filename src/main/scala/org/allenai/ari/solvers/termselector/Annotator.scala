@@ -111,7 +111,7 @@ object Annotator extends Logging {
             } else {
               val tokenTaTmp = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 viewNamesForParsingEssentialTermTokens.asJava)
-              synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
+              synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(tokenTaTmp))
               tokenTaTmp
             }
             val combinedConstituents = if (combineNamedEntities) {
