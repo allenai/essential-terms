@@ -182,7 +182,11 @@ object Annotator extends Logging {
   }
 
   // redis cache for annotations
-  lazy val synchronizedRedisClient = new SynchronizedRedisClient
+  lazy val synchronizedRedisClient = if (Sensors.localConfig.getBoolean("useRedisCaching")) {
+    new SynchronizedRedisClient
+  } else {
+    DummyRedisClient
+  }
 
   def readAndAnnotateEssentialTermsData(): Seq[EssentialTermsQuestion] = {
     // only master train: turkerSalientTerms.tsv

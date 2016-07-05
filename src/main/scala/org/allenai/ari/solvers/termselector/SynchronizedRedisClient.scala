@@ -5,13 +5,11 @@ import org.allenai.common.Logging
 
 /** a thread-safe wrapper for redis-client */
 class SynchronizedRedisClient(host: String = "localhost") extends Logging {
-  // TODO(daniel): create a key in application.conf for activating this feature
-  private val redisClientOpt = try {
+  private lazy val redisClientOpt = try {
     Some(new RedisClient(host, 6379))
   } catch {
     case e: RuntimeException =>
-      logger.warn("Redis is not running . . . ")
-      None
+      throw new Exception("Redis is not running, although it is set to be used in \"application.conf\" . . . ")
   }
 
   def redisGet(key: String): Option[String] = {
@@ -22,7 +20,7 @@ class SynchronizedRedisClient(host: String = "localhost") extends Logging {
         } catch {
           case e: Exception => {
             e.printStackTrace()
-            throw new Exception(s"Fetching information from redis failed for ket: $key!")
+            throw new Exception(s"Fetching information from redis failed for key: $key!")
           }
         }
     }
@@ -54,4 +52,11 @@ class SynchronizedRedisClient(host: String = "localhost") extends Logging {
         }
     }
   }
+}
+
+/** a dummy redis client for when redis is not supposed to be used */
+object DummyRedisClient extends SynchronizedRedisClient("") {
+  override def redisGet(key: String) = None
+  override def redisSet(key: String, value: String) = None
+  override def keys() = None
 }
