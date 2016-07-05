@@ -6,7 +6,7 @@ import org.allenai.common.Logging
 /** a thread-safe wrapper for redis-client */
 class SynchronizedRedisClient(host: String = "localhost") extends Logging {
   // TODO(daniel): create a key in application.conf for activating this feature
-  private val annotationRedisCacheOpt = try {
+  private val redisClientOpt = try {
     Some(new RedisClient(host, 6379))
   } catch {
     case e: RuntimeException =>
@@ -15,47 +15,42 @@ class SynchronizedRedisClient(host: String = "localhost") extends Logging {
   }
 
   def redisGet(key: String): Option[String] = {
-    annotationRedisCacheOpt.flatMap {
-      annotationRedisCache =>
+    redisClientOpt.flatMap {
+      redisClient =>
         try {
-          this.synchronized(annotationRedisCache.get(key))
+          this.synchronized(redisClient.get(key))
         } catch {
           case e: Exception => {
-            logger.error("Fetching information from redis failed!")
-            logger.error(s"Key: $key")
             e.printStackTrace()
-            None
+            throw new Exception(s"Fetching information from redis failed for ket: $key!")
           }
         }
     }
   }
 
   def redisSet(key: String, value: String): Unit = {
-    annotationRedisCacheOpt.map {
-      annotationRedisCache =>
+    redisClientOpt.map {
+      redisClient =>
         try {
-          this.synchronized(annotationRedisCache.set(key, value))
+          this.synchronized(redisClient.set(key, value))
         } catch {
           case e: Exception => {
-            logger.error("Setting information in redis failed!")
-            logger.error(s"Key: $key")
             e.printStackTrace()
-            None
+            throw new Exception(s"Setting information in redis failed for key: $key")
           }
         }
     }
   }
 
   def keys(): Option[List[Option[String]]] = {
-    annotationRedisCacheOpt.flatMap {
-      annotationRedisCache =>
+    redisClientOpt.flatMap {
+      redisClient =>
         try {
-          this.synchronized(annotationRedisCache.keys())
+          this.synchronized(redisClient.keys())
         } catch {
           case e: Exception =>
-            logger.error("Fetching all keys from redis failed!")
             e.printStackTrace()
-            None
+            throw new Exception("Fetching all keys from redis failed!")
         }
     }
   }
