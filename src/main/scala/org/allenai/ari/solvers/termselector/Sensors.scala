@@ -33,12 +33,12 @@ object Sensors extends Logging {
   lazy val allQuestions = Annotator.readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
-    lazy val stopWordsFile = Utils.getDatastoreFileAsSource(
+    val stopWordsFile = Utils.getDatastoreFileAsSource(
       localConfig.getString("stopwordsDatastoreFile")
     )
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
-    stopWords.toSet ++ Set("__________")
+    (stopWords :+ "__________").toSet
   }
   lazy val nonessentialStopWords = stopWords.diff(Constants.essentialStopWords)
 
@@ -96,7 +96,7 @@ object Sensors extends Logging {
     val testSentences = Annotator.getConstituents(test)
     val devSentences = Annotator.getConstituents(dev)
 
-    val filterMidScoreConsitutents = localConfig.getDoubleList("annotatedData.filterMidScoreConsitutents").asScala
+    val filterMidScoreConsitutents = localConfig.getDoubleList("annotation.filterMidScoreConsitutents").asScala
     val filteredTrainSen = if (filterMidScoreConsitutents.nonEmpty) {
       require(filterMidScoreConsitutents.length == 2, "The parameter \"filterMidScoreConsitutents\" " +
         "should be an real-array of length 2.")
@@ -164,13 +164,4 @@ object Sensors extends Logging {
     "",
     "brown-clusters/brown-rcv1.clean.tokenized-CoNLL03.txt-c100-freq1.txt", Array[Int](4, 5)
   )
-}
-
-object AA {
-  def main(args: Array[String]): Unit = {
-    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
-    val localConfig = rootConfig.getConfig("ari.solvers.termselector")
-    val filterMidScoreConsitutents2 = localConfig.getDoubleList("annotatedData.filterMidScoreConsitutents")
-    println(filterMidScoreConsitutents2)
-  }
 }

@@ -1,7 +1,8 @@
 package org.allenai.ari.solvers.termselector
 
-import com.redis.RedisClient
 import org.allenai.common.Logging
+
+import com.redis.RedisClient
 
 /** a thread-safe wrapper for redis-client */
 class SynchronizedRedisClient(host: String = "localhost") extends Logging {

@@ -152,7 +152,9 @@ object Annotator extends Logging {
   def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
     val redisSalienceKey = Constants.SALIENCE_PREFIX + q.rawQuestion
     val mapOpt = Sensors.salienceMap.get(redisSalienceKey)
-    val checkForMissingSalienceScores = Sensors.localConfig.getBoolean("annotatedData.checkForMissingSalienceScores")
+    val checkForMissingSalienceScores = Sensors.localConfig.getBoolean(
+      "annotation.checkForMissingSalienceScores"
+    )
     if (mapOpt.isDefined) {
       logger.trace("Found the salience score in the static map . . . ")
       mapOpt
@@ -255,7 +257,7 @@ object Annotator extends Logging {
     ViewNames.SHALLOW_PARSE, ViewNames.PARSE_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
 
   // whether to merge tokens in the same NER or not
-  val combineNamedEntities = Sensors.localConfig.getBoolean("annotatedData.combineNamedEntities")
+  val combineNamedEntities = Sensors.localConfig.getBoolean("annotation.combineNamedEntities")
 
   // function that merges tokens which belong to the same NER constitunet
   def getCombinedConsituents(ta: TextAnnotation): Seq[Constituent] = {
