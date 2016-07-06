@@ -25,7 +25,9 @@ object BaselineLearners extends Logging {
     require(classifierModel == "dev" || classifierModel == "train")
 
     // create the baseline data model and the corresponding learner objects
-    // TODO: make the creation of the baselines simpler
+    // the baseline data model contains informatiln about how different elements of the problem
+    // are connected to each other (in this case, the output label of an arbitrary input instance
+    // in the training data)
     val baselineDataModel = new BaselineDataModel
 
     val baselineLearnerSurfaceForm = BaselineLearner.makeNewLearner(

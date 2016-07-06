@@ -21,8 +21,8 @@ import DefaultJsonProtocol._
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-/** The purpose of this object is to contain the entry points (hence "sensors") to all the datasets and resources
-  * used throughout the project.
+/** The purpose of this object is to contain the entry points (hence "sensors") to all
+  * the datasets and resources used throughout the project.
   */
 object Sensors extends Logging {
   // reading the config file
@@ -33,27 +33,14 @@ object Sensors extends Logging {
   lazy val allQuestions = Annotator.readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
-    lazy val stopWordsFile = Utils.getDatastoreFileAsSource(localConfig.getString("stopwordsDatastoreFile"))
+    lazy val stopWordsFile = Utils.getDatastoreFileAsSource(
+      localConfig.getString("stopwordsDatastoreFile")
+    )
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
     stopWords.toSet ++ Set("__________")
   }
   lazy val nonessentialStopWords = stopWords.diff(Constants.essentialStopWords)
-
-  // a hashmap from sentences to [[TextAnnotation]]s
-  // TODO(daniel): in future we can get rid of this, if we decide to never use it
-  lazy val annotationFileCache = {
-    val annotationCacheFile = Utils.getDatastoreFileAsSource(
-      "private", "org.allenai.termselector", "annotationCache.json", 1
-    )
-    val lines = annotationCacheFile.getLines().toList
-    val sentenceAnnnotationMap = lines.map { singleLine =>
-      val splitted = singleLine.split("\t")
-      splitted(0) -> SerializationHelper.deserializeFromJson(splitted(1))
-    }.toMap
-    annotationCacheFile.close()
-    sentenceAnnnotationMap
-  }
 
   // salience, used when the annotation does not exist in our cache
   lazy val (salienceScorer, actorSystem) = {
@@ -109,10 +96,16 @@ object Sensors extends Logging {
     val testSentences = Annotator.getConstituents(test)
     val devSentences = Annotator.getConstituents(dev)
 
-    // TODO(daniel): make it parameter in application.conf
-    val filterMidScoreConsitutents = false
-    val filteredTrainSen = if (filterMidScoreConsitutents) {
-      trainSentences.map { consList => consList.toList.filter { c => c.getConstituentScore >= 0.65 || c.getConstituentScore <= 0.35 } }
+    val filterMidScoreConsitutents = localConfig.getDoubleList("annotatedData.filterMidScoreConsitutents").asScala
+    val filteredTrainSen = if (filterMidScoreConsitutents.nonEmpty) {
+      require(filterMidScoreConsitutents.length == 2, "The parameter \"filterMidScoreConsitutents\" " +
+        "should be an real-array of length 2.")
+      trainSentences.map { consList =>
+        consList.toList.filter { c =>
+          c.getConstituentScore >= filterMidScoreConsitutents(0) ||
+            c.getConstituentScore <= filterMidScoreConsitutents(1)
+        }
+      }
     } else {
       trainSentences
     }
@@ -171,4 +164,13 @@ object Sensors extends Logging {
     "",
     "brown-clusters/brown-rcv1.clean.tokenized-CoNLL03.txt-c100-freq1.txt", Array[Int](4, 5)
   )
+}
+
+object AA {
+  def main(args: Array[String]): Unit = {
+    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+    val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+    val filterMidScoreConsitutents2 = localConfig.getDoubleList("annotatedData.filterMidScoreConsitutents")
+    println(filterMidScoreConsitutents2)
+  }
 }

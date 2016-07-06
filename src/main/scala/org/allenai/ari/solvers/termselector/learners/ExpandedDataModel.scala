@@ -29,7 +29,6 @@ class ExpandedDataModel(
   tokenToSentence.addSensor({ (c: Constituent) => c.getTextAnnotation.getSentence(c.getSentenceId) })
 
   // properties
-  // TODO: transfer all these properties here automatically?
   override val goldLabel = baselineDataModel.goldLabel
   // used in the regression model
   val goldRealConfidence = property(essentialTermTokens) { x: Constituent =>

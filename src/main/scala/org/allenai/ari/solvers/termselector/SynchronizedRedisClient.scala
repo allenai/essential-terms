@@ -9,7 +9,8 @@ class SynchronizedRedisClient(host: String = "localhost") extends Logging {
     new RedisClient(host, 6379)
   } catch {
     case e: RuntimeException =>
-      throw new Exception("Redis is not running, although it is set to be used in \"application.conf\" . . . ")
+      throw new Exception("Redis is not running, although it is set to be used in" +
+        " \"application.conf\" . . . ")
   }
 
   def redisGet(key: String): Option[String] = {

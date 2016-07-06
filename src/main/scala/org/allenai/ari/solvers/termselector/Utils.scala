@@ -1,6 +1,11 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.{ MultipleChoiceSelection, ParentheticalChoiceIdentifier, Question, SplitQuestion }
+import org.allenai.ari.models.{
+  MultipleChoiceSelection,
+  ParentheticalChoiceIdentifier,
+  Question,
+  SplitQuestion
+}
 import org.allenai.common.Logging
 import org.allenai.datastore.Datastore
 
@@ -103,7 +108,9 @@ object Utils extends Logging {
   }
 
   // copied from Controller.scala, the method is private
-  def decomposeQuestionUsingFallbackDecomposer(splitQuestion: SplitQuestion): Seq[MultipleChoiceSelection] = {
+  def decomposeQuestionUsingFallbackDecomposer(
+    splitQuestion: SplitQuestion
+  ): Seq[MultipleChoiceSelection] = {
     for {
       ((key, answer), i) <- splitQuestion.keyAnswerPairs.zipWithIndex
       question = splitQuestion.question.stripSuffix("?").stripSuffix(".").stripSuffix("!")

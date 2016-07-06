@@ -7,7 +7,6 @@ import org.allenai.common.testkit.UnitSpec
 
 /** Test overall functionality of the TableILP solver */
 class EssentialTermsSpec extends UnitSpec {
-  //TODO: ignored due to some weird behavior in Semaphore. Address it in future.
   "Lemma baseline " should "should correctly work and have at least 74 F1" in {
     val (baselineDataModelTrain, baselineLearnersTrain) =
       BaselineLearners.makeNewLearners(LoadFromDatastore, "train")
@@ -18,7 +17,6 @@ class EssentialTermsSpec extends UnitSpec {
     assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.74)
   }
 
-  //TODO: ignored due to some weird behavior in Semaphore. Address it in future.
   "Expanded classifier " should " should correctly work and have at least 80 F1" in {
     val salienceBaselines = SalienceLearner.makeNewLearners()
     val (baselineDataModel, baselineClassifiers) =

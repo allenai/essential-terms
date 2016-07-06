@@ -8,7 +8,7 @@ import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 
 /** A baseline learner based on simply counting the label frequency per word
   *
-  * @param baselineDataModel TODO(daniel) add description
+  * @param baselineDataModel the class which contains all the information relating the input and output variables
   * @param input what can be used to make the prediction; usually [[baselineDataModel.wordForm]]
   * @param output what needs to be predicted; usually [[baselineDataModel.goldLabel]]
   */

@@ -152,8 +152,7 @@ object Annotator extends Logging {
   def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
     val redisSalienceKey = Constants.SALIENCE_PREFIX + q.rawQuestion
     val mapOpt = Sensors.salienceMap.get(redisSalienceKey)
-    // TODO(daniel) move it to application.conf as an option
-    val checkForMissingSalienceScores = true
+    val checkForMissingSalienceScores = Sensors.localConfig.getBoolean("annotatedData.checkForMissingSalienceScores")
     if (mapOpt.isDefined) {
       logger.trace("Found the salience score in the static map . . . ")
       mapOpt
@@ -240,7 +239,6 @@ object Annotator extends Logging {
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
   }
 
-  // TODO(daniel): you can get rid of this output; right?
   private lazy val annotatorService = {
     val nonDefaultProps = new Properties()
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
@@ -256,10 +254,10 @@ object Annotator extends Logging {
   val views = Set(ViewNames.TOKENS, ViewNames.POS, ViewNames.LEMMA, ViewNames.NER_CONLL,
     ViewNames.SHALLOW_PARSE, ViewNames.PARSE_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
 
-  // TODO(daniel): move this parameter to application.conf
-  val combineNamedEntities = false
+  // whether to merge tokens in the same NER or not
+  val combineNamedEntities = Sensors.localConfig.getBoolean("annotatedData.combineNamedEntities")
 
-  // merges tokens which belong to the same NER constitunet
+  // function that merges tokens which belong to the same NER constitunet
   def getCombinedConsituents(ta: TextAnnotation): Seq[Constituent] = {
     val tokenConsitutnes = ta.getView(ViewNames.TOKENS).getConstituents.asScala
     val nerConstituents = ta.getView(ViewNames.NER_CONLL).getConstituents.asScala
