@@ -40,9 +40,9 @@ object Sensors extends Logging {
     stopWordsFile.close()
 
     // return the list of the stop words, or things to be ignored during the essential-term prediction
-    stopWords ++ Constants.additionalIgnoredTerms
+    stopWords ++ Constants.ADDITIONAL_IGNORED_TERMS
   }
-  lazy val nonessentialStopWords = stopWords.diff(Constants.essentialStopWords)
+  lazy val nonessentialStopWords = stopWords.diff(Constants.ESSENTIAL_STOPWORDS)
 
   // salience, used when the annotation does not exist in our cache
   lazy val (salienceScorer, actorSystem) = {

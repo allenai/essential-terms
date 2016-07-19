@@ -44,14 +44,14 @@ object Annotator extends Logging {
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
-      val ta = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
-      ta.getAvailableViews.asScala.foreach { vu =>
-        if (ta.getView(vu) == null) {
+      val textAnnotation = annotatorService.createAnnotatedTextAnnotation("", "", aristoQuestion.text.get, views)
+      textAnnotation.getAvailableViews.asScala.foreach { vu =>
+        if (textAnnotation.getView(vu) == null) {
           logger.warn(s"Couldn't find view $vu for question: ${aristoQuestion.text.get}")
         }
       }
-      synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(ta))
-      ta
+      synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(textAnnotation))
+      textAnnotation
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
     logger.trace(s"Populated views: ${taWithEssentialTermsView.getAvailableViews.asScala}")

@@ -27,7 +27,7 @@ abstract class IllinoisLearner(
     val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = questionStruct.splitConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
-      questionStruct.splitConstituents(stopwordConstituents, Constants.essentialStopWords)
+      questionStruct.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
     // update the inverse map with the new constituents
     constituents.foreach(c => Sensors.constituentToAnnotationMap.put(c, questionStruct))
     this.dataModel.essentialTermTokens.populate(constituents)
@@ -41,7 +41,7 @@ abstract class IllinoisLearner(
     val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = questionStruct.splitConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
-      questionStruct.splitConstituents(stopwordConstituents, Constants.essentialStopWords)
+      questionStruct.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
     // update the inverse map with the new constituents
     constituents.foreach(c => Sensors.constituentToAnnotationMap.put(c, questionStruct))
     this.dataModel.essentialTermTokens.populate(constituents)

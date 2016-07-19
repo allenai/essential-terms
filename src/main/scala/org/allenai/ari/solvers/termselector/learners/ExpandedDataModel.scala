@@ -410,6 +410,9 @@ class ExpandedDataModel(
 
   // group of baselines cut in different thresholds
   private val baselinesWithThresholds = {
+    /** we get the predictions from each baseline at different thresholds; the thresholds (for each solver)
+      * are the maximizers of F-alpha (across a range of alpha)
+      */
     List(
       baselineLabelWithThreshold(baselineClassifiers.lemma, Seq(0.73, 0.63, 0.54, 0.46, 0.38, 0.37, 0.31, 0.24, 0.19)),
       baselineLabelWithThreshold(baselineClassifiers.surfaceForm, Seq(0.72, 0.60, 0.46, 0.37, 0.35, 0.33, 0.24, 0.19)),

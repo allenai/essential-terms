@@ -24,7 +24,7 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
     val (stopwordConstituents, constituents) = questionStruct
       .splitConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct
-      .splitConstituents(stopwordConstituents, Constants.essentialStopWords)
+      .splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
     // update the inverse map with the new constituents
     logger.debug("MaxSalience: " + questionStruct.maxSalience)
     logger.debug("SumSalience: " + questionStruct.sumSalience)
