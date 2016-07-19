@@ -17,5 +17,5 @@ libraryDependencies ++= Seq(
   word2VecJava exclude("edu.stanford.nlp", "stanford-corenlp"),
   wumpusClient exclude("edu.stanford.nlp", "stanford-corenlp"),
   redisClient,
-  wispPotting
+  wispPlotting
 )
