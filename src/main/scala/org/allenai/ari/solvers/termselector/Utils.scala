@@ -88,8 +88,11 @@ object Utils extends Logging {
     getDatastoreDirectoryAsFolder(datastoreName, group, name, version)
   }
 
+  /** methods needed to compute Levenshtein distance between two strings */
   object Levenshtein {
     def minimum(i1: Int, i2: Int, i3: Int) = math.min(math.min(i1, i2), i3)
+
+    /** given two strings it computes their edit distance */
     def distance(s1: String, s2: String) = {
       val dist = Array.tabulate(s2.length + 1, s1.length + 1) { (j, i) =>
         if (j == 0) i else if (i == 0) j else 0

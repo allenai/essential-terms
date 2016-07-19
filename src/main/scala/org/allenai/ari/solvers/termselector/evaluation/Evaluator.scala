@@ -3,12 +3,14 @@ package org.allenai.ari.solvers.termselector.evaluation
 import org.allenai.ari.solvers.termselector.learners.IllinoisLearner
 import org.allenai.ari.solvers.termselector.{ Constants, Sensors }
 import org.allenai.common.Logging
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
-import java.io.{ File, PrintWriter }
 
 import scala.collection.JavaConverters._
+
+import java.io.{ File, PrintWriter }
 
 /** Various methods to evaluate the performance of an IllinoisLearner. */
 class Evaluator(learner: IllinoisLearner) extends Logging {

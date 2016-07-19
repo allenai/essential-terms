@@ -124,12 +124,15 @@ object Sensors extends Logging {
 
   // splitting questions based on their types, like wh-question, etc
   lazy val (whatQuestions, whichQuestions, whereQuestions, whenQuestions, howQuestions, nonWhQuestions) = {
+
+    /** */
     def split(input: Iterable[Constituent], keyword: String) = {
       input.partition { c =>
         val annotation = constituentToAnnotationMap(c)
         annotation.rawQuestion.toLowerCase.contains(keyword)
       }
     }
+    // TODO(danielk): move these to experiments file and make them more efficient (no multiple traversal)
     val (what, rest1) = split(testConstituents, "what")
     val (which, rest2) = split(rest1, "which")
     val (where, rest3) = split(rest2, "where")
