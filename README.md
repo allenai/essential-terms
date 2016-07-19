@@ -42,13 +42,14 @@ val essentialTermScores = essentialTermService.getEssentialTermScores(aristoQues
   
 ### Using it directly as library dependency
   
-    If you want to use it in an external project (non-Aristo), you'd have to first add it as a dependency. 
+If you want to use it in an external project (non-Aristo), you'd have to first add it as a dependency. 
+
 ```sbt
   TODO 
 ```
   
-  Next we have to initialize the classifiers and make predictions on a given 
-  question 
+Next we have to initialize the classifiers and make predictions on a given question
+   
 ```scala 
 // loading the models
 val salienceBaselines = SalienceLearner.makeNewLearners()
