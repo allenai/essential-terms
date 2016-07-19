@@ -29,9 +29,10 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
       tester.reportPrediction(learner.predictLabel(c, threshold), learner.dataModel.goldLabel(c))
     }
     tester.getLabels.map { label =>
-      val F = if (!tester.getF(alpha, label).isNaN) tester.getF(alpha, label) else 0d
-      val P = if (!tester.getPrecision(label).isNaN) tester.getPrecision(label) else 0d
-      val R = if (!tester.getRecall(label).isNaN) tester.getRecall(label) else 0d
+      def convertNanToZero(d: Double) = if (d.isNaN) 0d else d
+      val F = convertNanToZero(tester.getF(alpha, label))
+      val P = convertNanToZero(tester.getPrecision(label))
+      val R = convertNanToZero(tester.getRecall(label))
       (label, (F, P, R))
     }.toMap
   }

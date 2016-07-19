@@ -23,7 +23,7 @@ Here we explain two popular ways of calling our this system in your code;
 
 ### Using it as a service via `Injector` library
 If you want to use Google's injector library, many of the minor details will automatically be taken care of. 
-You just need to inject the our service defined in `EssentialTermsService`. 
+You just need to inject the service defined in `EssentialTermsService`. 
 
 ```sbt 
 val essentialTermService = ... // injected essential-terms service

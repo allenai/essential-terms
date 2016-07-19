@@ -28,7 +28,7 @@ object Annotator extends Logging {
   /** given an aristo question and its essentiality-score map it generates an [[EssentialTermsQuestion]]
     * with the necessary annotations
     * @param aristoQuestion the input aristo question
-    * @param essentialTermMapOpt the essentiality-scores map
+    * @param essentialTermMapOpt a map from question terms to their essentiality scores ranged in [0, 1]
     * @param numAnnotators the number of annotators
     * @return an [[EssentialTermsQuestion]] object which contains proper annotations for the given question
     */
