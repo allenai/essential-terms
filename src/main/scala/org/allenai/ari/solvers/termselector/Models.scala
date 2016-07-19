@@ -17,6 +17,11 @@ object Models extends Logging {
     Sensors.localConfig.getString("modelsDatastoreFolder")
   )
 
+  /** This method loads the proper model for a classifier
+    * @param illinoisLearner an input classifier
+    * @param classifierModel the type of the classifier (e.g. SVM, trained-on-dev, etc)
+    * @param loadModelType whether to load from disk, from datastore, or nothing (firnafresh empty model)
+    */
   def setModel(
     illinoisLearner: IllinoisLearner,
     classifierModel: String,

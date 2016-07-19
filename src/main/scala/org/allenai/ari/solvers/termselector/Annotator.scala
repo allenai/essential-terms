@@ -19,11 +19,19 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.io.Codec
+
 import java.util.Properties
 
 /** Object containing methods related to annotating the data with various tools
   */
 object Annotator extends Logging {
+  /** given an aristo question and its essentiality-score map it generates an [[EssentialTermsQuestion]]
+    * with the necessary annotations
+    * @param aristoQuestion the input aristo question
+    * @param essentialTermMapOpt the essentiality-scores map
+    * @param numAnnotators the number of annotators
+    * @return an [[EssentialTermsQuestion]] object which contains proper annotations for the given question
+    */
   def annotateQuestion(
     aristoQuestion: Question,
     essentialTermMapOpt: Option[Map[String, Double]],
@@ -186,6 +194,7 @@ object Annotator extends Logging {
   lazy val synchronizedRedisClient = if (Sensors.localConfig.getBoolean("useRedisCaching")) {
     new SynchronizedRedisClient
   } else {
+    // use the dummy client, which always returns None for any query (and not using any Redis)
     DummyRedisClient
   }
 
@@ -232,10 +241,9 @@ object Annotator extends Logging {
         }
     }.map {
       case (wordImportance, numAnnotators, question) =>
-        // logger.info(s"Question: $question // Scores: ${wordImportance.toList}")
         val aristoQuestion = Utils.decomposeQuestion(question)
         val essentialTermMap = wordImportance.groupBy(_._1).mapValues(_.maxBy(_._2)._2)
-        annotateQuestion(aristoQuestion: Question, Some(essentialTermMap), Some(numAnnotators))
+        annotateQuestion(aristoQuestion, Some(essentialTermMap), Some(numAnnotators))
     }.toSeq
     // getting rid of invalid questions
     allQuestions.filter { _.aristoQuestion.selections.nonEmpty }
@@ -246,8 +254,6 @@ object Annotator extends Logging {
     nonDefaultProps.setProperty(PipelineConfigurator.USE_NER_ONTONOTES.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_NOM.key, Configurator.FALSE)
     nonDefaultProps.setProperty(PipelineConfigurator.USE_SRL_VERB.key, Configurator.FALSE)
-    //    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_DEP.key, Configurator.FALSE)
-    //    nonDefaultProps.setProperty(PipelineConfigurator.USE_STANFORD_PARSE.key, Configurator.FALSE)
     IllinoisPipelineFactory.buildPipeline(
       new CuratorConfigurator().getConfig(new ResourceManager(nonDefaultProps))
     )
@@ -293,16 +299,16 @@ object Annotator extends Logging {
   def getConstituentTwoAfter(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
     val consAfter = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
       filter(cons => cons.getStartSpan >= x.getEndSpan)
-    if (consAfter.size >= 2) consAfter.sortBy(_.getEndSpan).toList(1) else x
+    if (consAfter.size >= 2) consAfter.sortBy(_.getEndSpan).apply(1) else x
   }
 
   def getConstituentTwoBefore(x: Constituent, viewName: String = ViewNames.TOKENS): Constituent = {
     val consBefore = x.getTextAnnotation.getView(viewName).getConstituents.asScala.
       filter(cons => cons.getEndSpan <= x.getStartSpan)
-    if (consBefore.size >= 2) consBefore.sortBy(-_.getEndSpan).toList(1) else x
+    if (consBefore.size >= 2) consBefore.sortBy(-_.getEndSpan).apply(1) else x
   }
 
-  def getConstituentCoveringInView(c: Constituent, view: String): java.util.List[Constituent] = {
-    c.getTextAnnotation.getView(view).getConstituentsCovering(c)
+  def getConstituentCoveringInView(c: Constituent, view: String): Iterable[Constituent] = {
+    c.getTextAnnotation.getView(view).getConstituentsCovering(c).asScala
   }
 }

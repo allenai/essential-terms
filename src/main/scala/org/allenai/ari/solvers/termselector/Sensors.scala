@@ -8,16 +8,16 @@ import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
 import org.allenai.datastore.Datastore
 
+import akka.actor.ActorSystem
 import ch.qos.logback.classic.Level
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
-import akka.actor.ActorSystem
 import com.google.inject.Guice
 import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
 import spray.json._
 import DefaultJsonProtocol._
+
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -38,6 +38,8 @@ object Sensors extends Logging {
     )
     val stopWords = stopWordsFile.getLines().toList
     stopWordsFile.close()
+
+    // return the list of the stop words, or things to be ignored during the essential-term prediction
     (stopWords :+ "__________").toSet
   }
   lazy val nonessentialStopWords = stopWords.diff(Constants.essentialStopWords)
@@ -125,7 +127,7 @@ object Sensors extends Logging {
   // splitting questions based on their types, like wh-question, etc
   lazy val (whatQuestions, whichQuestions, whereQuestions, whenQuestions, howQuestions, nonWhQuestions) = {
 
-    /** */
+    /** split the question into two disjoint subsets; one which contains the keyword, and one which doesn't */
     def split(input: Iterable[Constituent], keyword: String) = {
       input.partition { c =>
         val annotation = constituentToAnnotationMap(c)

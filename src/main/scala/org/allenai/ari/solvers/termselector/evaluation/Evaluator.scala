@@ -16,11 +16,10 @@ import java.io.{ File, PrintWriter }
 class Evaluator(learner: IllinoisLearner) extends Logging {
 
   /** test per tokens, given some data
-    *
-    * @param testData TODO(daniel)
-    * @param threshold TODO(daniel)
-    * @param alpha TODO(daniel)
-    * @return TODO(daniel)
+    * @param testData the input constituent
+    * @param threshold constituents with score above this are essential
+    * @param alpha the parameter for calculating F-measure
+    * @return a map from output label (essential, or non-essential) to tuple of F-alpha, precision and recall.
     */
   def test(
     testData: Iterable[Constituent], threshold: Double, alpha: Double

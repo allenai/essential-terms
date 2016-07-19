@@ -22,9 +22,9 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
   override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
     val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = questionStruct
-      .getConstituents(Sensors.stopWords)
+      .splitConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) = questionStruct
-      .getConstituents(stopwordConstituents, Constants.essentialStopWords)
+      .splitConstituents(stopwordConstituents, Constants.essentialStopWords)
     // update the inverse map with the new constituents
     logger.debug("MaxSalience: " + questionStruct.maxSalience)
     logger.debug("SumSalience: " + questionStruct.sumSalience)

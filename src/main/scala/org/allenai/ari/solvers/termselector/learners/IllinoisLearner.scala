@@ -25,9 +25,9 @@ abstract class IllinoisLearner(
   // implement for trait MyLearner
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
     val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
-    val (stopwordConstituents, constituents) = questionStruct.getConstituents(Sensors.stopWords)
+    val (stopwordConstituents, constituents) = questionStruct.splitConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
-      questionStruct.getConstituents(stopwordConstituents, Constants.essentialStopWords)
+      questionStruct.splitConstituents(stopwordConstituents, Constants.essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => Sensors.constituentToAnnotationMap.put(c, questionStruct))
     this.dataModel.essentialTermTokens.populate(constituents)
@@ -39,9 +39,9 @@ abstract class IllinoisLearner(
   // implement for trait MyLearner
   def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = {
     val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
-    val (stopwordConstituents, constituents) = questionStruct.getConstituents(Sensors.stopWords)
+    val (stopwordConstituents, constituents) = questionStruct.splitConstituents(Sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
-      questionStruct.getConstituents(stopwordConstituents, Constants.essentialStopWords)
+      questionStruct.splitConstituents(stopwordConstituents, Constants.essentialStopWords)
     // update the inverse map with the new constituents
     constituents.foreach(c => Sensors.constituentToAnnotationMap.put(c, questionStruct))
     this.dataModel.essentialTermTokens.populate(constituents)
