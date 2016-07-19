@@ -36,11 +36,11 @@ object Sensors extends Logging {
     val stopWordsFile = Utils.getDatastoreFileAsSource(
       localConfig.getString("stopwordsDatastoreFile")
     )
-    val stopWords = stopWordsFile.getLines().toList
+    val stopWords = stopWordsFile.getLines().toSet
     stopWordsFile.close()
 
     // return the list of the stop words, or things to be ignored during the essential-term prediction
-    (stopWords :+ "__________").toSet
+    stopWords ++ Constants.additionalIgnoredTerms
   }
   lazy val nonessentialStopWords = stopWords.diff(Constants.essentialStopWords)
 

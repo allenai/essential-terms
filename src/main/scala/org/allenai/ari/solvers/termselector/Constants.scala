@@ -27,6 +27,8 @@ protected case object Constants {
     * ALWAYS be essential
     */
   val essentialStopWords = Set("all", "any", "because", "before", "both", "but", "not", "except")
+  // these terms will be added to the list of stopwords we read from disk
+  val additionalIgnoredTerms = Set("?", "___", "____", "__________", ".", ",", "'s")
   val ESSENTIAL_STOPWORD_SCORE = 0.8
   val NONESSENTIAL_STOPWORD_SCORE = 0.0
 }
