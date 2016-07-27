@@ -36,6 +36,11 @@ object Utils extends Logging {
     getDatastoreFileAsSource(datastoreName, group, name, version)
   }
 
+  def getDatastoreFile(datastoreUriString: String): File = {
+    val (datastoreName, group, name, version) = parseDatastoreUri(datastoreUriString)
+    Datastore(datastoreName).filePath(group, name, version).toFile
+  }
+
   /** Get a datastore file as a buffered Source. Caller is responsible for closing this stream. */
   def getDatastoreFileAsSource(config: Config): BufferedSource = {
     val datastoreName = config.getString("datastore")

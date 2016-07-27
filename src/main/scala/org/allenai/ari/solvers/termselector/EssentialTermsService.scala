@@ -7,13 +7,12 @@ import org.allenai.common.Logging
 import com.google.inject.Inject
 import com.google.inject.name.Named
 import spray.json._
-import DefaultJsonProtocol._
+import spray.json.DefaultJsonProtocol._
 
 /** A service for identifying essential terms in Aristo questions.
-  *
   * @param classifierType whether and how to identify and use essential terms in the model
   * @param classifierModel the type of the underlying model used for predictions
-  * @param useRedisCaching whethet to cache the output scores in a redis cache; would require you to run redis upon using
+  * @param useRedisCaching whether to cache the output scores in a redis cache; would require you to run redis upon using
   */
 class EssentialTermsService @Inject() (
     @Named("essentialTerms.classifierType") val classifierType: String,
@@ -27,25 +26,25 @@ class EssentialTermsService @Inject() (
   private lazy val (learner, defaultThreshold) = {
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
-      case "Lookup" => new LookupLearner() -> Constants.LOOKUP_THRESHOLD
-      case "MaxSalience" => SalienceLearner.makeNewLearners().max -> Constants.MAX_SALIENCE_THRESHOLD
-      case "SumSalience" => SalienceLearner.makeNewLearners().sum -> Constants.SUM_SALIENCE_THRESHOLD
-      case "LemmaBaseline" => BaselineLearners.makeNewLearners(
+      case "Lookup" => (new LookupLearner(), Constants.LOOKUP_THRESHOLD)
+      case "MaxSalience" => (SalienceLearner.makeNewLearners().max, Constants.MAX_SALIENCE_THRESHOLD)
+      case "SumSalience" => (SalienceLearner.makeNewLearners().sum, Constants.SUM_SALIENCE_THRESHOLD)
+      case "LemmaBaseline" => (BaselineLearners.makeNewLearners(
         loadModelType = LoadFromDatastore, "train"
-      )._2.lemma -> Constants.LEMMA_BASELINE_THRESHOLD
+      )._2.lemma, Constants.LEMMA_BASELINE_THRESHOLD)
       case "Expanded" =>
         val salienceBaselines = SalienceLearner.makeNewLearners()
         val (baselineDataModel, baselineClassifiers) =
           BaselineLearners.makeNewLearners(LoadFromDatastore, "dev")
-        ExpandedLearner.makeNewLearner(LoadFromDatastore, classifierModel, baselineClassifiers,
-          baselineDataModel, salienceBaselines)._2 -> Constants.EXPANDED_LEARNER_THRESHOLD
+        (ExpandedLearner.makeNewLearner(LoadFromDatastore, classifierModel, baselineClassifiers,
+          baselineDataModel, salienceBaselines)._2, Constants.EXPANDED_LEARNER_THRESHOLD)
       case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
     }
   }
 
   /** Get essential term scores for a given question.
     * @param aristoQ an input question, in Aristo's standard datastructure for questions
-    * @return a hashmap of the terms and their importance
+    * @return a map of the terms and their importance
     */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
     if (useRedisCaching) {

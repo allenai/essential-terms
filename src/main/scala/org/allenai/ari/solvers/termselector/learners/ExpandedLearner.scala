@@ -14,7 +14,10 @@ class ExpandedLearner(
   override def dataModel = expandedDataModel
 
   // implement for trait Learnable[Constituent]
-  override def label = if (classifier.isInstanceOf[StochasticGradientDescent]) dataModel.goldRealConfidence else dataModel.goldLabel
+  override def label = classifier match {
+    case _: StochasticGradientDescent => dataModel.goldRealConfidence
+    case _ => dataModel.goldLabel
+  }
 
   override lazy val classifier = classifierModel match {
     case "SVM" => new SupportVectorMachine()
@@ -30,7 +33,6 @@ class ExpandedLearner(
 object ExpandedLearner extends Logging {
 
   /** Make a new ExpandedLearner; also return the underlying data models.
-    *
     * @param loadModelType load the pre-trained model from disk or from datastore, or the one on disk, or don't load any model
     */
   def makeNewLearner(

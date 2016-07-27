@@ -77,7 +77,7 @@ object Sensors extends Logging {
   // regents training question: just to make sure they are all in the test set of the term-selector
   lazy val regentsSet = {
     val separator = "\",".r
-    lazy val rawTextFile = Datastore("private").filePath("org.allenai.tableilp.data", "regentsTrain.txt", 1).toFile
+    lazy val rawTextFile = Utils.getDatastoreFile(localConfig.getString("regentsTrainingQuestion"))
     lazy val questions = FileUtils.getFileAsLines(rawTextFile)
     questions.map { q => Utils.decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
   }

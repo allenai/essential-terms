@@ -3,7 +3,6 @@ package org.allenai.ari.solvers.termselector
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
 import org.allenai.common.{ FileUtils, Logging }
-import org.allenai.datastore.Datastore
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, TokenLabelView }
@@ -202,9 +201,7 @@ object Annotator extends Logging {
     // only master train: turkerSalientTerms.tsv
     // only omnibus: turkerSalientTermsOnlyOmnibus.tsv
     // combined: turkerSalientTermsWithOmnibus.tsv
-    val salientTermsFile = Datastore("private").filePath(
-      "org.allenai.termselector", "turkerSalientTermsWithOmnibus.tsv", 3
-    ).toFile
+    val salientTermsFile = Utils.getDatastoreFile(Sensors.localConfig.getString("turkerEssentialityScores"))
     // Some terms in the turker generated file need ISO-8859 encoding
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
       val fields = line.split("\t")
