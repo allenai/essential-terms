@@ -23,7 +23,7 @@ class EssentialTermsService @Inject() (
   /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
     * The default thresholds are chosen to maximize F1 on the dev set, given the threshold
     */
-  private lazy val (learner, defaultThreshold) = {
+  private val (learner, defaultThreshold) = {
     logger.info(s"Initializing essential terms service with learner type: $classifierType")
     classifierType match {
       case "Lookup" => (new LookupLearner(), Constants.LOOKUP_THRESHOLD)
