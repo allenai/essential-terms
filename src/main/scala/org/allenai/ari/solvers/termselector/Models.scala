@@ -22,7 +22,7 @@ object Models extends Logging {
     * @param classifierModel the type of the classifier (e.g. SVM, trained-on-dev, etc)
     * @param loadModelType whether to load from disk, from datastore, or nothing (firnafresh empty model)
     */
-  def setModel(
+  def load(
     illinoisLearner: IllinoisLearner,
     classifierModel: String,
     loadModelType: LoadType

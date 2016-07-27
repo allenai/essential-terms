@@ -11,6 +11,11 @@ class ExpandedLearner(
 ) extends IllinoisLearner(expandedDataModel) {
 
   // implement for trait EssentialTermsLearner
+  // The reason has to have with def has to do with mutable objects in Saul (`*Learner` and `*DataModel` classes we extend)
+  // In particular, many fields of `expandedDataModel` will get populated *afterwards* by that library once the training/test
+  // data is processed.  One such field is `expandedDataModel.allProperties`, which we use below in
+  // `override def features = dataModel.allProperties`. So, if we use `override val dataModel = ...` here, `features` will
+  // have access to a stale snapshot of `expandedDataModel` whose field `allProperties` is null.
   override def dataModel = expandedDataModel
 
   // implement for trait Learnable[Constituent]
@@ -31,7 +36,6 @@ class ExpandedLearner(
 }
 
 object ExpandedLearner extends Logging {
-
   /** Make a new ExpandedLearner; also return the underlying data models.
     * @param loadModelType load the pre-trained model from disk or from datastore, or the one on disk, or don't load any model
     */
@@ -44,7 +48,7 @@ object ExpandedLearner extends Logging {
   ): (ExpandedDataModel, ExpandedLearner) = {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
     val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
-    Models.setModel(expandedLearner, classifierModel, loadModelType)
+    Models.load(expandedLearner, classifierModel, loadModelType)
     (expandedDataModel, expandedLearner)
   }
 }

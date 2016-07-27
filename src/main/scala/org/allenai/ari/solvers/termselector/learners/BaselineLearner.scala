@@ -53,7 +53,7 @@ object BaselineLearner extends Logging {
     loadSavedModel: LoadType
   ): BaselineLearner = {
     val baseline = new BaselineLearner(baselineDataModel, input, output)
-    Models.setModel(baseline, suffix, loadSavedModel)
+    Models.load(baseline, suffix, loadSavedModel)
     baseline
   }
 }
