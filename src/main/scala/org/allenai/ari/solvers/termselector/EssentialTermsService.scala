@@ -125,7 +125,7 @@ class EssentialTermsService @Inject() (
     // use the raw question in the cache as the essential term prediction depends on the options
     val cacheKey = "EssentialTermsServiceCache***scores***" + aristoQ.rawQuestion + learnerAndThreshold.uniqueCacheName
     val termsAndScoreJsonOpt = Sensors.synchronized {
-      Annotator.synchronizedRedisClient.redisGet(cacheKey)
+      Annotator.synchronizedRedisClient.get(cacheKey)
     }
     termsAndScoreJsonOpt match {
       case Some(termsAndScoreJson) =>
@@ -133,7 +133,7 @@ class EssentialTermsService @Inject() (
       case None =>
         val scores = learner.getEssentialTermScores(aristoQ)
         Sensors.synchronized {
-          Annotator.synchronizedRedisClient.redisSet(
+          Annotator.synchronizedRedisClient.put(
             cacheKey, scores.toJson.compactPrint
           )
         }

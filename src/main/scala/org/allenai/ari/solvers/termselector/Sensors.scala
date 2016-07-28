@@ -6,17 +6,16 @@ import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
 import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
-import org.allenai.datastore.Datastore
 
 import akka.actor.ActorSystem
 import ch.qos.logback.classic.Level
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
-import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import com.google.inject.Guice
 import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
+import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
 import spray.json._
-import DefaultJsonProtocol._
+import spray.json.DefaultJsonProtocol._
 
 import scala.collection.JavaConverters._
 import scala.util.Random

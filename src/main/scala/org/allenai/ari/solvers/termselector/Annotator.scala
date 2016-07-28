@@ -2,6 +2,7 @@ package org.allenai.ari.solvers.termselector
 
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
+import org.allenai.common.cache.JsonQueryCache
 import org.allenai.common.{ FileUtils, Logging }
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
@@ -11,8 +12,9 @@ import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
+import redis.clients.jedis.JedisPool
 import spray.json._
-import DefaultJsonProtocol._
+import spray.json.DefaultJsonProtocol._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -21,11 +23,18 @@ import scala.io.Codec
 
 import java.util.Properties
 
+/** a dummy redis client for when redis is not supposed to be used */
+object DummyRedisClient extends JsonQueryCache[String]("", new JedisPool()) {
+  override def get(key: String) = None
+  override def put(key: String, value: String): Unit = {}
+}
+
 /** Object containing methods related to annotating the data with various tools
   */
 object Annotator extends Logging {
   /** given an aristo question and its essentiality-score map it generates an [[EssentialTermsQuestion]]
     * with the necessary annotations
+    *
     * @param aristoQuestion the input aristo question
     * @param essentialTermMapOpt a map from question terms to their essentiality scores ranged in [0, 1]
     * @param numAnnotators the number of annotators
@@ -39,7 +48,7 @@ object Annotator extends Logging {
 
     // if the annotation cache already contains it, skip it; otherwise extract the annotation
     val cacheKey = Constants.ANNOTATION_PREFIX + aristoQuestion.text.get + views.asScala.mkString
-    val redisAnnotation = synchronizedRedisClient.redisGet(cacheKey)
+    val redisAnnotation = synchronizedRedisClient.get(cacheKey)
     val annotation = if (redisAnnotation.isDefined) {
       SerializationHelper.deserializeFromJson(redisAnnotation.get)
     } else {
@@ -49,7 +58,7 @@ object Annotator extends Logging {
           logger.warn(s"Couldn't find view $vu for question: ${aristoQuestion.text.get}")
         }
       }
-      synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(textAnnotation))
+      synchronizedRedisClient.put(cacheKey, SerializationHelper.serializeToJson(textAnnotation))
       textAnnotation
     }
     val taWithEssentialTermsView = populateEssentialTermView(annotation, essentialTermMapOpt)
@@ -112,13 +121,13 @@ object Annotator extends Logging {
         val validTokens = tokenScoreMap.flatMap {
           case (tokenString, score) if tokenString.length > 2 => // ignore short spans
             val cacheKey = Constants.TOKENIZATION_PREFIX + tokenString + viewNamesForParsingEssentialTermTokens.toString
-            val redisAnnotation = synchronizedRedisClient.redisGet(cacheKey)
+            val redisAnnotation = synchronizedRedisClient.get(cacheKey)
             val tokenTa = if (redisAnnotation.isDefined) {
               SerializationHelper.deserializeFromJson(redisAnnotation.get)
             } else {
               val tokenTaTmp = annotatorService.createAnnotatedTextAnnotation("", "", tokenString,
                 viewNamesForParsingEssentialTermTokens.asJava)
-              synchronizedRedisClient.redisSet(cacheKey, SerializationHelper.serializeToJson(tokenTaTmp))
+              synchronizedRedisClient.put(cacheKey, SerializationHelper.serializeToJson(tokenTaTmp))
               tokenTaTmp
             }
             val combinedConstituents = if (combineNamedEntities) {
@@ -166,7 +175,7 @@ object Annotator extends Logging {
       logger.trace("Found the salience score in the static map . . . ")
       mapOpt
     } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
-      val salienceFromRedis = synchronizedRedisClient.redisGet(redisSalienceKey)
+      val salienceFromRedis = synchronizedRedisClient.get(redisSalienceKey)
       if (salienceFromRedis.isDefined) {
         logger.trace("Found the salience score in the redis map . . . ")
         Some(salienceFromRedis.get.parseJson.convertTo[List[(MultipleChoiceSelection, SalienceResult)]])
@@ -175,7 +184,7 @@ object Annotator extends Logging {
         val resultFuture = Sensors.salienceScorer.salienceFor(q)
         val result = Await.result(resultFuture, Duration.Inf)
         val resultJson = result.toList.toJson
-        synchronizedRedisClient.redisSet(redisSalienceKey, resultJson.compactPrint)
+        synchronizedRedisClient.put(redisSalienceKey, resultJson.compactPrint)
         Some(result.toList)
       }
     } else {
@@ -191,7 +200,7 @@ object Annotator extends Logging {
 
   // redis cache for annotations
   lazy val synchronizedRedisClient = if (Sensors.localConfig.getBoolean("useRedisCaching")) {
-    new SynchronizedRedisClient
+    JsonQueryCache.fromConfig[String](Sensors.localConfig)
   } else {
     // use the dummy client, which always returns None for any query (and not using any Redis)
     DummyRedisClient
