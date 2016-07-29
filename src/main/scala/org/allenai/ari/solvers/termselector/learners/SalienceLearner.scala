@@ -30,9 +30,9 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
     logger.debug("SumSalience: " + questionStruct.sumSalience)
     constituents.foreach(c =>
       Sensors.constituentToAnnotationMap.put(c, questionStruct))
-    (constituents.map(c => c.getSurfaceForm -> (if (useMax) baselineDataModel.maxSalience(c) else baselineDataModel.sumSalience(c))) // ++
-    /*essentialConstituents.map { c => (c.getSurfaceForm, ESSENTIAL_STOPWORD_SCORE) } ++
-      nonEssentialConstituents.map { c => (c.getSurfaceForm, NONESSENTIAL_STOPWORD_SCORE) }*/ ).toMap
+    constituents.map { c =>
+      c.getSurfaceForm -> (if (useMax) baselineDataModel.maxSalience(c) else baselineDataModel.sumSalience(c))
+    }.toMap
   }
 
   override def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = {

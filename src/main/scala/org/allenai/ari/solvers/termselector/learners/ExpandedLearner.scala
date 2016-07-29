@@ -28,7 +28,7 @@ class ExpandedLearner(
     case "SVM" => new SupportVectorMachine()
     case "NaiveBayes" => new NaiveBayes()
     case "SparseNetwork" => new SparseNetworkLearner()
-    case "regression" => new StochasticGradientDescent()
+    case "Regression" => new StochasticGradientDescent()
     case _ => throw new Exception("Wrong classifier type or not specified ")
   }
 
