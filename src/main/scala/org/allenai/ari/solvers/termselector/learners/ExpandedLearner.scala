@@ -25,7 +25,7 @@ class ExpandedLearner(
   }
 
   override lazy val classifier = classifierModel match {
-    case "SVM" => new SupportVectorMachine()
+    case "SVM" | "SVM-directAnswer" => new SupportVectorMachine()
     case "NaiveBayes" => new NaiveBayes()
     case "SparseNetwork" => new SparseNetworkLearner()
     case "Regression" => new StochasticGradientDescent()

@@ -17,6 +17,13 @@ class EssentialTermsSpec extends UnitSpec {
     assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.74)
   }
 
+  "Salience baseline " should "should correctly work and have at least 67 F1" in {
+    val maxSalienceBaseline = SalienceLearner.makeNewLearners().max
+    val evaluator = new Evaluator(maxSalienceBaseline)
+    val scoreMap = evaluator.test(testConstituents, Constants.LEMMA_BASELINE_THRESHOLD, 1.0)
+    assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.67)
+  }
+
   "Expanded classifier " should " should correctly work and have at least 80 F1" in {
     val salienceBaselines = SalienceLearner.makeNewLearners()
     val (baselineDataModel, baselineClassifiers) =
@@ -28,5 +35,19 @@ class EssentialTermsSpec extends UnitSpec {
     val evaluator = new Evaluator(expandedLearner)
     val scoreMap = evaluator.test(testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD, 1.0)
     assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.80)
+  }
+
+  "Expanded classifier for direct answer questions " should " should correctly work and have at least 79.5 F1" in {
+    val (baselineDataModel, baselineClassifiers) =
+      BaselineLearners.makeNewLearners(LoadFromDatastore, "dev")
+    val dummySalienceLearner = new DummySalienceLearner(baselineDataModel)
+    val salienceBaselines = SalienceLearners(dummySalienceLearner, dummySalienceLearner)
+    val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(LoadFromDatastore, "SVM-directAnswer",
+      baselineClassifiers, baselineDataModel, salienceBaselines)
+    // load the data into the model
+    expandedDataModel.essentialTermTokens.populate(testConstituents, train = false)
+    val evaluator = new Evaluator(expandedLearner)
+    val scoreMap = evaluator.test(testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD_DIRECT_ANSWER, 1.0)
+    assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.795)
   }
 }

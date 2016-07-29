@@ -56,10 +56,26 @@ class SalienceLearner(baselineDataModel: BaselineDataModel, useMax: Boolean) ext
 object SalienceLearner extends Logging {
   def makeNewLearners(): SalienceLearners = {
     val baselineDataModel = new BaselineDataModel
-    val max = new SalienceLearner(baselineDataModel, true)
-    val sum = new SalienceLearner(baselineDataModel, false)
+    val (max, sum) = if (!Sensors.localConfig.getBoolean("directAnswerQuestions")) {
+      (new SalienceLearner(baselineDataModel, true), new SalienceLearner(baselineDataModel, false))
+    } else {
+      val dummySalienceLearner = new DummySalienceLearner(baselineDataModel)
+      (dummySalienceLearner, dummySalienceLearner)
+    }
     SalienceLearners(max, sum)
   }
+}
+
+/** a dummy salience learner, which always returns zero */
+class DummySalienceLearner(baselineDataModel: BaselineDataModel) extends SalienceLearner(baselineDataModel, true) {
+
+  override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = Map.empty
+
+  override def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = Seq.empty
+
+  override def predictProbOfBeingEssential(c: Constituent): Double = 0.0
+
+  override def predictLabel(c: Constituent, threshold: Double): String = Constants.IMPORTANT_LABEL
 }
 
 case class SalienceLearners(max: SalienceLearner, sum: SalienceLearner)

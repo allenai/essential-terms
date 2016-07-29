@@ -21,6 +21,7 @@ protected case object Constants {
   val SUM_SALIENCE_THRESHOLD = 0.07
   val LEMMA_BASELINE_THRESHOLD = 0.19
   val EXPANDED_LEARNER_THRESHOLD = 0.46
+  val EXPANDED_LEARNER_THRESHOLD_DIRECT_ANSWER = 0.412
 
   // stopwords
   /** since we never do learning on the above stopwords, we choose a subset of the stopwords to
