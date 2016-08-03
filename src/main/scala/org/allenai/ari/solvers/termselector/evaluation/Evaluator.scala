@@ -1,5 +1,6 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
+import com.quantifind.charts.Highcharts
 import org.allenai.ari.solvers.termselector.learners.IllinoisLearner
 import org.allenai.ari.solvers.termselector.{ Constants, Sensors }
 import org.allenai.common.Logging
@@ -7,7 +8,6 @@ import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
-import java.io.{ File, PrintWriter }
 
 import scala.collection.JavaConverters._
 
@@ -20,7 +20,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     * @param testData the input constituent
     * @param threshold constituents with score above this are essential
     * @param alpha the parameter for calculating F-measure
-    * @return a map from output label (essential, or non-essential) to tuple of F-alpha, precision and recall.
+    * @return a map from output label (essential, or non-essential) to a triple of F-alpha, Precision and recall.
     */
   def test(
     testData: Iterable[Constituent], threshold: Double, alpha: Double
@@ -38,32 +38,30 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     }.toMap
   }
 
-  /** test per tokens on test data
-    *
-    * @param threshold TODO(daniel)
-    * @param alpha TODO(daniel)
-    * @return TODO(daniel)
+  /** test per tokens on test data, given a threshold (for binary prediction of classifier's real scores) and
+    * alpha, in order to evaluate F_alpha
+    * @param threshold used for creating binary predictions; constituents with score above this are essential
+    * @param alpha used in evaluation of F_alpha
+    * @return a triple of (F_alpha, Precision, Recall)
     */
   def test(threshold: Double, alpha: Double): Map[String, (Double, Double, Double)] = {
     test(Sensors.testConstituents, threshold, alpha)
   }
 
   /** test per sentence on test data
-    *
-    * @param threshold TODO(daniel)
-    * @param alpha TODO(daniel)
-    * @return TODO(daniel)
+    * @param threshold used for creating binary predictions
+    * @param alpha used in evaluation of F_alpha
+    * @return a map from labels (ESSENTIAL or NON_ESSENTIAL) to a triple of (F_alpha, Precision, Recall)
     */
   def testAcrossSentences(threshold: Double, alpha: Double): Map[String, (Double, Double, Double)] = {
     testAcrossSentences(Sensors.testSentences, threshold, alpha)
   }
 
-  /** test multiple sentences on test data
-    *
+  /** test multiple sentences on test data, by getting the sentences as input
     * @param sentences TODO(daniel)
-    * @param threshold TODO(daniel)
-    * @param alpha TODO(daniel)
-    * @return TODO(daniel)
+    * @param threshold used for creating binary predictions
+    * @param alpha used in evaluation of F_alpha
+    * @return a map from labels (ESSENTIAL or NON_ESSENTIAL) to a triple of (F_alpha, Prcision, Recall)
     */
   def testAcrossSentences(
     sentences: Iterable[Iterable[Constituent]], threshold: Double, alpha: Double
@@ -85,9 +83,9 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     val hammingDistances = testReader.data.map { consIt =>
       consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons, threshold)) 1 else 0).sum
     }
-    logger.info("Average hamming distance = " + hammingDistances.sum.toDouble / hammingDistances.size)
-
-    hammingDistances.sum.toDouble / hammingDistances.size
+    val avgHammingDistance = hammingDistances.sum.toDouble / hammingDistances.size
+    logger.info("Average hamming distance = " + avgHammingDistance)
+    avgHammingDistance
   }
 
   def printHammingDistances(threshold: Double): Unit = {
@@ -170,7 +168,13 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     writer.write(precision.mkString("\t") + "\n")
     writer.write(recall.mkString("\t") + "\n")
     writer.close()
-    //Highcharts.areaspline(recall, precision)
+
+    // visualize the the PR-curve; inactive by default to keep things fast
+    if (false) {
+      Highcharts.areaspline(recall, precision)
+      Highcharts.xAxis("Recall")
+      Highcharts.yAxis("Precision")
+    }
 
     // per sentence
     val (perSenPList, perSenRList, perSenYList) = testReader.data.map { consIt =>
@@ -194,13 +198,17 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     logger.info(averageRList.mkString(", "))
     logger.info(averagePList.mkString(", "))
     logger.info(averageYList.mkString(", "))
-    //    Highcharts.areaspline(averageRList, averagePList)
-    //    Highcharts.xAxis("Recall")
-    //    Highcharts.yAxis("Precision")
-    //    Thread.sleep(10000L)
-    //    Highcharts.stopServer
 
-    // mean average precision/recall
+    // visualize the the PR-curve; inactive by default to keep things fast
+    if (false) {
+      Highcharts.areaspline(averageRList, averagePList)
+      Highcharts.xAxis("Recall")
+      Highcharts.yAxis("Precision")
+      Thread.sleep(10000L)
+      Highcharts.stopServer
+    }
+
+    // mean average precision
     val avgPList = testReader.data.map { consIt =>
       val scoreLabelPairs = consIt.toList.map { cons =>
         val goldBinaryLabel = convertToZeroOne(goldLabel(cons))

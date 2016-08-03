@@ -66,7 +66,10 @@ object SalienceLearner extends Logging {
   }
 }
 
-/** a dummy salience learner, which always returns zero */
+/** a dummy salience learner, which always returns zero; the parameter `baselinDataModel`
+  * isn't actually used by a dummy salience learner (since it always returns 0), but is
+  * needed to instantiate the parent class `SalienceLearner`
+  */
 class DummySalienceLearner(baselineDataModel: BaselineDataModel) extends SalienceLearner(baselineDataModel, true) {
 
   override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = Map.empty
@@ -78,5 +81,6 @@ class DummySalienceLearner(baselineDataModel: BaselineDataModel) extends Salienc
   override def predictLabel(c: Constituent, threshold: Double): String = Constants.IMPORTANT_LABEL
 }
 
+/** a thin wrapper to contain all possible variables of Salience-based baselines */
 case class SalienceLearners(max: SalienceLearner, sum: SalienceLearner)
 

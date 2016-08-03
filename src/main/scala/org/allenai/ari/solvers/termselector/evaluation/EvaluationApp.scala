@@ -5,15 +5,19 @@ import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Utils }
 import org.allenai.ari.solvers.termselector.Sensors._
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
+
 import com.redis.RedisClient
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
+
 import java.io.{ File, PrintWriter }
 
-/** A sample application to train, test, save, and load essential terms classifiers. */
+/** A sample application to train, test, save, and load essential terms classifiers.
+  * This code has small pieces for development/debugging/Training and has seen only light comments.
+  */
 class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Logging {
   // lazily create the baseline and expanded data models and learners
   // baseline-train is used independently, while baseline-dev is used within expanded learner as feature
@@ -91,8 +95,6 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     val q = "A student is growing some plants for an experiment. She notices small white spots on the leaves. " +
       "Which tool should she use to get a better look at the spots? " +
       "(A) thermometer  (B) hand lens  (C) graduated cylinder  (D) balance "
-    //      "In New York State, the longest period of daylight occurs during which month? (A) " +
-    //      "December (B) June (C) March (D) September"
     val aristoQuestion = Utils.decomposeQuestion(q)
     val (salienceLearner, th) = salienceType match {
       case "max" => (salienceLearners.max, Constants.MAX_SALIENCE_THRESHOLD)
@@ -190,9 +192,11 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     printFeatures(train = false)
   }
 
-  /* this would print the feature values on disk */
+  /* this would write the feature values on disk in '.arff' format. The generated features are sparse, meaning that
+    * the features with zero values are not ignored. */
   private def printFeatures(train: Boolean): Unit = {
-    val pw = new PrintWriter(new File(s"src/main/resources/outputFeatures_${if (train) "train" else "test"}.arff"))
+    val suffix = if (train) "train" else "test"
+    val pw = new PrintWriter(new File(s"outputFeatures_$suffix.arff"))
     val featureLength = expandedLearner.classifier.getPrunedLexiconSize
 
     pw.write("@RELATION EssentialTerms\n")
@@ -201,7 +205,8 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     pw.write("@DATA\n")
 
     val goldLabel = expandedLearner.dataModel.goldLabel
-    val exampleReader = new IterableToLBJavaParser[Iterable[Constituent]](if (train) trainSentences else testSentences)
+    val targetSentences = if (train) trainSentences else testSentences
+    val exampleReader = new IterableToLBJavaParser[Iterable[Constituent]](targetSentences)
     exampleReader.reset()
 
     exampleReader.data.foreach { consIt =>
@@ -293,37 +298,34 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     evaluator.printMistakes(0.2)
   }
 
+  /** this file is meant to print important statistics related to the train/test data */
   def printStatistics(): Unit = {
+    // the size of the salience cache
     println(salienceMap.size)
+    // total number of questions (train and test)
     println(allQuestions.size)
-    println(allQuestions.map { _.numAnnotators.get }.toSet)
-    println(allQuestions.count { _.numAnnotators.get == 10 })
-    println(allQuestions.count { _.numAnnotators.get > 4 })
-    println(allQuestions.count { _.numAnnotators.get == 5 })
-    println(allQuestions.count { _.numAnnotators.get == 4 })
-    println(allQuestions.count { _.numAnnotators.get == 3 })
-    println(allQuestions.count { _.numAnnotators.get == 2 })
-
-    println(trainSentences.size)
-    println(testSentences.size)
-
-    // group together the constituents with the same scores
-    val scoreSizePairs = allConstituents.toList.groupBy { _.getConstituentScore }.map {
-      case (score, constituents) => (score, constituents.size)
-    }.toList.sortBy { case (score, _) => score }
-    println(scoreSizePairs)
-    scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
-    scoreSizePairs.foreach { case (score, size) => print(score + "\t") }
-    println("\n")
-    scoreSizePairs.foreach { case (score, size) => print(size + "\t") }
-
+    // total number of constituents (train and test)
     println(allConstituents.size)
-
-    // whatQuestions, whichQuestions, whereQuestions, whenQuestions, howQuestions, nonWhQuestions
+    // distribution of questions across different number of annotations
+    println(allQuestions.map { _.numAnnotators.get }.toSet)
+    // number of questions with 10 annotators
+    println(allQuestions.count { _.numAnnotators.get == 10 })
+    // number of questions with 5 or more annotators
+    println(allQuestions.count { _.numAnnotators.get >= 5 })
+    // number of questions with 5 annotators
+    println(allQuestions.count { _.numAnnotators.get == 5 })
+    // number of questions with 4 annotators
+    println(allQuestions.count { _.numAnnotators.get == 4 })
+    // number of questions with 3 annotators
+    println(allQuestions.count { _.numAnnotators.get == 3 })
+    // number of questions with 2 annotators
+    println(allQuestions.count { _.numAnnotators.get == 2 })
+    // size of train and test sentences, respectively
     println("all test questions = " + testSentences.size)
     println("all train questions = " + trainSentences.size)
     println("all test constituents = " + testConstituents.size)
     println("all train constituents = " + trainConstituents.size)
+    // size of: what questions, which questions, where questions, when questions, how questions, nonWh questions
     println("whatQuestions = " + whatQuestions.size)
     println("whichQuestions= " + whichQuestions.size)
     println("whereQuestions = " + whereQuestions.size)
@@ -331,7 +333,11 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     println("howQuestions = " + howQuestions.size)
     println("nonWhQuestions = " + nonWhQuestions.size)
 
-    println("size of salience map" + salienceMap.size)
+    // group together the constituents with the same scores
+    val scoreSizePairs = allConstituents.toList.groupBy { _.getConstituentScore }.map {
+      case (score, constituents) => (score, constituents.size)
+    }.toList.sortBy { case (score, _) => score }
+    scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
   }
 }
 

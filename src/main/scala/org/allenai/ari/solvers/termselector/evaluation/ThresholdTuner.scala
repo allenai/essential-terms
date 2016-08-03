@@ -3,22 +3,21 @@ package org.allenai.ari.solvers.termselector.evaluation
 import org.allenai.ari.solvers.termselector.learners.IllinoisLearner
 import org.allenai.ari.solvers.termselector.{ Constants, Sensors }
 import org.allenai.common.Logging
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
 
 /** Threshold tuner for a learner. */
 class ThresholdTuner(learner: IllinoisLearner) extends Logging {
-
   private val initialThreshold = 0.5
   private val totalIterations = 20
   private def stepSize(k: Int): Double = 0.2 / (k + 1)
 
-  /** given a set of training instances it returns the optimal threshold */
+  /** given a set of training instances it returns the optimal threshold (i.e. maximize of F_alpha) */
   def tuneThreshold(alpha: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
     val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.devSentences)
@@ -42,47 +41,31 @@ class ThresholdTuner(learner: IllinoisLearner) extends Logging {
     val thresholdRange = minTh to maxTh by 0.01
 
     val (topThreshold, topScore) = tryGridOfThresholds(scoreLabelPairs, alpha, thresholdRange)
-    //    val (topThreshold, topScore) = singleIteration(scoreLabelPairs, alpha, initialThreshold,
-    //      totalIterations, -1)
     logger.info(s"Score after tuning: $topScore / threshold: $topThreshold / alpha: $alpha")
-
     topThreshold
   }
 
-  // try all points
-  def tryGridOfThresholds(
+  /** Evaluates triple of (F_alpha, Precision and recall) for each value of threshold defined by its range
+    * @param scoreLabelPairs the predictions on the sentences
+    * @param alpha used in evaluation of F_alpha
+    * @param thresholdRange a range of thresholds to evaluate on
+    * @return triple of F_alpha, Precision and recall, per choice of threshold
+    */
+  private def tryGridOfThresholds(
     scoreLabelPairs: Iterable[List[(Double, Int)]],
     alpha: Double,
     thresholdRange: NumericRange[Double]
   ): (Double, (Double, Double, Double)) = {
     val scores = thresholdRange.map { th => th -> evaluateFAllSentences(scoreLabelPairs, th, alpha) }
-    //      println("all the scores " + scores)
     scores.sortBy { _._2._1 }.last
   }
 
-  // recursive
-  @tailrec
-  private def singleIteration(
-    scoreLabelPairs: Iterable[List[(Double, Int)]],
-    alpha: Double,
-    currentThreshold: Double,
-    remainingIterations: Int,
-    currentScore: Double
-  ): (Double, Double) = {
-    if (remainingIterations == 0) {
-      (currentThreshold, currentScore)
-    } else {
-      val thresholdUp = currentThreshold + stepSize(totalIterations - remainingIterations)
-      val thresholdDown = currentThreshold - stepSize(totalIterations - remainingIterations)
-      val FUp = evaluateFAllSentences(scoreLabelPairs, thresholdUp, alpha)._1
-      val FDown = evaluateFAllSentences(scoreLabelPairs, thresholdDown, alpha)._1
-      val thresholdScoresPairs = List((thresholdUp, FUp), (thresholdDown, FDown), (currentThreshold, currentScore))
-      val (topTh, topF) = thresholdScoresPairs.sortBy(_._2).last
-      logger.debug(s"Iteration:$remainingIterations / score: $currentScore / threshold: $topTh")
-      singleIteration(scoreLabelPairs, alpha, topTh, remainingIterations - 1, topF)
-    }
-  }
-
+  /** Calculates average F_alpha, precision, recall across sentences
+    * @param scoreLabelPairs predictions of the sentence
+    * @param threshold used for creating binary predictions; constituents with score above this are essential
+    * @param alpha used in evaluation of F_alpha
+    * @return a triple of F_alpha, Precision and recall.
+    */
   private def evaluateFAllSentences(
     scoreLabelPairs: Iterable[Seq[(Double, Int)]],
     threshold: Double, alpha: Double
@@ -93,6 +76,12 @@ class ThresholdTuner(learner: IllinoisLearner) extends Logging {
     (fList.sum / fList.length, pList.sum / pList.length, rList.sum / rList.length)
   }
 
+  /** For a given sentence, it evaluates F_alpha, precision, recall
+    * @param scoreLabelPairs predictions of the sentence
+    * @param threshold used for creating binary predictions; constituents with score above this are essential
+    * @param alpha used in evaluation of F_alpha
+    * @return a triple of F_alpha, Precision and recall.
+    */
   private def evaluateFSingleSentence(scoreLabelPairs: Seq[(Double, Int)], threshold: Double,
     alpha: Double): (Double, Double, Double) = {
     val testDiscrete = new TestDiscrete

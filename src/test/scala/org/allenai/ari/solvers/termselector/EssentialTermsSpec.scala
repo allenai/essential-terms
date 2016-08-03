@@ -14,14 +14,16 @@ class EssentialTermsSpec extends UnitSpec {
     baselineDataModelTrain.essentialTermTokens.populate(testConstituents, train = false)
     val evaluator = new Evaluator(baselineLearnersTrain.lemma)
     val scoreMap = evaluator.test(testConstituents, Constants.LEMMA_BASELINE_THRESHOLD, 1.0)
-    assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.74)
+    val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
+    f1Score should be >= 0.74
   }
 
   "Salience baseline " should "should correctly work and have at least 67 F1" in {
     val maxSalienceBaseline = SalienceLearner.makeNewLearners().max
     val evaluator = new Evaluator(maxSalienceBaseline)
     val scoreMap = evaluator.test(testConstituents, Constants.LEMMA_BASELINE_THRESHOLD, 1.0)
-    assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.67)
+    val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
+    f1Score should be >= 0.67
   }
 
   "Expanded classifier " should " should correctly work and have at least 80 F1" in {
@@ -34,7 +36,8 @@ class EssentialTermsSpec extends UnitSpec {
     expandedDataModel.essentialTermTokens.populate(testConstituents, train = false)
     val evaluator = new Evaluator(expandedLearner)
     val scoreMap = evaluator.test(testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD, 1.0)
-    assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.80)
+    val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
+    f1Score should be >= 0.80
   }
 
   "Expanded classifier for direct answer questions " should " should correctly work and have at least 79.5 F1" in {
@@ -48,6 +51,7 @@ class EssentialTermsSpec extends UnitSpec {
     expandedDataModel.essentialTermTokens.populate(testConstituents, train = false)
     val evaluator = new Evaluator(expandedLearner)
     val scoreMap = evaluator.test(testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD_DIRECT_ANSWER, 1.0)
-    assert(scoreMap(Constants.IMPORTANT_LABEL)._1 >= 0.795)
+    val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
+    f1Score should be >= 0.795
   }
 }
