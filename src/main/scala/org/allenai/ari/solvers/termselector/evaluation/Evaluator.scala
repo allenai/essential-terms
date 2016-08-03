@@ -58,7 +58,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
   }
 
   /** test multiple sentences on test data, by getting the sentences as input
-    * @param sentences TODO(daniel)
+    * @param sentences The input sentences, as sequence of sequences (the constituents in a sentence)
     * @param threshold used for creating binary predictions
     * @param alpha used in evaluation of F_alpha
     * @return a map from labels (ESSENTIAL or NON_ESSENTIAL) to a triple of (F_alpha, Prcision, Recall)
@@ -67,14 +67,18 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     sentences: Iterable[Iterable[Constituent]], threshold: Double, alpha: Double
   ): Map[String, (Double, Double, Double)] = {
     val results = sentences.map(test(_, threshold, alpha))
-
-    results.flatten.toList.groupBy({ tu: (String, _) => tu._1
+    results.flatten.toList.groupBy({ tuple: (String, _) => tuple._1
     }).map {
       case (label, l) =>
         (label, MathUtils.avgTuple(l.map(_._2).reduce(MathUtils.sumTuple), l.length))
     }
   }
 
+  /** Gets a real number as threshold and calculates the hamming distances between the gold labels and binarized
+    * output predictions
+    * @param threshold used to binrize the output real-valued predictions
+    * @return average hamming distances of gold-pred labels on sentences
+    */
   def hammingMeasure(threshold: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
     val testerExact = new TestDiscrete
@@ -125,10 +129,9 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     testerExact.printPerformance(System.out)
   }
 
-  def rankingMeasures(): Unit = {
+  def printRankingMeasures(): Unit = {
     val goldLabel = learner.dataModel.goldLabel
     val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
-    testReader.reset()
 
     // ranking-based measures
     val averagePrecisionList = testReader.data.map { consIt =>
@@ -258,11 +261,11 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
       longList.drop(shortList.length)
   }
 
+  /* prints the constituents for which the predictions are wrong  */
   def printMistakes(threshold: Double): Unit = {
     learner.dataModel.essentialTermTokens.populate(Sensors.testConstituents, train = false)
     val goldLabel = learner.dataModel.goldLabel
     val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
-    testReader.reset()
 
     testReader.data.foreach { consIt =>
       val consList = consIt.toList

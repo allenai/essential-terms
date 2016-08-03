@@ -172,7 +172,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     if (testWithRankingMeasures) {
       logger.debug(s"Testing learner ${learner.getSimpleName} with ranking measures")
       val evaluator = new Evaluator(learner)
-      evaluator.rankingMeasures()
+      evaluator.printRankingMeasures()
     }
   }
 
@@ -231,15 +231,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   def tuneClassifierThreshold(learnerName: String): Unit = {
-    val learner = learnerName match {
-      case "maxSalience" => salienceLearners.max
-      case "sumSalience" => salienceLearners.sum
-      case "wordBaseline" => baselineLearnersTrain.surfaceForm
-      case "lemmaBaseline" => baselineLearnersTrain.lemma
-      case "expanded" => expandedLearner
-      case name: String => throw new Exception(s"Wrong classisifer name $name!")
-    }
-
+    val learner = getClassifierGivenName(learnerName)
     val evaluator = new Evaluator(learner)
     val thresholdTuner = new ThresholdTuner(learner)
 
@@ -257,8 +249,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
       }
     }
 
-    //    testWithAlpha((-30 to 8).map(x => math.exp(x / 5.0)))
-    testWithAlpha((-4 to 8).map(x => math.exp(x / 5.0)))
+    testWithAlpha((-30 to 8).map(x => math.exp(x / 5.0)))
 
     if (learner.isInstanceOf[ExpandedLearner]) {
       val featureLength = expandedLearner.classifier.getPrunedLexiconSize
@@ -266,15 +257,19 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     }
   }
 
-  def testClassifierAcrossThresholds(learnerName: String): Unit = {
-    val learner = learnerName match {
+  private def getClassifierGivenName(learnerName: String) = {
+    learnerName match {
       case "maxSalience" => salienceLearners.max
       case "sumSalience" => salienceLearners.sum
       case "wordBaseline" => baselineLearnersTrain.surfaceForm
       case "lemmaBaseline" => baselineLearnersTrain.lemma
       case "expanded" => expandedLearner
+      case name: String => throw new Exception(s"Wrong classisifer name $name!")
     }
+  }
 
+  def testClassifierAcrossThresholds(learnerName: String): Unit = {
+    val learner = getClassifierGivenName(learnerName)
     val evaluator = new Evaluator(learner)
 
     def testWithAlpha(thresholds: Seq[Double]): Unit = {
