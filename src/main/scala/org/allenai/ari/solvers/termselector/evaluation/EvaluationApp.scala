@@ -193,7 +193,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   /* this would write the feature values on disk in '.arff' format. The generated features are sparse, meaning that
-    * the features with zero values are not ignored. */
+    * the features with zero values are ignored. */
   private def printFeatures(train: Boolean): Unit = {
     val suffix = if (train) "train" else "test"
     val pw = new PrintWriter(new File(s"outputFeatures_$suffix.arff"))
@@ -235,7 +235,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     val evaluator = new Evaluator(learner)
     val thresholdTuner = new ThresholdTuner(learner)
 
-    // TODO(danielk): this is a little inefficient. We don't need to re-evaluate in on all the dataset from scract; you
+    // TODO(danielk): this is a little inefficient. We don't need to re-evaluate in on all the dataset from scratch; you
     // just need to evaluate once and reuse it later, with different threshold.
     def testWithAlpha(alphas: Seq[Double]): Unit = {
       alphas.foreach { alpha =>

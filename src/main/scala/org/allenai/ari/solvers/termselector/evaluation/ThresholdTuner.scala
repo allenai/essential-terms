@@ -15,7 +15,6 @@ import scala.collection.immutable.NumericRange
 class ThresholdTuner(learner: IllinoisLearner) extends Logging {
   private val initialThreshold = 0.5
   private val totalIterations = 20
-  private def stepSize(k: Int): Double = 0.2 / (k + 1)
 
   /** given a set of training instances it returns the optimal threshold (i.e. maximize of F_alpha) */
   def tuneThreshold(alpha: Double): Double = {

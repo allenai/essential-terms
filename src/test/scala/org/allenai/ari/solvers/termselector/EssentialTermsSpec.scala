@@ -15,7 +15,7 @@ class EssentialTermsSpec extends UnitSpec {
     val evaluator = new Evaluator(baselineLearnersTrain.lemma)
     val scoreMap = evaluator.test(testConstituents, Constants.LEMMA_BASELINE_THRESHOLD, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be >= 0.74
+    f1Score should be (0.74 +- 0.02)
   }
 
   "Salience baseline " should "should correctly work and have at least 67 F1" in {
@@ -23,7 +23,7 @@ class EssentialTermsSpec extends UnitSpec {
     val evaluator = new Evaluator(maxSalienceBaseline)
     val scoreMap = evaluator.test(testConstituents, Constants.LEMMA_BASELINE_THRESHOLD, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be >= 0.67
+    f1Score should be (0.67 +- 0.02)
   }
 
   "Expanded classifier " should " should correctly work and have at least 80 F1" in {
@@ -37,7 +37,7 @@ class EssentialTermsSpec extends UnitSpec {
     val evaluator = new Evaluator(expandedLearner)
     val scoreMap = evaluator.test(testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be >= 0.80
+    f1Score should be (0.80 +- 0.02)
   }
 
   "Expanded classifier for direct answer questions " should " should correctly work and have at least 79.5 F1" in {
@@ -52,6 +52,6 @@ class EssentialTermsSpec extends UnitSpec {
     val evaluator = new Evaluator(expandedLearner)
     val scoreMap = evaluator.test(testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD_DIRECT_ANSWER, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be >= 0.795
+    f1Score should be (0.795 +- 0.02)
   }
 }
