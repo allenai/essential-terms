@@ -99,13 +99,12 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
       val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
       (0 until numSen).foreach(id =>
         logger.info(consIt.head.getTextAnnotation.getSentence(id).toString))
-
       val goldImportantSentence = consIt.map { cons => cons.getSurfaceForm }.mkString("//")
+      val hammingDistance = consIt.count { cons => goldLabel(cons) == learner.predictLabel(cons, threshold) }.toDouble / consIt.size
       val gold = consIt.map(cons => convertToZeroOne(goldLabel(cons))).toSeq
       val predicted = consIt.map(cons => convertToZeroOne(learner.predictLabel(cons, threshold))).toSeq
       val goldStr = gold.mkString("")
       val predictedStr = predicted.mkString("")
-      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
       logger.info(goldImportantSentence)
       logger.info(goldStr)
       logger.info(predictedStr)
@@ -273,11 +272,11 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
       (0 until numSen).foreach(id =>
         logger.info(consList.head.getTextAnnotation.getSentence(id).toString))
       val goldImportantSentence = consList.map { cons => cons.getSurfaceForm }.mkString("//")
+      val hammingDistance = consList.count(cons => goldLabel(cons) == learner.predictLabel(cons, threshold)).toDouble / consList.size
       val gold = consList.map(cons => convertToZeroOne(goldLabel(cons)))
       val predicted = consList.map(cons => convertToZeroOne(learner.predictLabel(cons, threshold)))
       val goldStr = gold.mkString("")
       val predictedStr = predicted.mkString("")
-      val hammingDistance = (gold diff predicted).size.toDouble / predicted.size
       logger.info(goldImportantSentence)
       logger.info(goldStr)
       logger.info(predictedStr)
