@@ -172,7 +172,8 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     writer.close()
 
     // visualize the the PR-curve; inactive by default to keep things fast
-    if (false) {
+    val visualizePRCurves = false
+    if (visualizePRCurves) {
       Highcharts.areaspline(recall, precision)
       Highcharts.xAxis("Recall")
       Highcharts.yAxis("Precision")
@@ -202,7 +203,8 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     logger.info(averageYList.mkString(", "))
 
     // visualize the the PR-curve; inactive by default to keep things fast
-    if (false) {
+    val visualizePerSentencePRCurves = false
+    if (visualizePerSentencePRCurves) {
       Highcharts.areaspline(averageRList, averagePList)
       Highcharts.xAxis("Recall")
       Highcharts.yAxis("Precision")
@@ -235,7 +237,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     totalPrecisionScore.sum / totalPrecisionScore.size
   }
 
-  // gold is a Seq of 0 and 1
+  /** given an input (gold) a Seq of 0 and 1, it returns triples of (precision, recall, yield) for each index */
   def rankedPrecisionRecallYield(gold: Seq[Int]): Seq[(Double, Double, Double)] = {
     val sum = gold.sum
     val totalPrecisionScore = gold.zipWithIndex.map {
@@ -253,7 +255,9 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     if (label == Constants.IMPORTANT_LABEL) 1 else 0
   }
 
-  // averaging two lists of potentially different length
+  /** average two lists of potentially different length; the lists can potentialy have different length.
+    * In such case, for indices that one sequence and one doesn't, we simply keep the values of the longer list.
+    */
   private def avgList(list1: Seq[Double], list2: Seq[Double]): Seq[Double] = {
     val (shortList, longList) = if (list1.length < list2.length) (list1, list2) else (list2, list1)
     shortList.zipWithIndex.map { case (num, idx) => (longList(idx) + num) / 2 } ++
