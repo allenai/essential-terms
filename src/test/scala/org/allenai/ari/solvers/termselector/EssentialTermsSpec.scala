@@ -64,7 +64,7 @@ class EssentialTermsSpec extends UnitSpec {
     val learner = new InjectedLearnerAndThreshold(classifierType, classifierModel)
     val learnerService = new EssentialTermsService(learner, false)
     val tester = new TestDiscrete
-    allQuestions.foreach { q =>
+    allQuestions.slice(0, 100).foreach { q =>
       val (goldEssentialTerms, goldEssentialTermScoreMap) = lookupLearnerService.getEssentialTermsAndScores(q.aristoQuestion)
       val predictedTerms = learnerService.getEssentialTerms(q.aristoQuestion)
       goldEssentialTermScoreMap.keys.foreach { term =>
