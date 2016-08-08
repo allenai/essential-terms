@@ -57,17 +57,16 @@ class EssentialTermsSpec extends UnitSpec {
     f1Score should be(0.795 +- 0.02)
   }
 
-  def getServiceF1GivenLearnerType(classifierType: String, classifierMode: String): Double = {
-    val lookupLearner = new InjectedLearnerAndThreshold(classifierType, classifierMode)
-    val lookupLearnerService = new EssentialTermsService(lookupLearner, false)
+  val lookupLearner = new InjectedLearnerAndThreshold("Lookup", "")
+  val lookupLearnerService = new EssentialTermsService(lookupLearner, false)
 
-    val lemmaLearner = new InjectedLearnerAndThreshold("LemmaBaseline", "")
-    val lemmaLearnerService = new EssentialTermsService(lemmaLearner, false)
-
+  def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String): Double = {
+    val learner = new InjectedLearnerAndThreshold(classifierType, classifierModel)
+    val learnerService = new EssentialTermsService(learner, false)
     val tester = new TestDiscrete
     allQuestions.foreach { q =>
       val (goldEssentialTerms, goldEssentialTermScoreMap) = lookupLearnerService.getEssentialTermsAndScores(q.aristoQuestion)
-      val predictedTerms = lemmaLearnerService.getEssentialTerms(q.aristoQuestion)
+      val predictedTerms = learnerService.getEssentialTerms(q.aristoQuestion)
       goldEssentialTermScoreMap.keys.foreach { term =>
         tester.reportPrediction(predictedTerms.contains(term).toString, goldEssentialTerms.contains(term).toString)
       }
@@ -76,17 +75,17 @@ class EssentialTermsSpec extends UnitSpec {
   }
 
   "Essentialterms service for lemma-baseline" should "work" in {
-    val f1Score = getServiceF1GivenLearnerType("Lookup", "")
+    val f1Score = getServiceF1GivenLearnerType("LemmaBaseline", "")
     f1Score should be(0.786 +- 0.02)
   }
 
   "Essentialterms service for salience-baseline" should "work" in {
     val f1Score = getServiceF1GivenLearnerType("MaxSalience", "")
-    f1Score should be(0.871 +- 0.02)
+    f1Score should be(0.749 +- 0.02)
   }
 
   "Essentialterms service for expanded-classifier" should "work" in {
     val f1Score = getServiceF1GivenLearnerType("Expanded", "SVM")
-    f1Score should be(0.897 +- 0.02)
+    f1Score should be(0.819 +- 0.02)
   }
 }
