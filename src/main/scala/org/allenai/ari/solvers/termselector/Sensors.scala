@@ -10,7 +10,7 @@ import org.allenai.common.guice.ActorSystemModule
 import akka.actor.ActorSystem
 import ch.qos.logback.classic.Level
 import com.google.inject.Guice
-import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
+import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
@@ -23,18 +23,24 @@ import scala.util.Random
 /** The purpose of this object is to contain the entry points (hence "sensors") to all
   * the datasets and resources used throughout the project.
   */
-object Sensors extends Logging {
-  // reading the config file
-  private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
-  val localConfig = rootConfig.getConfig("ari.solvers.termselector")
-
+class Sensors(
+    stopwordsDatastoreFile: String,
+    filterMidScoreConsitutents: Seq[Double],
+    scienceTermsDatastoreFile: String,
+    regentsTrainingQuestion: String,
+    checkForMissingSalienceScores: Boolean,
+    useRedisCaching: Boolean,
+    turkerEssentialityScores: String,
+    combineNamedEntities: Boolean
+) extends Logging {
   // the set of the questions annotated with mechanical turk
-  lazy val allQuestions = Annotator.readAndAnnotateEssentialTermsData()
+
+  val annnotator = new Annotator(salienceScorer, salienceMap, stopWords, checkForMissingSalienceScores,
+    useRedisCaching, turkerEssentialityScores, combineNamedEntities)
+  lazy val allQuestions = annnotator.readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
-    val stopWordsFile = Utils.getDatastoreFileAsSource(
-      localConfig.getString("stopwordsDatastoreFile")
-    )
+    val stopWordsFile = Utils.getDatastoreFileAsSource(stopwordsDatastoreFile)
     val stopWords = stopWordsFile.getLines().toSet
     stopWordsFile.close()
 
@@ -76,7 +82,7 @@ object Sensors extends Logging {
   // regents training question: just to make sure they are all in the test set of the term-selector
   lazy val regentsSet = {
     val separator = "\",".r
-    lazy val rawTextFile = Utils.getDatastoreFile(localConfig.getString("regentsTrainingQuestion"))
+    lazy val rawTextFile = Utils.getDatastoreFile(regentsTrainingQuestion)
     lazy val questions = FileUtils.getFileAsLines(rawTextFile)
     questions.map { q => Utils.decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
   }
@@ -93,11 +99,10 @@ object Sensors extends Logging {
     val devSize = (devProb * nonTrainNonRegents.size).toInt
     val (dev, nonDev_nonTrain_nonRegents) = Random.shuffle(nonTrainNonRegents).splitAt(devSize)
     val test = nonDev_nonTrain_nonRegents ++ regents // add regents to the test data
-    val trainSentences = Annotator.getConstituents(train)
-    val testSentences = Annotator.getConstituents(test)
-    val devSentences = Annotator.getConstituents(dev)
+    val trainSentences = annnotator.getConstituents(train)
+    val testSentences = annnotator.getConstituents(test)
+    val devSentences = annnotator.getConstituents(dev)
 
-    val filterMidScoreConsitutents = localConfig.getDoubleList("annotation.filterMidScoreConsitutents").asScala
     val filteredTrainSen = if (filterMidScoreConsitutents.nonEmpty) {
       require(filterMidScoreConsitutents.length == 2, "The parameter \"filterMidScoreConsitutents\" " +
         "should be an real-array of length 2.")
@@ -158,7 +163,7 @@ object Sensors extends Logging {
 
   /** Load science terms from Datastore */
   lazy val scienceTerms: Set[String] = {
-    val file = Utils.getDatastoreFileAsSource(localConfig.getString("scienceTermsDatastoreFile"))
+    val file = Utils.getDatastoreFileAsSource(scienceTermsDatastoreFile)
     val terms = file.getLines().filterNot(_.startsWith("#")).toSet
     file.close()
     terms

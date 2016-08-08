@@ -57,12 +57,12 @@ class EssentialTermsSpec extends UnitSpec {
     f1Score should be(0.795 +- 0.02)
   }
 
-  val lookupLearner = new InjectedLearnerAndThreshold("Lookup", "")
-  val lookupLearnerService = new EssentialTermsService(lookupLearner, false)
+  val lookupLearner = new InjectedLearnerAndThreshold("Lookup", "", false)
+  val lookupLearnerService = new EssentialTermsService(lookupLearner)
 
   def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String): Double = {
-    val learner = new InjectedLearnerAndThreshold(classifierType, classifierModel)
-    val learnerService = new EssentialTermsService(learner, false)
+    val learner = new InjectedLearnerAndThreshold(classifierType, classifierModel, false)
+    val learnerService = new EssentialTermsService(learner)
     val tester = new TestDiscrete
     allQuestions.slice(0, 100).foreach { q =>
       val (goldEssentialTerms, goldEssentialTermScoreMap) = lookupLearnerService.getEssentialTermsAndScores(q.aristoQuestion)

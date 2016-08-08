@@ -1,7 +1,9 @@
 package org.allenai.ari.solvers.termselector
 
+import com.typesafe.config.Config
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
+import org.allenai.ari.solvers.common.salience.SalienceScorer
 import org.allenai.common.cache.JsonQueryCache
 import org.allenai.common.{ FileUtils, Logging }
 
@@ -12,7 +14,7 @@ import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
-import redis.clients.jedis.JedisPool
+import redis.clients.jedis.{ Protocol, JedisPoolConfig, JedisPool }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -31,7 +33,15 @@ object DummyRedisClient extends JsonQueryCache[String]("", new JedisPool()) {
 
 /** Object containing methods related to annotating the data with various tools
   */
-object Annotator extends Logging {
+class Annotator(
+    salienceScorer: SalienceScorer,
+    salienceMap: Map[String, List[(MultipleChoiceSelection, SalienceResult)]],
+    stopWords: Set[String],
+    checkForMissingSalienceScores: Boolean,
+    useRedisCaching: Boolean,
+    turkerEssentialityScores: String,
+    combineNamedEntities: Boolean
+) extends Logging {
   /** given an aristo question and its essentiality-score map it generates an [[EssentialTermsQuestion]]
     * with the necessary annotations
     *
@@ -149,7 +159,7 @@ object Annotator extends Logging {
               Constants.IMPORTANT_LABEL,
               validTokens(cons.getSurfaceForm.toLowerCase)
             )
-          } else if (!Sensors.stopWords.contains(cons.getSurfaceForm.toLowerCase())) {
+          } else if (!stopWords.contains(cons.getSurfaceForm.toLowerCase())) {
             view.addSpanLabel(
               cons.getStartSpan,
               cons.getEndSpan,
@@ -167,10 +177,7 @@ object Annotator extends Logging {
   /** given an Aristo question, get Salience annotation, either from a static cache, or the Salience service */
   def getSalienceScores(q: Question): Option[List[(MultipleChoiceSelection, SalienceResult)]] = {
     val redisSalienceKey = Constants.SALIENCE_PREFIX + q.rawQuestion
-    val mapOpt = Sensors.salienceMap.get(redisSalienceKey)
-    val checkForMissingSalienceScores = Sensors.localConfig.getBoolean(
-      "annotation.checkForMissingSalienceScores"
-    )
+    val mapOpt = salienceMap.get(redisSalienceKey)
     if (mapOpt.isDefined) {
       logger.trace("Found the salience score in the static map . . . ")
       mapOpt
@@ -181,7 +188,7 @@ object Annotator extends Logging {
         Some(salienceFromRedis.get.parseJson.convertTo[List[(MultipleChoiceSelection, SalienceResult)]])
       } else {
         logger.debug(s" ===> Caching question ${q.rawQuestion}. . . ")
-        val resultFuture = Sensors.salienceScorer.salienceFor(q)
+        val resultFuture = salienceScorer.salienceFor(q)
         val result = Await.result(resultFuture, Duration.Inf)
         val resultJson = result.toList.toJson
         synchronizedRedisClient.put(redisSalienceKey, resultJson.compactPrint)
@@ -199,8 +206,11 @@ object Annotator extends Logging {
   }
 
   // redis cache for annotations
-  lazy val synchronizedRedisClient = if (Sensors.localConfig.getBoolean("useRedisCaching")) {
-    JsonQueryCache.fromConfig[String](Sensors.localConfig)
+  lazy val synchronizedRedisClient = if (useRedisCaching) {
+    new JsonQueryCache[String](
+      "termselector",
+      new JedisPool(new JedisPoolConfig, "localhost", Protocol.DEFAULT_PORT, Protocol.DEFAULT_TIMEOUT)
+    )
   } else {
     // use the dummy client, which always returns None for any query (and not using any Redis)
     DummyRedisClient
@@ -210,7 +220,7 @@ object Annotator extends Logging {
     // only master train: turkerSalientTerms.tsv
     // only omnibus: turkerSalientTermsOnlyOmnibus.tsv
     // combined: turkerSalientTermsWithOmnibus.tsv
-    val salientTermsFile = Utils.getDatastoreFile(Sensors.localConfig.getString("turkerEssentialityScores"))
+    val salientTermsFile = Utils.getDatastoreFile(turkerEssentialityScores)
     // Some terms in the turker generated file need ISO-8859 encoding
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
       val fields = line.split("\t")
@@ -269,7 +279,6 @@ object Annotator extends Logging {
     ViewNames.SHALLOW_PARSE, ViewNames.PARSE_STANFORD, ViewNames.DEPENDENCY_STANFORD).asJava
 
   // whether to merge tokens in the same NER or not
-  val combineNamedEntities = Sensors.localConfig.getBoolean("annotation.combineNamedEntities")
 
   // function that merges tokens which belong to the same NER constitunet
   def getCombinedConsituents(ta: TextAnnotation): Seq[Constituent] = {
