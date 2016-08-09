@@ -61,6 +61,10 @@ object InjectedLearnerAndThreshold {
   // empty constructor
   def apply(): InjectedLearnerAndThreshold = apply(localConfig)
 
+  /** @param classifierType
+    * @param classifierModel
+    * @return
+    */
   def apply(classifierType: String, classifierModel: String): InjectedLearnerAndThreshold = {
     val modifiedConfig = localConfig.
       withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).

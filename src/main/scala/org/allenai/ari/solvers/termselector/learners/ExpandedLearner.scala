@@ -52,7 +52,7 @@ object ExpandedLearner extends Logging {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners, sensors)
     val expandedLearner = new ExpandedLearner(expandedDataModel, learnerParams.classifierModel)
     val models = new Models(learnerParams)
-    models.load(expandedLearner, loadModelType)
+    models.load(expandedLearner, learnerParams.classifierModel, loadModelType)
     (expandedDataModel, expandedLearner)
   }
 }
