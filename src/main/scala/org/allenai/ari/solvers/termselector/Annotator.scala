@@ -34,7 +34,7 @@ object DummyRedisClient extends JsonQueryCache[String]("", new JedisPool()) {
 /** Object containing methods related to annotating the data with various tools
   */
 class Annotator(
-    salienceScorer: SalienceScorer,
+    salienceScorerOpt: Option[SalienceScorer],
     salienceMap: Map[String, List[(MultipleChoiceSelection, SalienceResult)]],
     stopWords: Set[String],
     serviceParams: ServiceParams
@@ -185,7 +185,7 @@ class Annotator(
         Some(salienceFromRedis.get.parseJson.convertTo[List[(MultipleChoiceSelection, SalienceResult)]])
       } else {
         logger.debug(s" ===> Caching question ${q.rawQuestion}. . . ")
-        val resultFuture = salienceScorer.salienceFor(q)
+        val resultFuture = salienceScorerOpt.get.salienceFor(q)
         val result = Await.result(resultFuture, Duration.Inf)
         val resultJson = result.toList.toJson
         synchronizedRedisClient.put(redisSalienceKey, resultJson.compactPrint)

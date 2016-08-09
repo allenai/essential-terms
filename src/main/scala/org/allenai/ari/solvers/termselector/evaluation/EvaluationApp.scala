@@ -445,7 +445,7 @@ object EvaluationApp extends Logging {
       case _ =>
         throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
     }
-    app.sensors.actorSystem.terminate()
+    if(app.sensors.actorSystemOpt.isDefined) app.sensors.actorSystemOpt.get.terminate()
   }
 }
 
