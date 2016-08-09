@@ -204,7 +204,7 @@ class Annotator(
 
   // redis cache for annotations
   lazy val synchronizedRedisClient = if (serviceParams.useRedisCaching) {
-    JsonQueryCache[String]("termselector-", "localhost", Protocol.DEFAULT_PORT, Protocol.DEFAULT_TIMEOUT)
+    JsonQueryCache[String]("", "localhost", Protocol.DEFAULT_PORT, Protocol.DEFAULT_TIMEOUT)
   } else {
     // use the dummy client, which always returns None for any query (and not using any Redis)
     DummyRedisClient

@@ -27,11 +27,12 @@ trait LearnerAndThreshold {
   */
 class InjectedLearnerAndThreshold @Inject() (
     val learnerParams: LearnerParams,
-    val serviceParams: ServiceParams
+    val serviceParams: ServiceParams,
+    val sensors: Sensors
 ) extends LearnerAndThreshold with Logging {
 
   /** create sensors and annotators */
-  override val sensors = new Sensors(serviceParams)
+  //override val sensors = new Sensors(serviceParams)
 
   override val (learner, threshold) = {
     logger.info(s"Initializing essential terms service with learner type: ${learnerParams.classifierType}")
@@ -72,13 +73,23 @@ object InjectedLearnerAndThreshold {
     apply(modifiedConfig)
   }
 
+  /** This constructor can be used to save some time/memory when testing multiple classifiers at the same time.
+    * Sensors, which uses significant memory/time-expensive can be shared among the solvers.
+    */
+  def apply(classifierType: String, classifierModel: String, sensors: Sensors): InjectedLearnerAndThreshold = {
+    val modifiedConfig = localConfig.
+      withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
+      withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
+    val learnerParams = LearnerParams.fromConfig(modifiedConfig)
+    new InjectedLearnerAndThreshold(learnerParams, sensors.serviceParams, sensors)
+  }
+
   // constructor with arbitrary config files
-  def apply(newConfig: Config): InjectedLearnerAndThreshold = {
+  def apply(newConfig: Config)(implicit d: DummyImplicit): InjectedLearnerAndThreshold = {
     val configWithFallbackOnLocalConfig = newConfig.withFallback(localConfig)
-    new InjectedLearnerAndThreshold(
-      LearnerParams.fromConfig(configWithFallbackOnLocalConfig),
-      ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
-    )
+    val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
+    val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
+    new InjectedLearnerAndThreshold(learnerParams, serviceParams, new Sensors(serviceParams))
   }
 }
 

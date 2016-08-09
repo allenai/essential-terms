@@ -58,9 +58,10 @@ class EssentialTermsSpec extends UnitSpec {
 
   val lookupLearner = InjectedLearnerAndThreshold("Lookup", "")
   val lookupLearnerService = new EssentialTermsService(lookupLearner)
+  val commonSensors = lookupLearner.sensors
 
   def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String = ""): Double = {
-    val learner = InjectedLearnerAndThreshold(classifierType, classifierModel)
+    val learner = InjectedLearnerAndThreshold(classifierType, classifierModel, commonSensors)
     val learnerService = new EssentialTermsService(learner)
     val tester = new TestDiscrete
     learner.sensors.allQuestions.slice(0, 100).foreach { q =>
