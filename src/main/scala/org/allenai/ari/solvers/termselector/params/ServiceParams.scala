@@ -2,7 +2,7 @@ package org.allenai.ari.solvers.termselector.params
 
 import com.google.inject.Inject
 import com.google.inject.name.Named
-import com.typesafe.config.Config
+import com.typesafe.config.{ ConfigFactory, Config }
 
 import scala.collection.JavaConverters._
 
@@ -42,5 +42,11 @@ object ServiceParams {
       config.getBoolean("annotation.combineNamedEntities"),
       config.getBoolean("useRedisCaching")
     )
+  }
+
+  val default: ServiceParams = {
+    val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+    val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+    fromConfig(localConfig)
   }
 }

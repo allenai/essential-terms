@@ -43,7 +43,7 @@ class Sensors(val serviceParams: ServiceParams) extends Logging {
   lazy val nonessentialStopWords = stopWords.diff(Constants.ESSENTIAL_STOPWORDS)
 
   // salience, used when the annotation does not exist in our cache
-  lazy val (salienceScorerOpt, actorSystemOpt) = if(serviceParams.checkForMissingSalienceScores){
+  lazy val (salienceScorerOpt, actorSystemOpt) = if (serviceParams.checkForMissingSalienceScores) {
     loggerConfig.Logger("org.allenai.wumpus.client.WumpusClient").setLevel(Level.ERROR)
     implicit val system = ActorSystem("ari-http-solver")
     val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
@@ -56,8 +56,7 @@ class Sensors(val serviceParams: ServiceParams) extends Logging {
       new SolversCommonModule(localConfig, true)
     )
     (Some(injector.instance[SalienceScorer]), Some(system))
-  }
-  else {
+  } else {
     (None, None)
   }
 

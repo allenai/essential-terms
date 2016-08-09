@@ -44,7 +44,7 @@ class InjectedLearnerAndThreshold @Inject() (
       case "Expanded" =>
         val salienceBaselines = SalienceLearner.makeNewLearners(sensors, learnerParams.directAnswerQuestions)
         val (baselineDataModel, baselineClassifiers) = BaselineLearners.makeNewLearners(sensors, learnerParams, "dev", LoadFromDatastore)
-        (ExpandedLearner.makeNewLearner(sensors, learnerParams, LoadFromDatastore,
+        (ExpandedLearner.makeNewLearner(sensors, learnerParams, learnerParams.classifierModel, LoadFromDatastore,
           baselineClassifiers, baselineDataModel, salienceBaselines)._2, Constants.EXPANDED_LEARNER_THRESHOLD)
       case _ => throw new IllegalArgumentException(s"Unidentified learner type ${learnerParams.classifierType}")
     }

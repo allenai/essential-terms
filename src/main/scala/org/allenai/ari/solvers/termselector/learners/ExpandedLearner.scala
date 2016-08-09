@@ -44,15 +44,16 @@ object ExpandedLearner extends Logging {
   def makeNewLearner(
     sensors: Sensors,
     learnerParams: LearnerParams,
+    classifierModel: String,
     loadModelType: LoadType,
     baselineLearners: BaselineLearners,
     baselineDataModel: BaselineDataModel,
     salienceLearners: SalienceLearners
   ): (ExpandedDataModel, ExpandedLearner) = {
     val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners, sensors)
-    val expandedLearner = new ExpandedLearner(expandedDataModel, learnerParams.classifierModel)
+    val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
     val models = new Models(learnerParams)
-    models.load(expandedLearner, learnerParams.classifierModel, loadModelType)
+    models.load(expandedLearner, classifierModel, loadModelType)
     (expandedDataModel, expandedLearner)
   }
 }

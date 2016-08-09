@@ -22,7 +22,6 @@ import java.io.{ File, PrintWriter }
 class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Logging {
   private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
   private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
-
   val modifiedConfig = localConfig.withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel))
 
   val learnerParams = LearnerParams.fromConfig(modifiedConfig)
@@ -38,7 +37,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     BaselineLearners.makeNewLearners(sensors, learnerParams, "dev", loadModelType)
   private lazy val salienceLearners = SalienceLearner.makeNewLearners(sensors, directAnswerQuestions = false)
   private lazy val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(sensors, learnerParams,
-    loadModelType, baselineLearnersDev, baselineDataModelDev, salienceLearners)
+    classifierModel, loadModelType, baselineLearnersDev, baselineDataModelDev, salienceLearners)
 
   def trainAndTestBaselineLearners(test: Boolean = true, testRankingMeasures: Boolean = false, trainOnDev: Boolean): Unit = {
     val baselineLearners = if (trainOnDev) baselineLearnersDev else baselineLearnersTrain
@@ -445,39 +444,6 @@ object EvaluationApp extends Logging {
       case _ =>
         throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
     }
-    if(app.sensors.actorSystemOpt.isDefined) app.sensors.actorSystemOpt.get.terminate()
+    app.sensors.actorSystemOpt.map(_.terminate())
   }
 }
-
-/*bject test {
-
-  def main(args: Array[String]): Unit = {
-    val learner = InjectedLearnerAndThreshold("Expanded", "SVM")
-    println(learner)
-    println(learner.sensors)
-    println(learner.sensors.salienceMap.size)
-    println(learner.sensors.constituentToAnnotationMap.size)
-    println(learner.sensors.allConstituents.size)
-    println(learner.sensors.allQuestions.size)
-    println(learner.sensors.scienceTerms.size)
-    println(learner.sensors.stopWords.size)
-    //    val lookupLearner = InjectedLearnerAndThreshold("Lookup", "")
-    //    val lookupLearnerService = new EssentialTermsService(lookupLearner)
-    //    val learner = InjectedLearnerAndThreshold("Expanded", "SVM")
-    val learnerService = new EssentialTermsService(learner)
-    val tester = new TestDiscrete
-    learner.sensors.allQuestions.slice(0, 3).foreach { q =>
-      //      val (goldEssentialTerms, goldEssentialTermScoreMap) = lookupLearnerService.getEssentialTermsAndScores(q.aristoQuestion)
-      //      val termScores = learnerService.getEssentialTermScores(q.aristoQuestion)
-      val predictedTerms = learnerService.getEssentialTerms(q.aristoQuestion)
-      println(predictedTerms)
-      val predictedScores = learnerService.getEssentialTermScores(q.aristoQuestion)
-      println(predictedScores)
-      //      goldEssentialTermScoreMap.keys.foreach { term =>
-      //        tester.reportPrediction(predictedTerms.contains(term).toString, goldEssentialTerms.contains(term).toString)
-      //      }
-    }
-    //    val f1Score = tester.getF1("true")
-    //    println(f1Score)
-  }
-}*/ 
