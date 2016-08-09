@@ -2,6 +2,7 @@ package org.allenai.ari.solvers.termselector.params
 
 import com.google.inject.Inject
 import com.google.inject.name.Named
+import com.typesafe.config.Config
 
 /** A set of parameters sufficient to create a learner
   * @param classifierType whether and how to identify and use essential terms in the model
@@ -17,3 +18,13 @@ class LearnerParams @Inject() (
   // nothing
 }
 
+object LearnerParams {
+  def fromConfig(config: Config): LearnerParams = {
+    new LearnerParams(
+      config.getString("classifierType"),
+      config.getString("classifierModel"),
+      config.getBoolean("directAnswerQuestions"),
+      config.getString("modelsDatastoreFolder")
+    )
+  }
+}

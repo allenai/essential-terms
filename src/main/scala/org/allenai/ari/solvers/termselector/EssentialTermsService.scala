@@ -10,8 +10,6 @@ import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-import scala.collection.JavaConverters._
-
 /** a thin trait to contain a learner with its threshold */
 @ImplementedBy(classOf[InjectedLearnerAndThreshold])
 trait LearnerAndThreshold {
@@ -78,22 +76,8 @@ object InjectedLearnerAndThreshold {
   def apply(newConfig: Config): InjectedLearnerAndThreshold = {
     val configWithFallbackOnLocalConfig = newConfig.withFallback(localConfig)
     new InjectedLearnerAndThreshold(
-      new LearnerParams(
-        configWithFallbackOnLocalConfig.getString("classifierType"),
-        configWithFallbackOnLocalConfig.getString("classifierModel"),
-        configWithFallbackOnLocalConfig.getBoolean("directAnswerQuestions"),
-        configWithFallbackOnLocalConfig.getString("modelsDatastoreFolder")
-      ),
-      new ServiceParams(
-        configWithFallbackOnLocalConfig.getString("stopwordsDatastoreFile"),
-        configWithFallbackOnLocalConfig.getDoubleList("annotation.filterMidScoreConsitutents").asScala.map(_.doubleValue()).toList,
-        configWithFallbackOnLocalConfig.getString("scienceTermsDatastoreFile"),
-        configWithFallbackOnLocalConfig.getString("regentsTrainingQuestion"),
-        configWithFallbackOnLocalConfig.getBoolean("annotation.checkForMissingSalienceScores"),
-        configWithFallbackOnLocalConfig.getString("turkerEssentialityScores"),
-        configWithFallbackOnLocalConfig.getBoolean("annotation.combineNamedEntities"),
-        configWithFallbackOnLocalConfig.getBoolean("useRedisCaching")
-      )
+      LearnerParams.fromConfig(configWithFallbackOnLocalConfig),
+      ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
     )
   }
 }

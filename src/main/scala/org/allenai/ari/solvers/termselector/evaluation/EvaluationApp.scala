@@ -1,9 +1,9 @@
-/*
 package org.allenai.ari.solvers.termselector.evaluation
 
+import com.typesafe.config.{ Config, ConfigValueFactory, ConfigFactory }
 import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Utils }
-import org.allenai.ari.solvers.termselector.Sensors._
+import org.allenai.ari.solvers.termselector.params.{ ServiceParams, LearnerParams }
+import org.allenai.ari.solvers.termselector.{ Sensors, Constants, Utils }
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
 
@@ -20,16 +20,25 @@ import java.io.{ File, PrintWriter }
   * This code has small pieces for development/debugging/Training and has seen only light comments.
   */
 class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Logging {
+  private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+  private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+
+  val modifiedConfig = localConfig.withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel))
+
+  val learnerParams = LearnerParams.fromConfig(modifiedConfig)
+  val serviceParams = ServiceParams.fromConfig(modifiedConfig)
+
+  val sensors = new Sensors(serviceParams)
+
   // lazily create the baseline and expanded data models and learners
   // baseline-train is used independently, while baseline-dev is used within expanded learner as feature
   private lazy val (baselineDataModelTrain, baselineLearnersTrain) =
-    BaselineLearners.makeNewLearners(loadModelType, "train")
+    BaselineLearners.makeNewLearners(sensors, learnerParams, "train", loadModelType)
   private lazy val (baselineDataModelDev, baselineLearnersDev) =
-    BaselineLearners.makeNewLearners(loadModelType, "dev")
-  private lazy val salienceLearners = SalienceLearner.makeNewLearners()
-  private lazy val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(
-    loadModelType, classifierModel, baselineLearnersDev, baselineDataModelDev, salienceLearners
-  )
+    BaselineLearners.makeNewLearners(sensors, learnerParams, "dev", loadModelType)
+  private lazy val salienceLearners = SalienceLearner.makeNewLearners(sensors, directAnswerQuestions = false)
+  private lazy val (expandedDataModel, expandedLearner) = ExpandedLearner.makeNewLearner(sensors, learnerParams,
+    loadModelType, baselineLearnersDev, baselineDataModelDev, salienceLearners)
 
   def trainAndTestBaselineLearners(test: Boolean = true, testRankingMeasures: Boolean = false, trainOnDev: Boolean): Unit = {
     val baselineLearners = if (trainOnDev) baselineLearnersDev else baselineLearnersTrain
@@ -108,14 +117,14 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   def cacheSalienceScoresForAllQuestionsInRedis(): Unit = {
-    allQuestions.foreach { q => Annotator.getSalienceScores(q.aristoQuestion) }
+    sensors.allQuestions.foreach { q => sensors.annnotator.getSalienceScores(q.aristoQuestion) }
   }
 
   /** saving the salience cache of the questions in the training data */
   def saveSalienceCacheOnDisk(): Unit = {
     val r = new RedisClient("localhost", 6379)
     val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
-    allQuestions.foreach { q =>
+    sensors.allQuestions.foreach { q =>
       if (r.exists(q.rawQuestion) && q.aristoQuestion.selections.nonEmpty) {
         writer.write(s"${q.rawQuestion}\n${r.get(q.rawQuestion).get}\n")
       } else {
@@ -136,9 +145,9 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     val dataModel = learner.dataModel
     // load the data into the model
     dataModel.essentialTermTokens.clear
-    val targetConstituents = if (trainOnDev) devConstituents else trainConstituents
+    val targetConstituents = if (trainOnDev) sensors.devConstituents else sensors.trainConstituents
     dataModel.essentialTermTokens.populate(targetConstituents)
-    dataModel.essentialTermTokens.populate(testConstituents, train = false)
+    dataModel.essentialTermTokens.populate(sensors.testConstituents, train = false)
 
     // train
     logger.debug(s"Training learner ${learner.getSimpleName} for $numIterations iterations")
@@ -162,7 +171,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     // load the data into the model
     dataModel.essentialTermTokens.clear
 
-    val constituents = if (testOnTraining) trainConstituents else testConstituents
+    val constituents = if (testOnTraining) sensors.trainConstituents else sensors.testConstituents
 
     // test
     if (test) {
@@ -172,13 +181,13 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     // microAvgTest(baselineLearner)
     if (testWithRankingMeasures) {
       logger.debug(s"Testing learner ${learner.getSimpleName} with ranking measures")
-      val evaluator = new Evaluator(learner)
+      val evaluator = new Evaluator(learner, sensors)
       evaluator.printRankingMeasures()
     }
   }
 
   def printAllFeatures() = {
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](trainSentences ++ testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.allSentences)
     testReader.reset()
 
     // one time dry run, to add all the lexicon
@@ -206,7 +215,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     pw.write("@DATA\n")
 
     val goldLabel = expandedLearner.dataModel.goldLabel
-    val targetSentences = if (train) trainSentences else testSentences
+    val targetSentences = if (train) sensors.trainSentences else sensors.testSentences
     val exampleReader = new IterableToLBJavaParser[Iterable[Constituent]](targetSentences)
     exampleReader.reset()
 
@@ -233,7 +242,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
 
   def tuneClassifierThreshold(learnerName: String): Unit = {
     val learner = getClassifierGivenName(learnerName)
-    val evaluator = new Evaluator(learner)
+    val evaluator = new Evaluator(learner, sensors)
     val thresholdTuner = new ThresholdTuner(learner)
 
     // TODO(danielk): this is a little inefficient. We don't need to re-evaluate in on all the dataset from scratch; you
@@ -242,9 +251,9 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
       alphas.foreach { alpha =>
         println("-------")
         val threshold = thresholdTuner.tuneThreshold(alpha)
-        val trainScores = evaluator.testAcrossSentences(trainSentences, threshold, alpha)
+        val trainScores = evaluator.testAcrossSentences(sensors.trainSentences, threshold, alpha)
         println("train = " + trainScores.get(Constants.IMPORTANT_LABEL))
-        val testScores = evaluator.testAcrossSentences(testSentences, threshold, alpha)
+        val testScores = evaluator.testAcrossSentences(sensors.testSentences, threshold, alpha)
         println("test = " + testScores.get(Constants.IMPORTANT_LABEL))
         evaluator.hammingMeasure(threshold)
       }
@@ -269,14 +278,29 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
     }
   }
 
+  /** saving all the salience annotations in the cache */
+  def saveRedisAnnotationCache(): Unit = {
+    val keys = sensors.annnotator.synchronizedRedisClient.keys("*")
+    logger.info(s"Saving ${keys.size} elements in the cache. ")
+    val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
+    keys.foreach { key =>
+      if (key.contains(Constants.SALIENCE_PREFIX)) {
+        sensors.annnotator.synchronizedRedisClient.get(key).foreach { value =>
+          writer.write(s"$key\n$value\n")
+        }
+      }
+    }
+    writer.close()
+  }
+
   def testClassifierAcrossThresholds(learnerName: String): Unit = {
     val learner = getClassifierGivenName(learnerName)
-    val evaluator = new Evaluator(learner)
+    val evaluator = new Evaluator(learner, sensors)
 
     def testWithAlpha(thresholds: Seq[Double]): Unit = {
       thresholds.foreach { threshold =>
         println("-------")
-        val testScores = evaluator.testAcrossSentences(testSentences, threshold, 1)
+        val testScores = evaluator.testAcrossSentences(sensors.testSentences, threshold, 1)
         println("test = " + testScores.get(Constants.IMPORTANT_LABEL))
         evaluator.hammingMeasure(threshold)
       }
@@ -290,47 +314,47 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   def printMistakes(): Unit = {
-    val evaluator = new Evaluator(expandedLearner)
+    val evaluator = new Evaluator(expandedLearner, sensors)
     evaluator.printMistakes(0.2)
   }
 
   /** this file is meant to print important statistics related to the train/test data */
   def printStatistics(): Unit = {
     // the size of the salience cache
-    println(salienceMap.size)
+    println(sensors.salienceMap.size)
     // total number of questions (train and test)
-    println(allQuestions.size)
+    println(sensors.allQuestions.size)
     // total number of constituents (train and test)
-    println(allConstituents.size)
+    println(sensors.allConstituents.size)
     // distribution of questions across different number of annotations
-    println(allQuestions.map { _.numAnnotators.get }.toSet)
+    println(sensors.allQuestions.map { _.numAnnotators.get }.toSet)
     // number of questions with 10 annotators
-    println(allQuestions.count { _.numAnnotators.get == 10 })
+    println(sensors.allQuestions.count { _.numAnnotators.get == 10 })
     // number of questions with 5 or more annotators
-    println(allQuestions.count { _.numAnnotators.get >= 5 })
+    println(sensors.allQuestions.count { _.numAnnotators.get >= 5 })
     // number of questions with 5 annotators
-    println(allQuestions.count { _.numAnnotators.get == 5 })
+    println(sensors.allQuestions.count { _.numAnnotators.get == 5 })
     // number of questions with 4 annotators
-    println(allQuestions.count { _.numAnnotators.get == 4 })
+    println(sensors.allQuestions.count { _.numAnnotators.get == 4 })
     // number of questions with 3 annotators
-    println(allQuestions.count { _.numAnnotators.get == 3 })
+    println(sensors.allQuestions.count { _.numAnnotators.get == 3 })
     // number of questions with 2 annotators
-    println(allQuestions.count { _.numAnnotators.get == 2 })
+    println(sensors.allQuestions.count { _.numAnnotators.get == 2 })
     // size of train and test sentences, respectively
-    println("all test questions = " + testSentences.size)
-    println("all train questions = " + trainSentences.size)
-    println("all test constituents = " + testConstituents.size)
-    println("all train constituents = " + trainConstituents.size)
+    println("all test questions = " + sensors.testSentences.size)
+    println("all train questions = " + sensors.trainSentences.size)
+    println("all test constituents = " + sensors.testConstituents.size)
+    println("all train constituents = " + sensors.trainConstituents.size)
     // size of: what questions, which questions, where questions, when questions, how questions, nonWh questions
-    println("whatQuestions = " + whatQuestions.size)
-    println("whichQuestions= " + whichQuestions.size)
-    println("whereQuestions = " + whereQuestions.size)
-    println("whenQuestions = " + whenQuestions.size)
-    println("howQuestions = " + howQuestions.size)
-    println("nonWhQuestions = " + nonWhQuestions.size)
+    println("whatQuestions = " + sensors.whatQuestions.size)
+    println("whichQuestions= " + sensors.whichQuestions.size)
+    println("whereQuestions = " + sensors.whereQuestions.size)
+    println("whenQuestions = " + sensors.whenQuestions.size)
+    println("howQuestions = " + sensors.howQuestions.size)
+    println("nonWhQuestions = " + sensors.nonWhQuestions.size)
 
     // group together the constituents with the same scores
-    val scoreSizePairs = allConstituents.toList.groupBy { _.getConstituentScore }.map {
+    val scoreSizePairs = sensors.allConstituents.toList.groupBy { _.getConstituentScore }.map {
       case (score, constituents) => (score, constituents.size)
     }.toList.sortBy { case (score, _) => score }
     scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
@@ -349,10 +373,11 @@ object EvaluationApp extends Logging {
       "\n run 6  <classifier model>  (PrintMistakes) " +
       "\n run 7  <classifier model>  (PrintFeatures) " +
       "\n run 8  <max/sum>           (TestSalienceBaslineWithAristoQuestion)" +
-      "\n run 9 <max/sum>           (TestSalienceBasline)" +
+      "\n run 9 <max/sum>            (TestSalienceBasline)" +
       "\n run 10 <maxSalience/sumSalience/wordBaseline/lemmaBaseline/expanded> <classifier model>  (TuneClassifiers)" +
       "\n run 11 <classifier model>  (PrintStatistics)" +
-      "\n run 12 <maxSalience/sumSalience/wordBaseline/lemmaBaseline/expanded> <classifier model>  (TestClassifierAcrossThresholds)"
+      "\n run 12 <maxSalience/sumSalience/wordBaseline/lemmaBaseline/expanded> <classifier model>  (TestClassifierAcrossThresholds)" +
+      "\n run 13 <classifier model>  (SaveRedisAnnotationCache)"
 
     if (args.length <= 0 || args.length > 3) {
       throw new IllegalArgumentException(usageStr)
@@ -360,13 +385,15 @@ object EvaluationApp extends Logging {
     val testType = args(0)
     val arg1 = args.lift(1).getOrElse("")
     val arg2 = args.lift(2).getOrElse("")
-    testType match {
+    val app = testType match {
       case "1" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = TrainModel, arg1)
         essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
+        essentialTermsApp
       case "2" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.loadAndTestExpandedLearner()
+        essentialTermsApp
       case "3" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = TrainModel, "")
         val trainOnDev = arg1 match {
@@ -374,37 +401,83 @@ object EvaluationApp extends Logging {
           case "dev" => true
         }
         essentialTermsApp.trainAndTestBaselineLearners(test = true, testRankingMeasures = true, trainOnDev)
+        essentialTermsApp
       case "4" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testLearnerWithSampleAristoQuestion()
+        essentialTermsApp
       case "5" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.cacheSalienceScoresForAllQuestionsInRedis()
+        essentialTermsApp
       case "6" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.printMistakes()
+        essentialTermsApp
       case "7" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.printAllFeatures()
+        essentialTermsApp
       case "8" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.testSalienceWithSampleAristoQuestion(arg1)
+        essentialTermsApp
       case "9" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "")
         essentialTermsApp.testSalienceLearner(arg1)
+        essentialTermsApp
       case "10" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.tuneClassifierThreshold(arg2)
+        essentialTermsApp
       case "11" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.printStatistics()
+        essentialTermsApp
       case "12" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testClassifierAcrossThresholds(arg2)
+        essentialTermsApp
+      case "13" =>
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
+        essentialTermsApp.saveRedisAnnotationCache()
+        essentialTermsApp
       case _ =>
         throw new IllegalArgumentException(s"Unrecognized run option; $usageStr")
     }
-    actorSystem.terminate()
+    app.sensors.actorSystem.terminate()
   }
 }
-*/
+
+/*bject test {
+
+  def main(args: Array[String]): Unit = {
+    val learner = InjectedLearnerAndThreshold("Expanded", "SVM")
+    println(learner)
+    println(learner.sensors)
+    println(learner.sensors.salienceMap.size)
+    println(learner.sensors.constituentToAnnotationMap.size)
+    println(learner.sensors.allConstituents.size)
+    println(learner.sensors.allQuestions.size)
+    println(learner.sensors.scienceTerms.size)
+    println(learner.sensors.stopWords.size)
+    //    val lookupLearner = InjectedLearnerAndThreshold("Lookup", "")
+    //    val lookupLearnerService = new EssentialTermsService(lookupLearner)
+    //    val learner = InjectedLearnerAndThreshold("Expanded", "SVM")
+    val learnerService = new EssentialTermsService(learner)
+    val tester = new TestDiscrete
+    learner.sensors.allQuestions.slice(0, 3).foreach { q =>
+      //      val (goldEssentialTerms, goldEssentialTermScoreMap) = lookupLearnerService.getEssentialTermsAndScores(q.aristoQuestion)
+      //      val termScores = learnerService.getEssentialTermScores(q.aristoQuestion)
+      val predictedTerms = learnerService.getEssentialTerms(q.aristoQuestion)
+      println(predictedTerms)
+      val predictedScores = learnerService.getEssentialTermScores(q.aristoQuestion)
+      println(predictedScores)
+      //      goldEssentialTermScoreMap.keys.foreach { term =>
+      //        tester.reportPrediction(predictedTerms.contains(term).toString, goldEssentialTerms.contains(term).toString)
+      //      }
+    }
+    //    val f1Score = tester.getF1("true")
+    //    println(f1Score)
+  }
+}*/ 
