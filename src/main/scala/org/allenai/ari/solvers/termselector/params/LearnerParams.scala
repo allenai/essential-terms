@@ -13,5 +13,5 @@ class LearnerParams @Inject() (
     @Named("termselector.classifierModel") val classifierModel: String,
     @Named("termselector.directAnswerQuestions") val directAnswerQuestions: Boolean
 ) {
-
+  // nothing
 }

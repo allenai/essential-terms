@@ -22,6 +22,7 @@ trait LearnerAndThreshold {
 }
 
 /** a class to construct a learner given its parameters
+  *
   * @param learnerParams Inject-able parameters necessary to initialize a learner
   */
 class InjectedLearnerAndThreshold @Inject() (val learnerParams: LearnerParams) extends LearnerAndThreshold with Logging {
@@ -167,5 +168,29 @@ class EssentialTermsService @Inject() (
         )
         scores
     }
+  }
+}
+
+object EssentialTermsService {
+  // reading the default config file
+  private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+  private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+
+  // create a service with default parameters
+  def apply(learnerAndThreshold: LearnerAndThreshold): EssentialTermsService = apply(learnerAndThreshold, localConfig)
+
+  def apply(learnerAndThreshold: LearnerAndThreshold, newConfig: Config): EssentialTermsService = {
+    val configWithFallbackOnLocalConfig = newConfig.withFallback(localConfig)
+    val newServiceParams = new ServiceParams(
+      configWithFallbackOnLocalConfig.getString("termselector.stopwordsDatastoreFile"),
+      configWithFallbackOnLocalConfig.getDoubleList("termselector.filterMidScoreConsitutents").asScala.map(_.doubleValue()).toList,
+      configWithFallbackOnLocalConfig.getString("termselector.scienceTermsDatastoreFile"),
+      configWithFallbackOnLocalConfig.getString("termselector.regentsTrainingQuestion"),
+      configWithFallbackOnLocalConfig.getBoolean("termselector.checkForMissingSalienceScores"),
+      configWithFallbackOnLocalConfig.getString("termselector.turkerEssentialityScores"),
+      configWithFallbackOnLocalConfig.getBoolean("termselector.combineNamedEntities"),
+      configWithFallbackOnLocalConfig.getBoolean("termselector.useRedisCaching")
+    )
+    new EssentialTermsService(learnerAndThreshold, newServiceParams)
   }
 }

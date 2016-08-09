@@ -24,5 +24,5 @@ class ServiceParams @Inject() (
     @Named("termselector.combineNamedEntities") val combineNamedEntities: Boolean,
     @Named("termselector.useRedisCaching") val useRedisCaching: Boolean
 ) {
-
+  // nothing
 }
