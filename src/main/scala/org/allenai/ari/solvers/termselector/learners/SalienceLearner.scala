@@ -26,7 +26,7 @@ class SalienceLearner(
   override val sensors = baselineDataModel.sensors
 
   override def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    val questionStruct = sensors.annnotator.annotateQuestion(aristoQuestion, None, None)
+    val questionStruct = sensors.annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = sensors.splitConstituents(questionStruct, sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) = sensors.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
     // update the inverse map with the new constituents

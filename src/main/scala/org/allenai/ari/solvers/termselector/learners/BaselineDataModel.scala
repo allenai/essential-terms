@@ -21,7 +21,7 @@ class BaselineDataModel(val sensors: Sensors) extends IllinoisDataModel {
 
   // the gold label of two consecutive constituents
   val goldLabelPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = sensors.annnotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = sensors.annotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     goldLabel(xBefore) + Constants.LABEL_SEPARATOR + goldLabel(x)
   }
 
@@ -30,7 +30,7 @@ class BaselineDataModel(val sensors: Sensors) extends IllinoisDataModel {
   }
 
   val wordFormPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = sensors.annnotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = sensors.annotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     wordForm(xBefore) + Constants.LABEL_SEPARATOR + wordForm(x)
   }
 
@@ -50,7 +50,7 @@ class BaselineDataModel(val sensors: Sensors) extends IllinoisDataModel {
   }
 
   val lemmaPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = sensors.annnotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = sensors.annotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     lemma(xBefore) + Constants.LABEL_SEPARATOR + lemma(x)
   }
 

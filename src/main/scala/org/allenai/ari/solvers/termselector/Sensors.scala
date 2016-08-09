@@ -27,10 +27,10 @@ import scala.util.Random
   */
 class Sensors(val serviceParams: ServiceParams) extends Logging {
   // a set of functionalities for annotating questions
-  val annnotator = new Annotator(salienceScorerOpt, salienceMap, stopWords, serviceParams)
+  val annotator = new Annotator(salienceScorerOpt, salienceMap, stopWords, serviceParams)
 
   // the set of the questions annotated with mechanical turk
-  lazy val allQuestions = annnotator.readAndAnnotateEssentialTermsData()
+  lazy val allQuestions = annotator.readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
     val stopWordsFile = Utils.getDatastoreFileAsSource(serviceParams.stopwordsDatastoreFile)
@@ -94,9 +94,9 @@ class Sensors(val serviceParams: ServiceParams) extends Logging {
     val devSize = (devProb * nonTrainNonRegents.size).toInt
     val (dev, nonDev_nonTrain_nonRegents) = Random.shuffle(nonTrainNonRegents).splitAt(devSize)
     val test = nonDev_nonTrain_nonRegents ++ regents // add regents to the test data
-    val trainSentences = annnotator.getConstituents(train)
-    val testSentences = annnotator.getConstituents(test)
-    val devSentences = annnotator.getConstituents(dev)
+    val trainSentences = annotator.getConstituents(train)
+    val testSentences = annotator.getConstituents(test)
+    val devSentences = annotator.getConstituents(dev)
 
     val filteredTrainSen = if (serviceParams.filterMidScoreConsitutents.nonEmpty) {
       require(serviceParams.filterMidScoreConsitutents.length == 2, "The parameter \"filterMidScoreConsitutents\" " +
@@ -173,7 +173,7 @@ class Sensors(val serviceParams: ServiceParams) extends Logging {
   def splitConstituents(etQuestion: EssentialTermsQuestion, stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
     // whether to combine NER words together or not
     val cons = if (serviceParams.combineNamedEntities) {
-      annnotator.getCombinedConsituents(etQuestion.questionTextAnnotation)
+      annotator.getCombinedConsituents(etQuestion.questionTextAnnotation)
     } else {
       etQuestion.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq
     }

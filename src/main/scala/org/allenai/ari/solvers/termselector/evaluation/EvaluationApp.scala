@@ -1,6 +1,5 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
-import com.typesafe.config.{ Config, ConfigValueFactory, ConfigFactory }
 import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.params.{ ServiceParams, LearnerParams }
 import org.allenai.ari.solvers.termselector.{ Sensors, Constants, Utils }
@@ -8,6 +7,7 @@ import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
 
 import com.redis.RedisClient
+import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 
@@ -116,7 +116,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
   }
 
   def cacheSalienceScoresForAllQuestionsInRedis(): Unit = {
-    sensors.allQuestions.foreach { q => sensors.annnotator.getSalienceScores(q.aristoQuestion) }
+    sensors.allQuestions.foreach { q => sensors.annotator.getSalienceScores(q.aristoQuestion) }
   }
 
   /** saving the salience cache of the questions in the training data */
@@ -279,12 +279,12 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String) extends Lo
 
   /** saving all the salience annotations in the cache */
   def saveRedisAnnotationCache(): Unit = {
-    val keys = sensors.annnotator.synchronizedRedisClient.keys("*")
+    val keys = sensors.annotator.synchronizedRedisClient.keys("*")
     logger.info(s"Saving ${keys.size} elements in the cache. ")
     val writer = new PrintWriter(new File(Constants.SALIENCE_CACHE))
     keys.foreach { key =>
       if (key.contains(Constants.SALIENCE_PREFIX)) {
-        sensors.annnotator.synchronizedRedisClient.get(key).foreach { value =>
+        sensors.annotator.synchronizedRedisClient.get(key).foreach { value =>
           writer.write(s"$key\n$value\n")
         }
       }

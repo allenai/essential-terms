@@ -14,7 +14,7 @@ import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
-import redis.clients.jedis.{ Protocol, JedisPool }
+import redis.clients.jedis.{ JedisPool, Protocol }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 

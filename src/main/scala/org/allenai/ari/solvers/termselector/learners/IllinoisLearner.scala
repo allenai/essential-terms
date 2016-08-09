@@ -27,7 +27,7 @@ abstract class IllinoisLearner(
 
   // implement for trait MyLearner
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    val questionStruct = sensors.annnotator.annotateQuestion(aristoQuestion, None, None)
+    val questionStruct = sensors.annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = sensors.splitConstituents(questionStruct, sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
       sensors.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
@@ -41,7 +41,7 @@ abstract class IllinoisLearner(
 
   // implement for trait MyLearner
   def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = {
-    val questionStruct = sensors.annnotator.annotateQuestion(aristoQuestion, None, None)
+    val questionStruct = sensors.annotator.annotateQuestion(aristoQuestion, None, None)
     val (stopwordConstituents, constituents) = sensors.splitConstituents(questionStruct, sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
       sensors.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
