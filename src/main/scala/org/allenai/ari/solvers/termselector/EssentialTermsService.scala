@@ -6,7 +6,7 @@ import org.allenai.ari.solvers.termselector.params.{ ServiceParams, LearnerParam
 import org.allenai.common.Logging
 
 import com.google.inject.{ ImplementedBy, Inject }
-import com.typesafe.config.{ConfigValueFactory, Config, ConfigFactory}
+import com.typesafe.config.{ ConfigValueFactory, Config, ConfigFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 

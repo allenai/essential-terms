@@ -11,7 +11,7 @@ import edu.illinois.cs.cogcomp.lbjava.learn.{ Learner, SparseNetworkLearner }
   * @param useMax whether to use max or summation. If true, would return maxSalience; sumSalience otherwise
   */
 class SalienceLearner(
-  baselineDataModel: BaselineDataModel,
+    baselineDataModel: BaselineDataModel,
     useMax: Boolean
 ) extends IllinoisLearner(baselineDataModel, baselineDataModel.sensors) with EssentialTermsLearner {
 
