@@ -1,12 +1,12 @@
 package org.allenai.ari.solvers.termselector
 
-import com.typesafe.config.{ Config, ConfigFactory }
 import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.learners._
+import org.allenai.ari.solvers.termselector.params.{ ServiceParams, LearnerParams }
 import org.allenai.common.Logging
 
 import com.google.inject.{ ImplementedBy, Inject }
-import com.google.inject.name.Named
+import com.typesafe.config.{ Config, ConfigFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -18,39 +18,16 @@ trait LearnerAndThreshold {
   def learner: EssentialTermsLearner
   def threshold: Double
   def uniqueCacheName: String
-  def directAnswerQuestions: Boolean
-  def useRedisCaching: Boolean
-  def stopwordsDatastoreFile: String
-  def filterMidScoreConsitutents: Seq[Double]
-  def scienceTermsDatastoreFile: String
-  def regentsTrainingQuestion: String
-  def checkForMissingSalienceScores: Boolean
-  def turkerEssentialityScores: String
-  def combineNamedEntities: Boolean
+  def learnerParams: LearnerParams
 }
 
-/** pair of learner and threshold with injected parameters
-  *
-  * @param classifierType whether and how to identify and use essential terms in the model
-  * @param classifierModel the type of the underlying model used for predictions
-  * @param useRedisCaching whether to cache the output scores in a redis cache; would require you to run redis upon using
+/** a class to construct a learner given its parameters
+  * @param learnerParams Inject-able parameters necessary to initialize a learner
   */
-class InjectedLearnerAndThreshold @Inject() (
-    @Named("termselector.classifierType") classifierType: String,
-    @Named("termselector.classifierModel") classifierModel: String,
-    @Named("termselector.directAnswerQuestions") val directAnswerQuestions: Boolean,
-    @Named("termselector.useRedisCaching") val useRedisCaching: Boolean,
-    @Named("termselector.stopwordsDatastoreFile") val stopwordsDatastoreFile: String,
-    @Named("termselector.filterMidScoreConsitutents") val filterMidScoreConsitutents: List[Double],
-    @Named("termselector.scienceTermsDatastoreFile") val scienceTermsDatastoreFile: String,
-    @Named("termselector.regentsTrainingQuestion") val regentsTrainingQuestion: String,
-    @Named("termselector.checkForMissingSalienceScores") val checkForMissingSalienceScores: Boolean,
-    @Named("termselector.turkerEssentialityScores") val turkerEssentialityScores: String,
-    @Named("termselector.combineNamedEntities") val combineNamedEntities: Boolean
-) extends LearnerAndThreshold with Logging {
+class InjectedLearnerAndThreshold @Inject() (val learnerParams: LearnerParams) extends LearnerAndThreshold with Logging {
   override val (learner, threshold) = {
-    logger.info(s"Initializing essential terms service with learner type: $classifierType")
-    classifierType match {
+    logger.info(s"Initializing essential terms service with learner type: ${learnerParams.classifierType}")
+    learnerParams.classifierType match {
       case "Lookup" => (new LookupLearner(), Constants.LOOKUP_THRESHOLD)
       case "MaxSalience" => (SalienceLearner.makeNewLearners().max, Constants.MAX_SALIENCE_THRESHOLD)
       case "SumSalience" => (SalienceLearner.makeNewLearners().sum, Constants.SUM_SALIENCE_THRESHOLD)
@@ -61,12 +38,12 @@ class InjectedLearnerAndThreshold @Inject() (
         val salienceBaselines = SalienceLearner.makeNewLearners()
         val (baselineDataModel, baselineClassifiers) =
           BaselineLearners.makeNewLearners(LoadFromDatastore, "dev")
-        (ExpandedLearner.makeNewLearner(LoadFromDatastore, classifierModel, baselineClassifiers,
+        (ExpandedLearner.makeNewLearner(LoadFromDatastore, learnerParams.classifierModel, baselineClassifiers,
           baselineDataModel, salienceBaselines)._2, Constants.EXPANDED_LEARNER_THRESHOLD)
-      case _ => throw new IllegalArgumentException(s"Unidentified learner type $classifierType")
+      case _ => throw new IllegalArgumentException(s"Unidentified learner type ${learnerParams.classifierType}")
     }
   }
-  override def uniqueCacheName = classifierType + classifierModel
+  override def uniqueCacheName = learnerParams.classifierType + learnerParams.classifierModel
 }
 
 object InjectedLearnerAndThreshold {
@@ -81,17 +58,11 @@ object InjectedLearnerAndThreshold {
   def apply(newConfig: Config): InjectedLearnerAndThreshold = {
     val configWithFallbackOnLocalConfig = newConfig.withFallback(localConfig)
     new InjectedLearnerAndThreshold(
-      configWithFallbackOnLocalConfig.getString("termselector.classifierType"),
-      configWithFallbackOnLocalConfig.getString("termselector.classifierModel"),
-      configWithFallbackOnLocalConfig.getBoolean("termselector.directAnswerQuestions"),
-      configWithFallbackOnLocalConfig.getBoolean("termselector.useRedisCaching"),
-      configWithFallbackOnLocalConfig.getString("termselector.stopwordsDatastoreFile"),
-      configWithFallbackOnLocalConfig.getDoubleList("termselector.filterMidScoreConsitutents").asScala.map(_.doubleValue()).toList,
-      configWithFallbackOnLocalConfig.getString("termselector.scienceTermsDatastoreFile"),
-      configWithFallbackOnLocalConfig.getString("termselector.regentsTrainingQuestion"),
-      configWithFallbackOnLocalConfig.getBoolean("termselector.checkForMissingSalienceScores"),
-      configWithFallbackOnLocalConfig.getString("termselector.turkerEssentialityScores"),
-      configWithFallbackOnLocalConfig.getBoolean("termselector.combineNamedEntities")
+      new LearnerParams(
+        configWithFallbackOnLocalConfig.getString("termselector.classifierType"),
+        configWithFallbackOnLocalConfig.getString("termselector.classifierModel"),
+        configWithFallbackOnLocalConfig.getBoolean("termselector.directAnswerQuestions")
+      )
     )
   }
 }
@@ -106,15 +77,7 @@ case class SimpleLearnerAndThreshold(
   learner: EssentialTermsLearner,
   threshold: Double,
   uniqueCacheName: String,
-  directAnswerQuestions: Boolean,
-  useRedisCaching: Boolean,
-  stopwordsDatastoreFile: String,
-  filterMidScoreConsitutents: Seq[Double],
-  scienceTermsDatastoreFile: String,
-  regentsTrainingQuestion: String,
-  checkForMissingSalienceScores: Boolean,
-  turkerEssentialityScores: String,
-  combineNamedEntities: Boolean
+  learnerParams: LearnerParams
 ) extends LearnerAndThreshold
 
 /** A service for identifying essential terms in Aristo questions.
@@ -122,7 +85,8 @@ case class SimpleLearnerAndThreshold(
   * @param learnerAndThreshold a learner-threshold pair
   */
 class EssentialTermsService @Inject() (
-    learnerAndThreshold: LearnerAndThreshold
+    learnerAndThreshold: LearnerAndThreshold,
+    serviceParams: ServiceParams
 ) extends Logging {
 
   /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
@@ -131,16 +95,7 @@ class EssentialTermsService @Inject() (
   private val (learner, defaultThreshold) = (learnerAndThreshold.learner, learnerAndThreshold.threshold)
 
   /** create sensors and annotators */
-  val sensors = new Sensors(
-    learnerAndThreshold.stopwordsDatastoreFile,
-    learnerAndThreshold.filterMidScoreConsitutents,
-    learnerAndThreshold.scienceTermsDatastoreFile,
-    learnerAndThreshold.regentsTrainingQuestion,
-    learnerAndThreshold.checkForMissingSalienceScores,
-    learnerAndThreshold.useRedisCaching,
-    learnerAndThreshold.turkerEssentialityScores,
-    learnerAndThreshold.combineNamedEntities
-  )
+  val sensors = new Sensors(serviceParams)
 
   /** Get essential term scores for a given question.
     *
@@ -148,7 +103,7 @@ class EssentialTermsService @Inject() (
     * @return a map of the terms and their importance
     */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    if (learnerAndThreshold.useRedisCaching) {
+    if (serviceParams.useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -163,7 +118,7 @@ class EssentialTermsService @Inject() (
     */
   def getEssentialTerms(aristoQ: Question, threshold: Double = defaultThreshold): Seq[String] = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = if (learnerAndThreshold.useRedisCaching) {
+    val termsWithScores = if (serviceParams.useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -180,7 +135,7 @@ class EssentialTermsService @Inject() (
     */
   def getEssentialTermsAndScores(aristoQ: Question, threshold: Double = defaultThreshold): (Seq[String], Map[String, Double]) = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = if (learnerAndThreshold.useRedisCaching) {
+    val termsWithScores = if (serviceParams.useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)

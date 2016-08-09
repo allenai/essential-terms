@@ -4,13 +4,14 @@ import org.allenai.ari.models.MultipleChoiceSelection
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.solvers.common.SolversCommonModule
 import org.allenai.ari.solvers.common.salience.SalienceScorer
+import org.allenai.ari.solvers.termselector.params.ServiceParams
 import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
 
 import akka.actor.ActorSystem
 import ch.qos.logback.classic.Level
 import com.google.inject.Guice
-import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
+import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
@@ -23,24 +24,14 @@ import scala.util.Random
 /** The purpose of this object is to contain the entry points (hence "sensors") to all
   * the datasets and resources used throughout the project.
   */
-class Sensors(
-    stopwordsDatastoreFile: String,
-    filterMidScoreConsitutents: Seq[Double],
-    scienceTermsDatastoreFile: String,
-    regentsTrainingQuestion: String,
-    checkForMissingSalienceScores: Boolean,
-    useRedisCaching: Boolean,
-    turkerEssentialityScores: String,
-    combineNamedEntities: Boolean
-) extends Logging {
+class Sensors(serviceParams: ServiceParams) extends Logging {
   // the set of the questions annotated with mechanical turk
 
-  val annnotator = new Annotator(salienceScorer, salienceMap, stopWords, checkForMissingSalienceScores,
-    useRedisCaching, turkerEssentialityScores, combineNamedEntities)
+  val annnotator = new Annotator(salienceScorer, salienceMap, stopWords, serviceParams)
   lazy val allQuestions = annnotator.readAndAnnotateEssentialTermsData()
 
   lazy val stopWords = {
-    val stopWordsFile = Utils.getDatastoreFileAsSource(stopwordsDatastoreFile)
+    val stopWordsFile = Utils.getDatastoreFileAsSource(serviceParams.stopwordsDatastoreFile)
     val stopWords = stopWordsFile.getLines().toSet
     stopWordsFile.close()
 
@@ -82,7 +73,7 @@ class Sensors(
   // regents training question: just to make sure they are all in the test set of the term-selector
   lazy val regentsSet = {
     val separator = "\",".r
-    lazy val rawTextFile = Utils.getDatastoreFile(regentsTrainingQuestion)
+    lazy val rawTextFile = Utils.getDatastoreFile(serviceParams.regentsTrainingQuestion)
     lazy val questions = FileUtils.getFileAsLines(rawTextFile)
     questions.map { q => Utils.decomposeQuestion(separator.replaceAllIn(q, " ").replaceAll("\"", "")).text }
   }
@@ -103,13 +94,13 @@ class Sensors(
     val testSentences = annnotator.getConstituents(test)
     val devSentences = annnotator.getConstituents(dev)
 
-    val filteredTrainSen = if (filterMidScoreConsitutents.nonEmpty) {
-      require(filterMidScoreConsitutents.length == 2, "The parameter \"filterMidScoreConsitutents\" " +
+    val filteredTrainSen = if (serviceParams.filterMidScoreConsitutents.nonEmpty) {
+      require(serviceParams.filterMidScoreConsitutents.length == 2, "The parameter \"filterMidScoreConsitutents\" " +
         "should be an real-array of length 2.")
       trainSentences.map { consList =>
         consList.toList.filter { c =>
-          c.getConstituentScore >= filterMidScoreConsitutents(0) ||
-            c.getConstituentScore <= filterMidScoreConsitutents(1)
+          c.getConstituentScore >= serviceParams.filterMidScoreConsitutents(0) ||
+            c.getConstituentScore <= serviceParams.filterMidScoreConsitutents(1)
         }
       }
     } else {
@@ -163,7 +154,7 @@ class Sensors(
 
   /** Load science terms from Datastore */
   lazy val scienceTerms: Set[String] = {
-    val file = Utils.getDatastoreFileAsSource(scienceTermsDatastoreFile)
+    val file = Utils.getDatastoreFileAsSource(serviceParams.scienceTermsDatastoreFile)
     val terms = file.getLines().filterNot(_.startsWith("#")).toSet
     file.close()
     terms

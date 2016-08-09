@@ -1,9 +1,9 @@
 package org.allenai.ari.solvers.termselector
 
-import com.typesafe.config.Config
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
 import org.allenai.ari.solvers.common.salience.SalienceScorer
+import org.allenai.ari.solvers.termselector.params.ServiceParams
 import org.allenai.common.cache.JsonQueryCache
 import org.allenai.common.{ FileUtils, Logging }
 
@@ -14,7 +14,7 @@ import edu.illinois.cs.cogcomp.core.utilities.SerializationHelper
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator
 import edu.illinois.cs.cogcomp.nlp.common.PipelineConfigurator
 import edu.illinois.cs.cogcomp.nlp.pipeline.IllinoisPipelineFactory
-import redis.clients.jedis.{ Protocol, JedisPoolConfig, JedisPool }
+import redis.clients.jedis.{ Protocol, JedisPool, JedisPoolConfig }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -37,10 +37,7 @@ class Annotator(
     salienceScorer: SalienceScorer,
     salienceMap: Map[String, List[(MultipleChoiceSelection, SalienceResult)]],
     stopWords: Set[String],
-    checkForMissingSalienceScores: Boolean,
-    useRedisCaching: Boolean,
-    turkerEssentialityScores: String,
-    combineNamedEntities: Boolean
+    serviceParams: ServiceParams
 ) extends Logging {
   /** given an aristo question and its essentiality-score map it generates an [[EssentialTermsQuestion]]
     * with the necessary annotations
@@ -119,9 +116,9 @@ class Annotator(
   ): TextAnnotation = {
     // since the annotated questions have different tokenizations, we first tokenize then assign
     // scores to tokens of spans
-    val viewNamesForParsingEssentialTermTokens = if (combineNamedEntities) Set(ViewNames.TOKENS, ViewNames.NER_CONLL) else Set(ViewNames.TOKENS)
+    val viewNamesForParsingEssentialTermTokens = if (serviceParams.combineNamedEntities) Set(ViewNames.TOKENS, ViewNames.NER_CONLL) else Set(ViewNames.TOKENS)
     val view = new TokenLabelView(Constants.VIEW_NAME, ta)
-    val combinedConsAll = if (combineNamedEntities) {
+    val combinedConsAll = if (serviceParams.combineNamedEntities) {
       getCombinedConsituents(ta)
     } else {
       ta.getView(ViewNames.TOKENS).getConstituents.asScala
@@ -140,7 +137,7 @@ class Annotator(
               synchronizedRedisClient.put(cacheKey, SerializationHelper.serializeToJson(tokenTaTmp))
               tokenTaTmp
             }
-            val combinedConstituents = if (combineNamedEntities) {
+            val combinedConstituents = if (serviceParams.combineNamedEntities) {
               getCombinedConsituents(tokenTa)
             } else {
               tokenTa.getView(ViewNames.TOKENS).getConstituents.asScala
@@ -181,7 +178,7 @@ class Annotator(
     if (mapOpt.isDefined) {
       logger.trace("Found the salience score in the static map . . . ")
       mapOpt
-    } else if (checkForMissingSalienceScores && q.selections.nonEmpty) {
+    } else if (serviceParams.checkForMissingSalienceScores && q.selections.nonEmpty) {
       val salienceFromRedis = synchronizedRedisClient.get(redisSalienceKey)
       if (salienceFromRedis.isDefined) {
         logger.trace("Found the salience score in the redis map . . . ")
@@ -195,7 +192,7 @@ class Annotator(
         Some(result.toList)
       }
     } else {
-      if (!checkForMissingSalienceScores) {
+      if (!serviceParams.checkForMissingSalienceScores) {
         throw new Exception("Didn't find the Salience annotation in the cache; if you want to " +
           "look it up, activate it in your settings . . . ")
       } else {
@@ -206,7 +203,7 @@ class Annotator(
   }
 
   // redis cache for annotations
-  lazy val synchronizedRedisClient = if (useRedisCaching) {
+  lazy val synchronizedRedisClient = if (serviceParams.useRedisCaching) {
     new JsonQueryCache[String](
       "termselector",
       new JedisPool(new JedisPoolConfig, "localhost", Protocol.DEFAULT_PORT, Protocol.DEFAULT_TIMEOUT)
@@ -220,7 +217,7 @@ class Annotator(
     // only master train: turkerSalientTerms.tsv
     // only omnibus: turkerSalientTermsOnlyOmnibus.tsv
     // combined: turkerSalientTermsWithOmnibus.tsv
-    val salientTermsFile = Utils.getDatastoreFile(turkerEssentialityScores)
+    val salientTermsFile = Utils.getDatastoreFile(serviceParams.turkerEssentialityScores)
     // Some terms in the turker generated file need ISO-8859 encoding
     val allQuestions = FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
       val fields = line.split("\t")
