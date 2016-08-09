@@ -19,7 +19,7 @@ class ThresholdTuner(learner: IllinoisLearner) extends Logging {
   /** given a set of training instances it returns the optimal threshold (i.e. maximize of F_alpha) */
   def tuneThreshold(alpha: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.devSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](learner.sensors.devSentences)
     testReader.reset()
 
     // first get the real predictions per sentence

@@ -1,6 +1,7 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.Models
+import org.allenai.ari.solvers.termselector.params.LearnerParams
+import org.allenai.ari.solvers.termselector.{ Sensors, Models }
 import org.allenai.common.Logging
 import edu.illinois.cs.cogcomp.lbjava.learn._
 
@@ -8,7 +9,7 @@ import edu.illinois.cs.cogcomp.lbjava.learn._
 class ExpandedLearner(
     expandedDataModel: ExpandedDataModel,
     classifierModel: String
-) extends IllinoisLearner(expandedDataModel) {
+) extends IllinoisLearner(expandedDataModel, expandedDataModel.sensors) {
 
   // implement for trait EssentialTermsLearner
   // The reason has to have with def has to do with mutable objects in Saul (`*Learner` and `*DataModel` classes we extend)
@@ -37,18 +38,21 @@ class ExpandedLearner(
 
 object ExpandedLearner extends Logging {
   /** Make a new ExpandedLearner; also return the underlying data models.
+    *
     * @param loadModelType load the pre-trained model from disk or from datastore, or the one on disk, or don't load any model
     */
   def makeNewLearner(
+    sensors: Sensors,
+    learnerParams: LearnerParams,
     loadModelType: LoadType,
-    classifierModel: String,
     baselineLearners: BaselineLearners,
     baselineDataModel: BaselineDataModel,
     salienceLearners: SalienceLearners
   ): (ExpandedDataModel, ExpandedLearner) = {
-    val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners)
-    val expandedLearner = new ExpandedLearner(expandedDataModel, classifierModel)
-    Models.load(expandedLearner, classifierModel, loadModelType)
+    val expandedDataModel = new ExpandedDataModel(baselineDataModel, baselineLearners, salienceLearners, sensors)
+    val expandedLearner = new ExpandedLearner(expandedDataModel, learnerParams.classifierModel)
+    val models = new Models(learnerParams)
+    models.load(expandedLearner, loadModelType)
     (expandedDataModel, expandedLearner)
   }
 }

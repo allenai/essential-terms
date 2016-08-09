@@ -15,14 +15,14 @@ import com.google.inject.name.Named
   * @param useRedisCaching whether to cache the output scores in a redis cache; would require you to run redis upon using
   */
 class ServiceParams @Inject() (
-    @Named("termselector.stopwordsDatastoreFile") val stopwordsDatastoreFile: String,
-    @Named("termselector.filterMidScoreConsitutents") val filterMidScoreConsitutents: List[Double],
-    @Named("termselector.scienceTermsDatastoreFile") val scienceTermsDatastoreFile: String,
-    @Named("termselector.regentsTrainingQuestion") val regentsTrainingQuestion: String,
-    @Named("termselector.checkForMissingSalienceScores") val checkForMissingSalienceScores: Boolean,
-    @Named("termselector.turkerEssentialityScores") val turkerEssentialityScores: String,
-    @Named("termselector.combineNamedEntities") val combineNamedEntities: Boolean,
-    @Named("termselector.useRedisCaching") val useRedisCaching: Boolean
+    @Named("stopwordsDatastoreFile") val stopwordsDatastoreFile: String,
+    @Named("annotation.filterMidScoreConsitutents") val filterMidScoreConsitutents: List[Double],
+    @Named("scienceTermsDatastoreFile") val scienceTermsDatastoreFile: String,
+    @Named("regentsTrainingQuestion") val regentsTrainingQuestion: String,
+    @Named("annotation.checkForMissingSalienceScores") val checkForMissingSalienceScores: Boolean,
+    @Named("turkerEssentialityScores") val turkerEssentialityScores: String,
+    @Named("annotation.combineNamedEntities") val combineNamedEntities: Boolean,
+    @Named("useRedisCaching") val useRedisCaching: Boolean
 ) {
   // nothing
 }

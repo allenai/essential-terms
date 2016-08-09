@@ -14,7 +14,7 @@ import scala.collection.JavaConverters._
 import java.io.{ File, PrintWriter }
 
 /** Various methods to evaluate the performance of an IllinoisLearner. */
-class Evaluator(learner: IllinoisLearner) extends Logging {
+class Evaluator(learner: IllinoisLearner, sensors: Sensors) extends Logging {
 
   /** test per tokens, given some data
     * @param testData the input constituent
@@ -45,7 +45,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     * @return a triple of (F_alpha, Precision, Recall)
     */
   def test(threshold: Double, alpha: Double): Map[String, (Double, Double, Double)] = {
-    test(Sensors.testConstituents, threshold, alpha)
+    test(sensors.testConstituents, threshold, alpha)
   }
 
   /** test per sentence on test data
@@ -54,7 +54,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     * @return a map from labels (ESSENTIAL or NON_ESSENTIAL) to a triple of (F_alpha, Precision, Recall)
     */
   def testAcrossSentences(threshold: Double, alpha: Double): Map[String, (Double, Double, Double)] = {
-    testAcrossSentences(Sensors.testSentences, threshold, alpha)
+    testAcrossSentences(sensors.testSentences, threshold, alpha)
   }
 
   /** test multiple sentences on test data, by getting the sentences as input
@@ -82,7 +82,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
   def hammingMeasure(threshold: Double): Double = {
     val goldLabel = learner.dataModel.goldLabel
     val testerExact = new TestDiscrete
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.testSentences)
 
     val hammingDistances = testReader.data.map { consIt =>
       consIt.map(cons => if (goldLabel(cons) != learner.predictLabel(cons, threshold)) 1 else 0).sum
@@ -94,7 +94,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
 
   def printHammingDistances(threshold: Double): Unit = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.testSentences)
     testReader.data.slice(0, 30).foreach { consIt =>
       val numSen = consIt.head.getTextAnnotation.getNumberOfSentences
       (0 until numSen).foreach(id =>
@@ -117,7 +117,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
     // harsh exact evaluation
     val testerExact = new TestDiscrete
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.testSentences)
     testReader.data.foreach { consIt =>
       val gold = consIt.map(goldLabel(_)).mkString
       val predicted = consIt.map(learner.predictLabel(_, threshold)).mkString
@@ -130,7 +130,7 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
 
   def printRankingMeasures(): Unit = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.testSentences)
 
     // ranking-based measures
     val averagePrecisionList = testReader.data.map { consIt =>
@@ -266,9 +266,9 @@ class Evaluator(learner: IllinoisLearner) extends Logging {
 
   /* prints the constituents for which the predictions are wrong  */
   def printMistakes(threshold: Double): Unit = {
-    learner.dataModel.essentialTermTokens.populate(Sensors.testConstituents, train = false)
+    learner.dataModel.essentialTermTokens.populate(sensors.testConstituents, train = false)
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](Sensors.testSentences)
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.testSentences)
 
     testReader.data.foreach { consIt =>
       val consList = consIt.toList

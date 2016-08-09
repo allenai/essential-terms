@@ -1,5 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
+import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import org.allenai.ari.models.MultipleChoiceSelection
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.solvers.common.SolversCommonModule
@@ -24,7 +25,7 @@ import scala.util.Random
 /** The purpose of this object is to contain the entry points (hence "sensors") to all
   * the datasets and resources used throughout the project.
   */
-class Sensors(serviceParams: ServiceParams) extends Logging {
+class Sensors(val serviceParams: ServiceParams) extends Logging {
   // the set of the questions annotated with mechanical turk
 
   val annnotator = new Annotator(salienceScorer, salienceMap, stopWords, serviceParams)
@@ -164,4 +165,25 @@ class Sensors(serviceParams: ServiceParams) extends Logging {
     "",
     "brown-clusters/brown-rcv1.clean.tokenized-CoNLL03.txt-c100-freq1.txt", Array[Int](4, 5)
   )
+
+  /** Get non-stopword and stopword constituents for the question. */
+  def splitConstituents(etQuestion: EssentialTermsQuestion, stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
+    // whether to combine NER words together or not
+    val cons = if (serviceParams.combineNamedEntities) {
+      annnotator.getCombinedConsituents(etQuestion.questionTextAnnotation)
+    } else {
+      etQuestion.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq
+    }
+    cons.partition { c => stopWords.contains(c.getSurfaceForm.toLowerCase()) }
+  }
+
+  /** Given a sequence of constituents, it splits them into two disjoint sequence, one contained in stopwords, one not.
+    *
+    * @param constituents sequence of input constituents
+    * @param stopWords sequence of stopwords
+    * @return Pair of constituent sequences. First one doest not contain any stopwords, second one is all stopwords
+    */
+  def splitConstituents(constituents: Seq[Constituent], stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
+    constituents.partition { c => stopWords.contains(c.getSurfaceForm.toLowerCase()) }
+  }
 }

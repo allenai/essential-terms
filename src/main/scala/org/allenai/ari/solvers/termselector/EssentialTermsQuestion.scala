@@ -19,32 +19,12 @@ import scala.collection.JavaConverters._
   * @param numAnnotators number of people who have annotated the question (only if it's already annotated)
   */
 case class EssentialTermsQuestion(
-    rawQuestion: String,
-    essentialTermMap: Option[Map[String, Double]],
-    aristoQuestion: Question,
-    questionTextAnnotation: TextAnnotation,
-    salience: Option[List[(MultipleChoiceSelection, SalienceResult)]],
-    sumSalience: Option[Map[String, Double]],
-    maxSalience: Option[Map[String, Double]],
-    numAnnotators: Option[Double]
-) {
-  /** Get non-stopword and stopword constituents for the question. */
-  def splitConstituents(stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
-    // whether to combine NER words together or not
-    val cons = if (Annotator.combineNamedEntities) {
-      Annotator.getCombinedConsituents(questionTextAnnotation)
-    } else {
-      questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala.toSeq
-    }
-    cons.partition { c => stopWords.contains(c.getSurfaceForm.toLowerCase()) }
-  }
-
-  /** Given a sequence of constituents, it splits them into two disjoint sequence, one contained in stopwords, one not.
-    * @param constituents sequence of input constituents
-    * @param stopWords sequence of stopwords
-    * @return Pair of constituent sequences. First one doest not contain any stopwords, second one is all stopwords
-    */
-  def splitConstituents(constituents: Seq[Constituent], stopWords: Set[String]): (Seq[Constituent], Seq[Constituent]) = {
-    constituents.partition { c => stopWords.contains(c.getSurfaceForm.toLowerCase()) }
-  }
-}
+  rawQuestion: String,
+  essentialTermMap: Option[Map[String, Double]],
+  aristoQuestion: Question,
+  questionTextAnnotation: TextAnnotation,
+  salience: Option[List[(MultipleChoiceSelection, SalienceResult)]],
+  sumSalience: Option[Map[String, Double]],
+  maxSalience: Option[Map[String, Double]],
+  numAnnotators: Option[Double]
+)

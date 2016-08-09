@@ -1,6 +1,7 @@
 package org.allenai.ari.solvers.termselector.learners
 
 import org.allenai.ari.models.Question
+import org.allenai.ari.solvers.termselector.params.LearnerParams
 import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Sensors }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.StochasticGradientDescent
@@ -14,7 +15,8 @@ case object TrainModel extends LoadType { override def toString = "Train a new m
 
 /** A parameterized abstract class for UIUC learners for essential terms detection. */
 abstract class IllinoisLearner(
-    essentialTermsDataModel: IllinoisDataModel
+    essentialTermsDataModel: IllinoisDataModel,
+    val sensors: Sensors
 ) extends Learnable[Constituent](essentialTermsDataModel.essentialTermTokens) with EssentialTermsLearner {
 
   /** This allows access to sub-classes of EssentialTermsDataModel if set appropriately by
@@ -24,12 +26,12 @@ abstract class IllinoisLearner(
 
   // implement for trait MyLearner
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {
-    val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
-    val (stopwordConstituents, constituents) = questionStruct.splitConstituents(Sensors.stopWords)
+    val questionStruct = sensors.annnotator.annotateQuestion(aristoQuestion, None, None)
+    val (stopwordConstituents, constituents) = sensors.splitConstituents(questionStruct, sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
-      questionStruct.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
+      sensors.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
     // update the inverse map with the new constituents
-    constituents.foreach(c => Sensors.constituentToAnnotationMap.put(c, questionStruct))
+    constituents.foreach(c => sensors.constituentToAnnotationMap.put(c, questionStruct))
     this.dataModel.essentialTermTokens.populate(constituents)
     (constituents.map { c => (c.getSurfaceForm, this.predictProbOfBeingEssential(c)) } ++
       essentialConstituents.map { c => (c.getSurfaceForm, Constants.ESSENTIAL_STOPWORD_SCORE) } ++
@@ -38,12 +40,12 @@ abstract class IllinoisLearner(
 
   // implement for trait MyLearner
   def getEssentialTerms(aristoQuestion: Question, threshold: Double): Seq[String] = {
-    val questionStruct = Annotator.annotateQuestion(aristoQuestion, None, None)
-    val (stopwordConstituents, constituents) = questionStruct.splitConstituents(Sensors.stopWords)
+    val questionStruct = sensors.annnotator.annotateQuestion(aristoQuestion, None, None)
+    val (stopwordConstituents, constituents) = sensors.splitConstituents(questionStruct, sensors.stopWords)
     val (essentialConstituents, nonEssentialConstituents) =
-      questionStruct.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
+      sensors.splitConstituents(stopwordConstituents, Constants.ESSENTIAL_STOPWORDS)
     // update the inverse map with the new constituents
-    constituents.foreach(c => Sensors.constituentToAnnotationMap.put(c, questionStruct))
+    constituents.foreach(c => sensors.constituentToAnnotationMap.put(c, questionStruct))
     this.dataModel.essentialTermTokens.populate(constituents)
     constituents.collect { case c if this.predictIsEssential(c, threshold) => c.getSurfaceForm } ++
       essentialConstituents.map(_.getSurfaceForm)

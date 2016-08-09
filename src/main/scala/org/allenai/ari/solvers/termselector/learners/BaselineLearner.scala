@@ -1,5 +1,6 @@
 package org.allenai.ari.solvers.termselector.learners
 
+import org.allenai.ari.solvers.termselector.params.LearnerParams
 import org.allenai.ari.solvers.termselector.{ Constants, Models }
 import org.allenai.common.Logging
 
@@ -16,7 +17,7 @@ class BaselineLearner(
     baselineDataModel: BaselineDataModel,
     input: Property[Constituent],
     output: Property[Constituent]
-) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
+) extends IllinoisLearner(baselineDataModel, baselineDataModel.sensors) with EssentialTermsLearner {
 
   // implement for trait EssentialTermsLearner
   override def dataModel = baselineDataModel
@@ -46,6 +47,7 @@ object BaselineLearner extends Logging {
     * @return a baseline learner
     */
   def makeNewLearner(
+    learnerParams: LearnerParams,
     baselineDataModel: BaselineDataModel,
     input: Property[Constituent],
     output: Property[Constituent],
@@ -53,7 +55,8 @@ object BaselineLearner extends Logging {
     loadSavedModel: LoadType
   ): BaselineLearner = {
     val baseline = new BaselineLearner(baselineDataModel, input, output)
-    Models.load(baseline, suffix, loadSavedModel)
+    val models = new Models(learnerParams)
+    models.load(baseline, loadSavedModel)
     baseline
   }
 }

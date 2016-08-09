@@ -8,7 +8,7 @@ import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFacto
 import scala.collection.JavaConverters._
 
 /** This class contains the basic definitions and properties of the model */
-class BaselineDataModel extends IllinoisDataModel {
+class BaselineDataModel(val sensors: Sensors) extends IllinoisDataModel {
   override val essentialTermTokens = node[Constituent]
 
   override val goldLabel = property(essentialTermTokens) { x: Constituent =>
@@ -21,7 +21,7 @@ class BaselineDataModel extends IllinoisDataModel {
 
   // the gold label of two consecutive constituents
   val goldLabelPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = Annotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = sensors.annnotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     goldLabel(xBefore) + Constants.LABEL_SEPARATOR + goldLabel(x)
   }
 
@@ -30,7 +30,7 @@ class BaselineDataModel extends IllinoisDataModel {
   }
 
   val wordFormPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = Annotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = sensors.annnotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     wordForm(xBefore) + Constants.LABEL_SEPARATOR + wordForm(x)
   }
 
@@ -50,7 +50,7 @@ class BaselineDataModel extends IllinoisDataModel {
   }
 
   val lemmaPair = property(essentialTermTokens) { x: Constituent =>
-    val xBefore = Annotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
+    val xBefore = sensors.annnotator.getConstituentBefore(x, viewName = ViewNames.TOKENS)
     lemma(xBefore) + Constants.LABEL_SEPARATOR + lemma(x)
   }
 
@@ -96,12 +96,12 @@ class BaselineDataModel extends IllinoisDataModel {
   }
 
   val maxSalience = property(essentialTermTokens) { x: Constituent =>
-    val salienceOpt = Sensors.constituentToAnnotationMap(x).maxSalience
+    val salienceOpt = sensors.constituentToAnnotationMap(x).maxSalience
     salienceOpt.flatMap(_.get(wordForm(x))).getOrElse(0d)
   }
 
   val sumSalience = property(essentialTermTokens) { x: Constituent =>
-    val salienceOpt = Sensors.constituentToAnnotationMap(x).sumSalience
+    val salienceOpt = sensors.constituentToAnnotationMap(x).sumSalience
     salienceOpt.flatMap(_.get(wordForm(x))).getOrElse(0d)
   }
 }

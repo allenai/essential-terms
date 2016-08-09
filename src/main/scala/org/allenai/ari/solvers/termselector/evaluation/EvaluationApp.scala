@@ -1,3 +1,4 @@
+/*
 package org.allenai.ari.solvers.termselector.evaluation
 
 import org.allenai.ari.models.Question
@@ -406,3 +407,4 @@ object EvaluationApp extends Logging {
     actorSystem.terminate()
   }
 }
+*/

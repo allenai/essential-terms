@@ -5,9 +5,9 @@ import org.allenai.ari.solvers.termselector.Sensors
 import org.allenai.ari.solvers.termselector.Utils.Levenshtein
 
 /** A learner that simply looks up essential terms as annotated in MTurk data, if available. */
-class LookupLearner() extends EssentialTermsLearner {
+class LookupLearner(sensors: Sensors) extends EssentialTermsLearner {
 
-  lazy val questionEssentialTermScores = Sensors.allQuestions.map { q =>
+  lazy val questionEssentialTermScores = sensors.allQuestions.map { q =>
     q.aristoQuestion.text.getOrElse(q.aristoQuestion.rawQuestion) -> q.essentialTermMap
   }
 
