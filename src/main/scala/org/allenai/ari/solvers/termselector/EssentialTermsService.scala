@@ -61,11 +61,13 @@ object InjectedLearnerAndThreshold {
   // empty constructor
   def apply(): InjectedLearnerAndThreshold = apply(localConfig)
 
-  /** @param classifierType
-    * @param classifierModel
-    * @return
+  /** @param classifierType whether and how to identify and use essential terms in the model. Example values are
+    * "LemmaBaseline", "Expanded", "Lookup", "MaxSalience", etc.
+    * @param classifierModel the type of the underlying model used for predictions (e.g. SVM, etc).
+    * This parameter is set, only when the first parameter is set to "Expanded"
+    * @return a learner with its parameters included
     */
-  def apply(classifierType: String, classifierModel: String): InjectedLearnerAndThreshold = {
+  def apply(classifierType: String, classifierModel: String = ""): InjectedLearnerAndThreshold = {
     val modifiedConfig = localConfig.
       withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
       withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))

@@ -59,7 +59,7 @@ class EssentialTermsSpec extends UnitSpec {
   val lookupLearner = InjectedLearnerAndThreshold("Lookup", "")
   val lookupLearnerService = new EssentialTermsService(lookupLearner)
 
-  def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String): Double = {
+  def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String = ""): Double = {
     val learner = InjectedLearnerAndThreshold(classifierType, classifierModel)
     val learnerService = new EssentialTermsService(learner)
     val tester = new TestDiscrete
@@ -74,12 +74,12 @@ class EssentialTermsSpec extends UnitSpec {
   }
 
   "Essentialterms service for lemma-baseline" should "work" in {
-    val f1Score = getServiceF1GivenLearnerType("LemmaBaseline", "")
+    val f1Score = getServiceF1GivenLearnerType("LemmaBaseline")
     f1Score should be(0.786 +- 0.02)
   }
 
   "Essentialterms service for salience-baseline" should "work" in {
-    val f1Score = getServiceF1GivenLearnerType("MaxSalience", "")
+    val f1Score = getServiceF1GivenLearnerType("MaxSalience")
     f1Score should be(0.749 +- 0.02)
   }
 
