@@ -16,13 +16,12 @@ trait LearnerAndThreshold {
   def learner: EssentialTermsLearner
   def threshold: Double
   def uniqueCacheName: String
-  def learnerParams: LearnerParams
+  protected def learnerParams: LearnerParams
   def serviceParams: ServiceParams
   def sensors: Sensors
 }
 
 /** a class to construct a learner given its parameters
-  *
   * @param learnerParams Inject-able parameters necessary to initialize a learner
   */
 class InjectedLearnerAndThreshold @Inject() (
@@ -30,9 +29,6 @@ class InjectedLearnerAndThreshold @Inject() (
     val serviceParams: ServiceParams,
     val sensors: Sensors
 ) extends LearnerAndThreshold with Logging {
-
-  /** create sensors and annotators */
-  //override val sensors = new Sensors(serviceParams)
 
   override val (learner, threshold) = {
     logger.info(s"Initializing essential terms service with learner type: ${learnerParams.classifierType}")

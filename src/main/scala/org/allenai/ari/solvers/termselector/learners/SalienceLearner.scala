@@ -13,7 +13,7 @@ import edu.illinois.cs.cogcomp.lbjava.learn.{ Learner, SparseNetworkLearner }
 class SalienceLearner(
     baselineDataModel: BaselineDataModel,
     useMax: Boolean
-) extends IllinoisLearner(baselineDataModel, baselineDataModel.sensors) with EssentialTermsLearner {
+) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
 
   override def dataModel: IllinoisDataModel = baselineDataModel
 

@@ -15,14 +15,15 @@ case object TrainModel extends LoadType { override def toString = "Train a new m
 
 /** A parameterized abstract class for UIUC learners for essential terms detection. */
 abstract class IllinoisLearner(
-    essentialTermsDataModel: IllinoisDataModel,
-    val sensors: Sensors
+    essentialTermsDataModel: IllinoisDataModel
 ) extends Learnable[Constituent](essentialTermsDataModel.essentialTermTokens) with EssentialTermsLearner {
 
   /** This allows access to sub-classes of EssentialTermsDataModel if set appropriately by
     * inheriting classes.
     */
   def dataModel: IllinoisDataModel
+
+  val sensors: Sensors = essentialTermsDataModel.sensors
 
   // implement for trait MyLearner
   def getEssentialTermScores(aristoQuestion: Question): Map[String, Double] = {

@@ -1,5 +1,7 @@
 package org.allenai.ari.solvers.termselector.learners
 
+import org.allenai.ari.solvers.termselector.Sensors
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
@@ -13,4 +15,6 @@ trait IllinoisDataModel extends DataModel {
 
   /** The actual label of the data: essential/not-essential */
   def goldLabel: DiscreteProperty[Constituent]
+
+  def sensors: Sensors
 }

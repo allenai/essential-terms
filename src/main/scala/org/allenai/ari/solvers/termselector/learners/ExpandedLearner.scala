@@ -9,7 +9,7 @@ import edu.illinois.cs.cogcomp.lbjava.learn._
 class ExpandedLearner(
     expandedDataModel: ExpandedDataModel,
     classifierModel: String
-) extends IllinoisLearner(expandedDataModel, expandedDataModel.sensors) {
+) extends IllinoisLearner(expandedDataModel) {
 
   // implement for trait EssentialTermsLearner
   // The reason has to have with def has to do with mutable objects in Saul (`*Learner` and `*DataModel` classes we extend)

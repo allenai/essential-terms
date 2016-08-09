@@ -17,7 +17,7 @@ class BaselineLearner(
     baselineDataModel: BaselineDataModel,
     input: Property[Constituent],
     output: Property[Constituent]
-) extends IllinoisLearner(baselineDataModel, baselineDataModel.sensors) with EssentialTermsLearner {
+) extends IllinoisLearner(baselineDataModel) with EssentialTermsLearner {
 
   // implement for trait EssentialTermsLearner
   override def dataModel = baselineDataModel
