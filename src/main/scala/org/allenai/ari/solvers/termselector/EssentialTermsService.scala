@@ -2,11 +2,11 @@ package org.allenai.ari.solvers.termselector
 
 import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.learners._
-import org.allenai.ari.solvers.termselector.params.{ ServiceParams, LearnerParams }
+import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
 import org.allenai.common.Logging
 
 import com.google.inject.{ ImplementedBy, Inject }
-import com.typesafe.config.{ ConfigValueFactory, Config, ConfigFactory }
+import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -96,18 +96,20 @@ object InjectedLearnerAndThreshold {
   }
 }
 
-///** a simple way to get learner and threshold from input
-//  *
-//  * @param learner essential term learner
-//  * @param threshold threshold used to make binry predictions using confidence scores
-//  * @param uniqueCacheName the prefix name used while putting values in redis cache
-//  */
-//case class SimpleLearnerAndThreshold(
-//  learner: EssentialTermsLearner,
-//  threshold: Double,
-//  uniqueCacheName: String,
-//  learnerParams: LearnerParams
-//) extends LearnerAndThreshold
+/** a simple way to get learner and threshold from input
+  *
+  * @param learner essential term learner
+  * @param threshold threshold used to make binry predictions using confidence scores
+  * @param uniqueCacheName the prefix name used while putting values in redis cache
+  */
+case class SimpleLearnerAndThreshold(
+  learner: EssentialTermsLearner,
+  threshold: Double,
+  uniqueCacheName: String,
+  learnerParams: LearnerParams,
+  serviceParams: ServiceParams,
+  sensors: Sensors
+) extends LearnerAndThreshold
 
 /** A service for identifying essential terms in Aristo questions.
   *
