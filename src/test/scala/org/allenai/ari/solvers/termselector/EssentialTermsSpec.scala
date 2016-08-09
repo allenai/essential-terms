@@ -5,10 +5,12 @@ import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.ari.solvers.termselector.params.LearnerParams
 import org.allenai.common.testkit.UnitSpec
 
+import akka.actor.ActorSystem
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 
 /** Test overall functionality of the TableILP solver */
 class EssentialTermsSpec extends UnitSpec {
+  implicit val system = ActorSystem("ari-http-solver")
   val lookupLearner = InjectedLearnerAndThreshold("Lookup", "")
   val lookupLearnerService = new EssentialTermsService(lookupLearner)
   val commonSensors = lookupLearner.sensors

@@ -25,7 +25,7 @@ import scala.util.Random
 /** The purpose of this object is to contain the entry points (hence "sensors") to all
   * the datasets and resources used throughout the project.
   */
-class Sensors(val serviceParams: ServiceParams) extends Logging {
+class Sensors(val serviceParams: ServiceParams)(implicit actorSystem: ActorSystem) extends Logging {
   // a set of functionalities for annotating questions
   val annotator = new Annotator(salienceScorerOpt, salienceMap, stopWords, serviceParams)
 
@@ -43,9 +43,8 @@ class Sensors(val serviceParams: ServiceParams) extends Logging {
   lazy val nonessentialStopWords = stopWords.diff(Constants.ESSENTIAL_STOPWORDS)
 
   // salience, used when the annotation does not exist in our cache
-  lazy val (salienceScorerOpt, actorSystemOpt) = if (serviceParams.checkForMissingSalienceScores) {
+  lazy val salienceScorerOpt = if (serviceParams.checkForMissingSalienceScores) {
     loggerConfig.Logger("org.allenai.wumpus.client.WumpusClient").setLevel(Level.ERROR)
-    implicit val system = ActorSystem("ari-http-solver")
     val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
     val localConfig = rootConfig.getConfig("ari.solvers.common").withValue(
       "wumpus-overrides",
@@ -55,9 +54,9 @@ class Sensors(val serviceParams: ServiceParams) extends Logging {
       new ActorSystemModule,
       new SolversCommonModule(localConfig, true)
     )
-    (Some(injector.instance[SalienceScorer]), Some(system))
+    Some(injector.instance[SalienceScorer])
   } else {
-    (None, None)
+    None
   }
 
   // the salience cache for regents, regents-test++ and omnibus, for faster evaluation

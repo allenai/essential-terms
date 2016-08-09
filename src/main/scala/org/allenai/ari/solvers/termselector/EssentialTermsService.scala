@@ -5,6 +5,7 @@ import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
 import org.allenai.common.Logging
 
+import akka.actor.ActorSystem
 import com.google.inject.{ ImplementedBy, Inject }
 import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import spray.json._
@@ -22,6 +23,7 @@ trait LearnerAndThreshold {
 }
 
 /** a class to construct a learner given its parameters
+  *
   * @param learnerParams Inject-able parameters necessary to initialize a learner
   */
 class InjectedLearnerAndThreshold @Inject() (
@@ -54,7 +56,7 @@ object InjectedLearnerAndThreshold {
   private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
 
   // empty constructor
-  def apply(): InjectedLearnerAndThreshold = apply(localConfig)
+  def apply()(implicit actorSystem: ActorSystem): InjectedLearnerAndThreshold = apply(localConfig)
 
   /** @param classifierType whether and how to identify and use essential terms in the model. Example values are
     * "LemmaBaseline", "Expanded", "Lookup", "MaxSalience", etc.
@@ -62,7 +64,7 @@ object InjectedLearnerAndThreshold {
     * This parameter is set, only when the first parameter is set to "Expanded"
     * @return a learner with its parameters included
     */
-  def apply(classifierType: String, classifierModel: String = ""): InjectedLearnerAndThreshold = {
+  def apply(classifierType: String, classifierModel: String = "")(implicit actorSystem: ActorSystem): InjectedLearnerAndThreshold = {
     val modifiedConfig = localConfig.
       withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
       withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
@@ -72,7 +74,7 @@ object InjectedLearnerAndThreshold {
   /** This constructor can be used to save some time/memory when testing multiple classifiers at the same time.
     * Sensors, which uses significant memory/time-expensive can be shared among the solvers.
     */
-  def apply(classifierType: String, classifierModel: String, sensors: Sensors): InjectedLearnerAndThreshold = {
+  def apply(classifierType: String, classifierModel: String, sensors: Sensors)(implicit actorSystem: ActorSystem): InjectedLearnerAndThreshold = {
     val modifiedConfig = localConfig.
       withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
       withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
@@ -81,7 +83,7 @@ object InjectedLearnerAndThreshold {
   }
 
   // constructor with arbitrary config files
-  def apply(newConfig: Config)(implicit d: DummyImplicit): InjectedLearnerAndThreshold = {
+  def apply(newConfig: Config)(implicit d: DummyImplicit, actorSystem: ActorSystem): InjectedLearnerAndThreshold = {
     val configWithFallbackOnLocalConfig = newConfig.withFallback(localConfig)
     val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
     val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
