@@ -1,6 +1,5 @@
 package org.allenai.ari.solvers.termselector
 
-import com.google.inject.name.Named
 import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
@@ -8,11 +7,16 @@ import org.allenai.common.Logging
 
 import akka.actor.ActorSystem
 import com.google.inject.Inject
+import com.google.inject.name.Named
 import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-/** A service for identifying essential terms in Aristo questions. */
+/** A service for identifying essential terms in Aristo questions.
+  * @param learnerParams the parameters necessary that characterize the learnr type used in prediction of essential terms
+  * @param sensors an object containing the necessary annotations, caches and related methods, necessary for
+  * feature extraction used in the learners
+  */
 class EssentialTermsService(
     val learnerParams: LearnerParams,
     val sensors: Sensors
@@ -126,7 +130,7 @@ object EssentialTermsService {
   }
 
   /** This constructor can be used to save some time/memory when testing multiple classifiers at the same time.
-    * Sensors, which uses significant memory/time-expensive can be shared among the solvers.
+    * Sensors, which uses significant memory/time-expensive can be shared among the classifiers.
     */
   def apply(classifierType: String, classifierModel: String, sensors: Sensors)(implicit actorSystem: ActorSystem): EssentialTermsService = {
     val modifiedConfig = localConfig.
