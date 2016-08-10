@@ -139,11 +139,8 @@ object EssentialTermsService {
 
 class EssentialTermServiceFactory @Inject() (@Named("termselector.local") config: Config) {
   def getInstance()(implicit actorSystem: ActorSystem): EssentialTermsService = {
-    println("--- getInstance = " + config)
     val configWithFallbackOnLocalConfig = config.withFallback(EssentialTermsService.localConfig)
-    println("--- getInstance = " + configWithFallbackOnLocalConfig)
     val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
-    println("--- learnerParams.classifierModel " + learnerParams.classifierModel)
     val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
     val sensors = new Sensors(serviceParams)
     new EssentialTermsService(learnerParams, sensors)
