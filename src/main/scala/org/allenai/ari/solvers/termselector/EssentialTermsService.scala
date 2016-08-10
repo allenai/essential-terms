@@ -1,38 +1,33 @@
 package org.allenai.ari.solvers.termselector
 
+import com.google.inject.name.Named
 import org.allenai.ari.models.Question
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
 import org.allenai.common.Logging
 
 import akka.actor.ActorSystem
-import com.google.inject.{ ImplementedBy, Inject }
+import com.google.inject.Inject
 import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-/** a thin trait to contain a learner with its threshold */
-@ImplementedBy(classOf[InjectedLearnerAndThreshold])
-trait LearnerAndThreshold {
-  def learner: EssentialTermsLearner
-  def threshold: Double
-  def uniqueCacheName: String
-  protected def learnerParams: LearnerParams
-  def serviceParams: ServiceParams
-  def sensors: Sensors
-}
+/** A service for identifying essential terms in Aristo questions. */
+class EssentialTermsService @Inject() (
+    @Named("entailment.local") inputConfig: Config,
+    @Inject(optional = true) sensorOpt: Option[Sensors] = None
+)(implicit actorSystem: ActorSystem) extends Logging {
+  val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+  val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+  val configWithFallbackOnLocalConfig = inputConfig.withFallback(localConfig)
+  val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
+  val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
+  val sensors = sensorOpt.getOrElse(new Sensors(serviceParams))
 
-/** a class to construct a learner given its parameters
-  *
-  * @param learnerParams Inject-able parameters necessary to initialize a learner
-  */
-class InjectedLearnerAndThreshold @Inject() (
-    val learnerParams: LearnerParams,
-    val serviceParams: ServiceParams,
-    val sensors: Sensors
-) extends LearnerAndThreshold with Logging {
-
-  override val (learner, threshold) = {
+  /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
+    * The default thresholds are chosen to maximize F1 on the dev set, given the threshold
+    */
+  lazy val (learner, defaultThreshold) = {
     logger.info(s"Initializing essential terms service with learner type: ${learnerParams.classifierType}")
     learnerParams.classifierType match {
       case "Lookup" => (new LookupLearner(sensors), Constants.LOOKUP_THRESHOLD)
@@ -47,85 +42,14 @@ class InjectedLearnerAndThreshold @Inject() (
       case _ => throw new IllegalArgumentException(s"Unidentified learner type ${learnerParams.classifierType}")
     }
   }
-  override def uniqueCacheName = learnerParams.classifierType + learnerParams.classifierModel
-}
-
-object InjectedLearnerAndThreshold {
-  // reading the default config file
-  private val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
-  private val localConfig = rootConfig.getConfig("ari.solvers.termselector")
-
-  // empty constructor
-  def apply()(implicit actorSystem: ActorSystem): InjectedLearnerAndThreshold = apply(localConfig)
-
-  /** @param classifierType whether and how to identify and use essential terms in the model. Example values are
-    * "LemmaBaseline", "Expanded", "Lookup", "MaxSalience", etc.
-    * @param classifierModel the type of the underlying model used for predictions (e.g. SVM, etc).
-    * This parameter is set, only when the first parameter is set to "Expanded"
-    * @return a learner with its parameters included
-    */
-  def apply(classifierType: String, classifierModel: String = "")(implicit actorSystem: ActorSystem): InjectedLearnerAndThreshold = {
-    val modifiedConfig = localConfig.
-      withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
-      withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
-    apply(modifiedConfig)
-  }
-
-  /** This constructor can be used to save some time/memory when testing multiple classifiers at the same time.
-    * Sensors, which uses significant memory/time-expensive can be shared among the solvers.
-    */
-  def apply(classifierType: String, classifierModel: String, sensors: Sensors)(implicit actorSystem: ActorSystem): InjectedLearnerAndThreshold = {
-    val modifiedConfig = localConfig.
-      withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
-      withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
-    val learnerParams = LearnerParams.fromConfig(modifiedConfig)
-    new InjectedLearnerAndThreshold(learnerParams, sensors.serviceParams, sensors)
-  }
-
-  // constructor with arbitrary config files
-  def apply(newConfig: Config)(implicit d: DummyImplicit, actorSystem: ActorSystem): InjectedLearnerAndThreshold = {
-    val configWithFallbackOnLocalConfig = newConfig.withFallback(localConfig)
-    val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
-    val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
-    new InjectedLearnerAndThreshold(learnerParams, serviceParams, new Sensors(serviceParams))
-  }
-}
-
-/** a simple way to get learner and threshold from input
-  *
-  * @param learner essential term learner
-  * @param threshold threshold used to make binry predictions using confidence scores
-  * @param uniqueCacheName the prefix name used while putting values in redis cache
-  */
-case class SimpleLearnerAndThreshold(
-  learner: EssentialTermsLearner,
-  threshold: Double,
-  uniqueCacheName: String,
-  learnerParams: LearnerParams,
-  serviceParams: ServiceParams,
-  sensors: Sensors
-) extends LearnerAndThreshold
-
-/** A service for identifying essential terms in Aristo questions.
-  *
-  * @param learnerAndThreshold a learner-threshold pair
-  */
-class EssentialTermsService @Inject() (
-    learnerAndThreshold: LearnerAndThreshold
-) extends Logging {
-
-  /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
-    * The default thresholds are chosen to maximize F1 on the dev set, given the threshold
-    */
-  private val (learner, defaultThreshold) = (learnerAndThreshold.learner, learnerAndThreshold.threshold)
+  def uniqueCacheName = learnerParams.classifierType + learnerParams.classifierModel
 
   /** Get essential term scores for a given question.
-    *
     * @param aristoQ an input question, in Aristo's standard datastructure for questions
     * @return a map of the terms and their importance
     */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    if (learnerAndThreshold.serviceParams.useRedisCaching) {
+    if (serviceParams.useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -133,14 +57,13 @@ class EssentialTermsService @Inject() (
   }
 
   /** Get essential terms for a given question; use threshold if provided, otherwise defaultThreshold
-    *
     * @param aristoQ an input question, in Aristo's standard datastructure for questions
     * @param threshold the threshold above which a term is considered essential
     * @return a sequence of essential terms in the input questions
     */
   def getEssentialTerms(aristoQ: Question, threshold: Double = defaultThreshold): Seq[String] = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = if (learnerAndThreshold.serviceParams.useRedisCaching) {
+    val termsWithScores = if (serviceParams.useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -150,14 +73,13 @@ class EssentialTermsService @Inject() (
 
   /** Get essential terms for a given question (selected via threshold, if provided; otherwise defaultThreshold),
     * as well as essential term scores for a given question.
-    *
     * @param aristoQ an input question, in Aristo's standard datastructure for questions
     * @param threshold the threshold above which a term is considered essential
     * @return a tuple containing a sequence of essential terms as well as a hashmap of terms and their essentiality scores
     */
   def getEssentialTermsAndScores(aristoQ: Question, threshold: Double = defaultThreshold): (Seq[String], Map[String, Double]) = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = if (learnerAndThreshold.serviceParams.useRedisCaching) {
+    val termsWithScores = if (serviceParams.useRedisCaching) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -167,25 +89,52 @@ class EssentialTermsService @Inject() (
   }
 
   /** Retrieve essential scores from Redis cache; if not present, compute and store.
-    *
     * @param aristoQ an input question in Aristo's standard question datastructure
     * @return a hashmap of the terms and their importance
     */
-  private def getEssentialScoresFromRedis(
-    aristoQ: Question
-  ): Map[String, Double] = {
+  private def getEssentialScoresFromRedis(aristoQ: Question): Map[String, Double] = {
     // use the raw question in the cache as the essential term prediction depends on the options
-    val cacheKey = "EssentialTermsServiceCache***scores***" + aristoQ.rawQuestion + learnerAndThreshold.uniqueCacheName
-    val termsAndScoreJsonOpt = learnerAndThreshold.sensors.annotator.synchronizedRedisClient.get(cacheKey)
+    val cacheKey = "EssentialTermsServiceCache***scores***" + aristoQ.rawQuestion + uniqueCacheName
+    val termsAndScoreJsonOpt = sensors.annotator.synchronizedRedisClient.get(cacheKey)
     termsAndScoreJsonOpt match {
       case Some(termsAndScoreJson) =>
         termsAndScoreJson.parseJson.convertTo[Map[String, Double]]
       case None =>
         val scores = learner.getEssentialTermScores(aristoQ)
-        learnerAndThreshold.sensors.annotator.synchronizedRedisClient.put(
+        sensors.annotator.synchronizedRedisClient.put(
           cacheKey, scores.toJson.compactPrint
         )
         scores
     }
+  }
+}
+
+object EssentialTermsService {
+  // empty constructor
+  def apply()(implicit actorSystem: ActorSystem): EssentialTermsService = {
+    new EssentialTermsService(ConfigFactory.empty())
+  }
+
+  /** @param classifierType whether and how to identify and use essential terms in the model. Example values are
+    * "LemmaBaseline", "Expanded", "Lookup", "MaxSalience", etc.
+    * @param classifierModel the type of the underlying model used for predictions (e.g. SVM, etc).
+    * This parameter is set, only when the first parameter is set to "Expanded"
+    * @return a learner with its parameters included
+    */
+  def apply(classifierType: String, classifierModel: String = "")(implicit actorSystem: ActorSystem): EssentialTermsService = {
+    val modifiedConfig = ConfigFactory.empty().
+      withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
+      withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
+    new EssentialTermsService(modifiedConfig)
+  }
+
+  /** This constructor can be used to save some time/memory when testing multiple classifiers at the same time.
+    * Sensors, which uses significant memory/time-expensive can be shared among the solvers.
+    */
+  def apply(classifierType: String, classifierModel: String, sensors: Sensors)(implicit actorSystem: ActorSystem): EssentialTermsService = {
+    val modifiedConfig = ConfigFactory.empty().
+      withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
+      withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
+    new EssentialTermsService(modifiedConfig, Some(sensors))
   }
 }

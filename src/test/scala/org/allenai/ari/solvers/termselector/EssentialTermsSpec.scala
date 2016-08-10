@@ -11,16 +11,14 @@ import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 /** Test overall functionality of the TableILP solver */
 class EssentialTermsSpec extends UnitSpec {
   implicit val system = ActorSystem("ari-http-solver")
-  val lookupLearner = InjectedLearnerAndThreshold("Lookup", "")
-  val lookupLearnerService = new EssentialTermsService(lookupLearner)
-  val commonSensors = lookupLearner.sensors
+  val lookupLearnerService = EssentialTermsService("Lookup", "")
+  val commonSensors = lookupLearnerService.sensors
   val serviceParams = commonSensors.serviceParams
 
   def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String = ""): Double = {
-    val learner = InjectedLearnerAndThreshold(classifierType, classifierModel, commonSensors)
-    val learnerService = new EssentialTermsService(learner)
+    val learnerService = EssentialTermsService(classifierType, classifierModel, commonSensors)
     val tester = new TestDiscrete
-    learner.sensors.allQuestions.slice(0, 100).foreach { q =>
+    learnerService.sensors.allQuestions.slice(0, 100).foreach { q =>
       val (goldEssentialTerms, goldEssentialTermScoreMap) = lookupLearnerService.getEssentialTermsAndScores(q.aristoQuestion)
       val predictedTerms = learnerService.getEssentialTerms(q.aristoQuestion)
       goldEssentialTermScoreMap.keys.foreach { term =>
