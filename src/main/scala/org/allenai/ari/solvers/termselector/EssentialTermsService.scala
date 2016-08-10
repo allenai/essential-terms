@@ -142,6 +142,12 @@ object EssentialTermsService {
   }
 }
 
+/** The main class used when using essential-terms with injection. It injects the an instances of EssentialTermServiceFactory.
+  * Then `getInstance` can be called to instantiate an istance of EssentialTermService, which can be used to extract
+  * the essential terms. If you want to override any of the settings for essential-terms, simply put then insidie a block
+  * with prefix "termselector.local".
+  * @param config the config file automatically injected
+  */
 class EssentialTermServiceFactory @Inject() (@Named("termselector.local") config: Config) {
   def getInstance()(implicit actorSystem: ActorSystem): EssentialTermsService = {
     val configWithFallbackOnLocalConfig = config.withFallback(EssentialTermsService.localConfig)
