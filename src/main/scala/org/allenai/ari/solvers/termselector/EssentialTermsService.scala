@@ -12,7 +12,8 @@ import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-/** A service for identifying essential terms in Aristo questions.
+/** A service for identifying essential terms in Aristo questions. The recommended way to use the system (especially
+  * if you're using Guice Injection) is to use EssentialTermServiceFactory (see below).
   * @param learnerParams the parameters necessary that characterize the learnr type used in prediction of essential terms
   * @param sensors an object containing the necessary annotations, caches and related methods, necessary for
   * feature extraction used in the learners

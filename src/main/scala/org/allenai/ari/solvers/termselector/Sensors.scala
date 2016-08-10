@@ -10,7 +10,7 @@ import org.allenai.common.guice.ActorSystemModule
 
 import akka.actor.ActorSystem
 import ch.qos.logback.classic.Level
-import com.google.inject.{ Inject, Guice }
+import com.google.inject.Guice
 import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames

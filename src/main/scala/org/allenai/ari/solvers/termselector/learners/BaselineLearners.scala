@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.solvers.termselector.Sensors
 import org.allenai.ari.solvers.termselector.params.LearnerParams
+import org.allenai.ari.solvers.termselector.Sensors
 import org.allenai.common.Logging
 
 /** A collection of baseline learners. */
