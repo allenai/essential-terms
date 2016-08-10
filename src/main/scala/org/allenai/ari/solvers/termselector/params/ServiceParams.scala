@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
   * @param checkForMissingSalienceScores
   * @param turkerEssentialityScores
   * @param combineNamedEntities
-  * @param useRedisCaching whether to cache the output scores in a redis cache; would require you to run redis upon using
+  * @param useRedisCachingForAnnotation whether to cache the output scores in a redis cache; would require you to run redis upon using
   */
 class ServiceParams @Inject() (
     @Named("stopwordsDatastoreFile") val stopwordsDatastoreFile: String,
@@ -25,7 +25,7 @@ class ServiceParams @Inject() (
     @Named("annotation.checkForMissingSalienceScores") val checkForMissingSalienceScores: Boolean,
     @Named("turkerEssentialityScores") val turkerEssentialityScores: String,
     @Named("annotation.combineNamedEntities") val combineNamedEntities: Boolean,
-    @Named("useRedisCaching") val useRedisCaching: Boolean
+    @Named("useRedisCachingForAnnotation") val useRedisCachingForAnnotation: Boolean
 ) {
   // nothing
 }
@@ -40,7 +40,7 @@ object ServiceParams {
       config.getBoolean("annotation.checkForMissingSalienceScores"),
       config.getString("turkerEssentialityScores"),
       config.getBoolean("annotation.combineNamedEntities"),
-      config.getBoolean("useRedisCaching")
+      config.getBoolean("useRedisCachingForAnnotation")
     )
   }
 

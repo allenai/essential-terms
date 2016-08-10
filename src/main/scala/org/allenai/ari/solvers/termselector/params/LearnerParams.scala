@@ -8,12 +8,14 @@ import com.typesafe.config.{ ConfigFactory, Config }
   * @param classifierType whether and how to identify and use essential terms in the model
   * @param classifierModel the type of the underlying model used for predictions (e.g. SVM, etc)
   * @param directAnswerQuestions
+  * @param useRedisCachingForLearnerPredictions
   */
 class LearnerParams @Inject() (
     @Named("classifierType") val classifierType: String,
     @Named("classifierModel") val classifierModel: String,
     @Named("directAnswerQuestions") val directAnswerQuestions: Boolean,
-    @Named("modelsDatastoreFolder") val modelsDatastoreFolder: String
+    @Named("modelsDatastoreFolder") val modelsDatastoreFolder: String,
+    @Named("useRedisCachingForLearnerPredictions") val useRedisCachingForLearnerPredictions: Boolean
 ) {
   // nothing
 }
@@ -24,7 +26,8 @@ object LearnerParams {
       config.getString("classifierType"),
       config.getString("classifierModel"),
       config.getBoolean("directAnswerQuestions"),
-      config.getString("modelsDatastoreFolder")
+      config.getString("modelsDatastoreFolder"),
+      config.getBoolean("useRedisCachingForLearnerPredictions")
     )
   }
 

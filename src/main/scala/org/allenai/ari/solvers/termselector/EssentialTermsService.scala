@@ -13,16 +13,10 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 /** A service for identifying essential terms in Aristo questions. */
-class EssentialTermsService @Inject() (
-    @Named("entailment.local") inputConfig: Config,
-    @Inject(optional = true) sensorOpt: Option[Sensors] = None
+class EssentialTermsService(
+    val learnerParams: LearnerParams,
+    val sensors: Sensors
 )(implicit actorSystem: ActorSystem) extends Logging {
-  val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
-  val localConfig = rootConfig.getConfig("ari.solvers.termselector")
-  val configWithFallbackOnLocalConfig = inputConfig.withFallback(localConfig)
-  val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
-  val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
-  val sensors = sensorOpt.getOrElse(new Sensors(serviceParams))
 
   /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
     * The default thresholds are chosen to maximize F1 on the dev set, given the threshold
@@ -49,7 +43,7 @@ class EssentialTermsService @Inject() (
     * @return a map of the terms and their importance
     */
   def getEssentialTermScores(aristoQ: Question): Map[String, Double] = {
-    if (serviceParams.useRedisCaching) {
+    if (learnerParams.useRedisCachingForLearnerPredictions) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -63,7 +57,7 @@ class EssentialTermsService @Inject() (
     */
   def getEssentialTerms(aristoQ: Question, threshold: Double = defaultThreshold): Seq[String] = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = if (serviceParams.useRedisCaching) {
+    val termsWithScores = if (learnerParams.useRedisCachingForLearnerPredictions) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -79,7 +73,7 @@ class EssentialTermsService @Inject() (
     */
   def getEssentialTermsAndScores(aristoQ: Question, threshold: Double = defaultThreshold): (Seq[String], Map[String, Double]) = {
     require(threshold >= 0, "The defined threshold must be bigger than zero . . . ")
-    val termsWithScores = if (serviceParams.useRedisCaching) {
+    val termsWithScores = if (learnerParams.useRedisCachingForLearnerPredictions) {
       getEssentialScoresFromRedis(aristoQ)
     } else {
       learner.getEssentialTermScores(aristoQ)
@@ -110,9 +104,12 @@ class EssentialTermsService @Inject() (
 }
 
 object EssentialTermsService {
+  val rootConfig = ConfigFactory.systemProperties.withFallback(ConfigFactory.load)
+  val localConfig = rootConfig.getConfig("ari.solvers.termselector")
+
   // empty constructor
   def apply()(implicit actorSystem: ActorSystem): EssentialTermsService = {
-    new EssentialTermsService(ConfigFactory.empty())
+    new EssentialTermServiceFactory(ConfigFactory.empty()).getInstance()
   }
 
   /** @param classifierType whether and how to identify and use essential terms in the model. Example values are
@@ -125,16 +122,30 @@ object EssentialTermsService {
     val modifiedConfig = ConfigFactory.empty().
       withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
       withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
-    new EssentialTermsService(modifiedConfig)
+    new EssentialTermServiceFactory(modifiedConfig).getInstance()
   }
 
   /** This constructor can be used to save some time/memory when testing multiple classifiers at the same time.
     * Sensors, which uses significant memory/time-expensive can be shared among the solvers.
     */
   def apply(classifierType: String, classifierModel: String, sensors: Sensors)(implicit actorSystem: ActorSystem): EssentialTermsService = {
-    val modifiedConfig = ConfigFactory.empty().
+    val modifiedConfig = localConfig.
       withValue("classifierModel", ConfigValueFactory.fromAnyRef(classifierModel)).
       withValue("classifierType", ConfigValueFactory.fromAnyRef(classifierType))
-    new EssentialTermsService(modifiedConfig, Some(sensors))
+    val learnerParams = LearnerParams.fromConfig(modifiedConfig)
+    new EssentialTermsService(learnerParams, sensors)
+  }
+}
+
+class EssentialTermServiceFactory @Inject() (@Named("termselector.local") config: Config) {
+  def getInstance()(implicit actorSystem: ActorSystem): EssentialTermsService = {
+    println("--- getInstance = " + config)
+    val configWithFallbackOnLocalConfig = config.withFallback(EssentialTermsService.localConfig)
+    println("--- getInstance = " + configWithFallbackOnLocalConfig)
+    val learnerParams = LearnerParams.fromConfig(configWithFallbackOnLocalConfig)
+    println("--- learnerParams.classifierModel " + learnerParams.classifierModel)
+    val serviceParams = ServiceParams.fromConfig(configWithFallbackOnLocalConfig)
+    val sensors = new Sensors(serviceParams)
+    new EssentialTermsService(learnerParams, sensors)
   }
 }

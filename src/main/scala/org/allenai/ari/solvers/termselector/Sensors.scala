@@ -1,6 +1,5 @@
 package org.allenai.ari.solvers.termselector
 
-import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import org.allenai.ari.models.MultipleChoiceSelection
 import org.allenai.ari.models.salience.SalienceResult
 import org.allenai.ari.solvers.common.SolversCommonModule
@@ -11,9 +10,10 @@ import org.allenai.common.guice.ActorSystemModule
 
 import akka.actor.ActorSystem
 import ch.qos.logback.classic.Level
-import com.google.inject.Guice
+import com.google.inject.{ Inject, Guice }
 import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
+import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
 import spray.json._
