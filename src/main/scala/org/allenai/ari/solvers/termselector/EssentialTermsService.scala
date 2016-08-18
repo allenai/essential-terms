@@ -23,10 +23,8 @@ class EssentialTermsService(
     val sensors: Sensors
 )(implicit actorSystem: ActorSystem) extends Logging {
 
-  /** Create a learner object. Lazy to avoid creating a learner if the service is not used.
-    * The default thresholds are chosen to maximize F1 on the dev set, given the threshold
-    */
-  lazy val (learner, defaultThreshold) = {
+  /** Create a learner object, with default thresholds chosen to maximize F1 on the dev set. */
+  val (learner, defaultThreshold) = {
     logger.info(s"Initializing essential terms service with learner type: ${learnerParams.classifierType}")
     learnerParams.classifierType match {
       case "Lookup" => (new LookupLearner(sensors), Constants.LOOKUP_THRESHOLD)
