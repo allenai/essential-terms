@@ -211,45 +211,7 @@ class Annotator(
   }
 
   def readAndAnnotateEssentialTermsData(): Seq[EssentialTermsQuestion] = {
-    // only master train: turkerSalientTerms.tsv
-    // only omnibus: turkerSalientTermsOnlyOmnibus.tsv
-    // combined: turkerSalientTermsWithOmnibus.tsv
-    val salientTermsFile = Utils.getDatastoreFile(serviceParams.turkerEssentialityScores)
-    // Some terms in the turker generated file need ISO-8859 encoding
-    val allQuestions = FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
-      val fields = line.split("\t")
-      require(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
-      val question = fields(0)
-      val numAnnotators = fields(1).toDouble
-      val wordCounts = fields(2).split("\\|")
-      val wordImportance = wordCounts.map(_.split(",")).map { arr =>
-        require(
-          arr.length >= 2,
-          s"Expected at least 2 elements. Found ${arr.mkString("-")} in line"
-        )
-        (arr.head.stripSuffix("?").stripSuffix("."), arr.last.toDouble / numAnnotators)
-      }
-      (wordImportance, numAnnotators, question)
-    }.groupBy {
-      // merging repeated annotations, if they have the same question string
-      case (_, _, question) => question
-    }.map {
-      // merging statistics of the same questions
-      case (question, arrayOfCollapsedQuestions) =>
-        arrayOfCollapsedQuestions.reduceRight[(Array[(String, Double)], Double, String)] {
-          case ((wordImportance, numAnnotator, _), (wordImportanceOverall, numAnnotatorsOverall, _)) =>
-            assert(wordImportance.length == wordImportanceOverall.length)
-            val wordImportanceMap = wordImportance.toMap
-            val mergedWordImportance = wordImportanceOverall.map {
-              case (token, importanceOverall) =>
-                val totalCount = numAnnotatorsOverall + numAnnotator
-                val averageImportance = (importanceOverall * numAnnotatorsOverall +
-                  wordImportanceMap(token) * numAnnotator) / totalCount
-                (token, averageImportance)
-            }
-            (mergedWordImportance, numAnnotator + numAnnotatorsOverall, question)
-        }
-    }.map {
+    val allQuestions = Annotator.readEssentialTermsData(serviceParams.turkerEssentialityScores).map {
       case (wordImportance, numAnnotators, question) =>
         val aristoQuestion = Utils.decomposeQuestion(question)
         val essentialTermMap = wordImportance.groupBy(_._1).mapValues(_.maxBy(_._2)._2)
@@ -319,5 +281,46 @@ class Annotator(
 
   def getConstituentCoveringInView(c: Constituent, view: String): Iterable[Constituent] = {
     c.getTextAnnotation.getView(view).getConstituentsCovering(c).asScala
+  }
+}
+
+object Annotator {
+  def readEssentialTermsData(inputFile: String): Iterable[(Array[(String, Double)], Double, String)] = {
+    val salientTermsFile = Utils.getDatastoreFile(inputFile)
+    // Some terms in the turker generated file need ISO-8859 encoding
+    FileUtils.getFileAsLines(salientTermsFile)(Codec.ISO8859).map { line =>
+      val fields = line.split("\t")
+      require(fields.size == 3, s"Expected format: question numAnnotators word-counts. Got: $line")
+      val question = fields(0)
+      val numAnnotators = fields(1).toDouble
+      val wordCounts = fields(2).split("\\|")
+      val wordImportance = wordCounts.map(_.split(",")).map { arr =>
+        require(
+          arr.length >= 2,
+          s"Expected at least 2 elements. Found ${arr.mkString("-")} in line"
+        )
+        (arr.head.stripSuffix("?").stripSuffix("."), arr.last.toDouble / numAnnotators)
+      }
+      (wordImportance, numAnnotators, question)
+    }.groupBy {
+      // merging repeated annotations, if they have the same question string
+      case (_, _, question) => question
+    }.map {
+      // merging statistics of the same questions
+      case (question, arrayOfCollapsedQuestions) =>
+        arrayOfCollapsedQuestions.reduceRight[(Array[(String, Double)], Double, String)] {
+          case ((wordImportance, numAnnotator, _), (wordImportanceOverall, numAnnotatorsOverall, _)) =>
+            assert(wordImportance.length == wordImportanceOverall.length)
+            val wordImportanceMap = wordImportance.toMap
+            val mergedWordImportance = wordImportanceOverall.map {
+              case (token, importanceOverall) =>
+                val totalCount = numAnnotatorsOverall + numAnnotator
+                val averageImportance = (importanceOverall * numAnnotatorsOverall +
+                  wordImportanceMap(token) * numAnnotator) / totalCount
+                (token, averageImportance)
+            }
+            (mergedWordImportance, numAnnotator + numAnnotatorsOverall, question)
+        }
+    }
   }
 }
