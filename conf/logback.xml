@@ -1,0 +1,62 @@
+<!--
+  Logback configuration for all Aristo subprojects.
+
+  Projects have two appenders: One that pipes all messages to a file, and one that pipes all
+  INFO-and-higher messages to STDOUT.
+
+  The default root logging level is INFO, and the default log level for org.allenai is DEBUG.
+
+  The following overrides may be set as environment variables or java properties:
+    logback_rootLevel - The global root logging level.
+    logback_ariLevel - The logging level for org.allanai.
+    logback_stdoutLevel - The filter level to apply to the STDOUT logger.
+-->
+<configuration>
+  <!-- Appender to a file named based on the application name. -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/${logback.appname}.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!-- daily rollover -->
+      <fileNamePattern>logs/${logback.appname}.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+      <!-- keep 30 days worth of history -->
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+
+    <encoder>
+      <pattern>%-5level [%date] %logger{35}: %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- deny all events with a level below INFO, that is TRACE and DEBUG -->
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>${logback_stdoutLevel:-INFO}</level>
+    </filter>
+    <encoder>
+      <pattern>%-5level [%date] %logger{35}: %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="${logback_rootLevel:-INFO}">
+    <appender-ref ref="FILE" />
+    <appender-ref ref="STDOUT" />
+  </root>
+
+  <!-- This logging is particularly annoying in test cases. -->
+  <logger name="akka.event.slf4j" level="WARN" />
+
+  <logger name="org.allenai" level="${logback_ariLevel:-INFO}" />
+
+  <logger name="org.apache.spark" level="WARN" />
+  <logger name="org.apache.hadoop" level="WARN" />
+  <logger name="org.spark-project.jetty" level="WARN" />
+
+  <!--
+    Include an optional application-specific configuration file. See documentation
+    about file inclusion here:
+
+      http://logback.qos.ch/manual/configuration.html#fileInclusion
+  -->
+  <include optional="true" file="conf/logback-application.xml"/>
+</configuration>
