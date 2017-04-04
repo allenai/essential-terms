@@ -8,6 +8,7 @@ libraryDependencies ++= Seq(
   allenAiCommon.exclude("edu.stanford.nlp", "stanford-corenlp"),
   allenAiGuice.exclude("edu.stanford.nlp", "stanford-corenlp"),
   aristoCommon,
+  aristoDatamodel,
   illinoisEdison,
   illinoisNlpPipeline,
   illinoisSaul,

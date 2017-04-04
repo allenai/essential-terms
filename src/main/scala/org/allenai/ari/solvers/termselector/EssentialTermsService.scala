@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.Question
+import org.allenai.ari.datamodel.Question
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
 import org.allenai.common.Logging

@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
-import org.allenai.ari.models.Question
+import org.allenai.ari.datamodel.Question
 import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
 import org.allenai.ari.solvers.termselector.{ Constants, Sensors, Utils }
 import org.allenai.ari.solvers.termselector.learners._

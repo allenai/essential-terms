@@ -1,11 +1,7 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.{
-  MultipleChoiceSelection,
-  ParentheticalChoiceIdentifier,
-  Question,
-  SplitQuestion
-}
+import org.allenai.ari.datamodel.{ MultipleChoiceSelection, Question }
+import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, SplitQuestion }
 import org.allenai.common.Logging
 import org.allenai.datastore.Datastore
 

@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.models.Question
+import org.allenai.ari.datamodel.Question
 
 /** A generic trait for an essential terms learner for Aristo questions. */
 trait EssentialTermsLearner {

@@ -1,9 +1,9 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector.params.LearnerParams
-import org.allenai.ari.solvers.termselector.{ Annotator, Constants, Sensors }
+import org.allenai.ari.datamodel.Question
+import org.allenai.ari.solvers.termselector.{ Constants, Sensors }
 import org.allenai.common.Logging
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.lbjava.learn.{ Learner, SparseNetworkLearner }
 

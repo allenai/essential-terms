@@ -1,7 +1,7 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.salience.SalienceResult
-import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
+import org.allenai.ari.datamodel.{ MultipleChoiceSelection, Question }
+import org.allenai.ari.datamodel.salience.SalienceResult
 import org.allenai.ari.solvers.common.salience.SalienceScorer
 import org.allenai.ari.solvers.termselector.params.ServiceParams
 import org.allenai.common.cache.JsonQueryCache

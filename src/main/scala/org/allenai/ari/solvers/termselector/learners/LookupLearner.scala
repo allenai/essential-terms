@@ -1,6 +1,6 @@
 package org.allenai.ari.solvers.termselector.learners
 
-import org.allenai.ari.models.Question
+import org.allenai.ari.datamodel.Question
 import org.allenai.ari.solvers.termselector.Sensors
 import org.allenai.ari.solvers.termselector.Utils.Levenshtein
 

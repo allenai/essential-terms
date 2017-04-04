@@ -1,12 +1,9 @@
 package org.allenai.ari.solvers.termselector
 
-import org.allenai.ari.models.salience.SalienceResult
-import org.allenai.ari.models.{ MultipleChoiceSelection, Question }
+import org.allenai.ari.datamodel.salience.SalienceResult
+import org.allenai.ari.datamodel.{ MultipleChoiceSelection, Question }
 
-import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation }
-
-import scala.collection.JavaConverters._
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.TextAnnotation
 
 /** Various properties of an Aristo question relevant for essential term detection.
   * @param rawQuestion the actual question
