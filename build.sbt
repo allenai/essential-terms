@@ -14,6 +14,7 @@ libraryDependencies ++= Seq(
   illinoisSaul,
   illinoisLBJava,
   redisClient,
+  rephraseCore,
   stanfordCorenlp331,  // different version than included in allenAiCommon
   stanfordModels331,  // different version than included in allenAiCommon
   word2VecJava.exclude("edu.stanford.nlp", "stanford-corenlp"),

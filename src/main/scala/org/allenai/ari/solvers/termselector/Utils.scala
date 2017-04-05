@@ -1,9 +1,10 @@
 package org.allenai.ari.solvers.termselector
 
 import org.allenai.ari.datamodel.{ MultipleChoiceSelection, Question }
-import org.allenai.ari.models.{ ParentheticalChoiceIdentifier, SplitQuestion }
 import org.allenai.common.Logging
 import org.allenai.datastore.Datastore
+import org.allenai.rephrase.SplitQuestion
+import org.allenai.rephrase.decompose.parsing.ParentheticalChoiceIdentifier
 
 import com.typesafe.config.Config
 
@@ -117,7 +118,7 @@ object Utils extends Logging {
   ): Seq[MultipleChoiceSelection] = {
     for {
       ((key, answer), i) <- splitQuestion.keyAnswerPairs.zipWithIndex
-      question = splitQuestion.question.stripSuffix("?").stripSuffix(".").stripSuffix("!")
+      question = splitQuestion.text.stripSuffix("?").stripSuffix(".").stripSuffix("!")
       assertion = s"Is it true that $question $answer?"
     } yield MultipleChoiceSelection(assertion, Some(answer), answer, key, i)
   }
@@ -125,7 +126,7 @@ object Utils extends Logging {
   def decomposeQuestion(question: String): Question = {
     val maybeSplitQuestion = ParentheticalChoiceIdentifier(question)
     val multipleChoiceSelection = Utils.decomposeQuestionUsingFallbackDecomposer(maybeSplitQuestion)
-    Question(question, Some(maybeSplitQuestion.question),
+    Question(question, Some(maybeSplitQuestion.text),
       multipleChoiceSelection)
   }
 }
