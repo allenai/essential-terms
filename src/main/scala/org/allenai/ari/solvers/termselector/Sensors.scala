@@ -2,8 +2,8 @@ package org.allenai.ari.solvers.termselector
 
 import org.allenai.ari.datamodel.MultipleChoiceSelection
 import org.allenai.ari.datamodel.salience.SalienceResult
-import org.allenai.ari.solvers.common.SolversCommonModule
-import org.allenai.ari.solvers.common.salience.SalienceScorer
+import org.allenai.ari.solvers.SolversCommonModule
+import org.allenai.ari.solvers.salience.SalienceScorer
 import org.allenai.ari.solvers.termselector.params.ServiceParams
 import org.allenai.common.{ FileUtils, Logging }
 import org.allenai.common.guice.ActorSystemModule
