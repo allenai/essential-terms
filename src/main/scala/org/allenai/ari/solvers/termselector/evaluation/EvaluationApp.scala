@@ -1,21 +1,21 @@
 package org.allenai.ari.solvers.termselector.evaluation
 
 import org.allenai.ari.models.Question
-import org.allenai.ari.solvers.termselector.params.{ LearnerParams, ServiceParams }
-import org.allenai.ari.solvers.termselector.{ Constants, Sensors, Utils }
+import org.allenai.ari.solvers.termselector.params.{LearnerParams, ServiceParams}
+import org.allenai.ari.solvers.termselector.{Annotator, Constants, Sensors, Utils}
 import org.allenai.ari.solvers.termselector.learners._
 import org.allenai.common.Logging
-
 import akka.actor.ActorSystem
 import com.redis.RedisClient
-import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
+import java.io.{File, PrintWriter}
 
-import java.io.{ File, PrintWriter }
+import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 
 /** A sample application to train, test, save, and load essential terms classifiers.
   * This code has small pieces for development/debugging/Training and has seen only light comments.
@@ -318,6 +318,27 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
     evaluator.printMistakes(0.2)
   }
 
+
+  /** calculates the kappa agreement */
+  def findAgreement() = {
+    val annotations: Iterable[(Array[(String, Double)], Double, String)] = Annotator.readEssentialTermsData("datastore://private/org.allenai.termselector/turkerSalientTermsWithOmnibus-v3.tsv")
+    val annoRaw = annotations.filter(_._2 == 5).flatMap{ case (list, _, _) => list.map(_._2) }.map{ a =>
+      val num = (a * 5).toInt
+      // List.fill(num)(1.0) ++ List.fill(5 - num)(0.0)
+      Array(num.toDouble, 5.0 - num)
+    }.toArray
+
+    var annoRawJava2dArray = Array.ofDim[Short](annoRaw.length, 2)
+    for{
+      i <- annoRaw.indices
+      j <- Seq(0, 1)
+    } {
+      annoRawJava2dArray(i)(j) = annoRaw(i)(j).toShort
+    }
+
+    println("kappa: " + FleissKappa.computeKappa(annoRawJava2dArray))
+  }
+
   /** this file is meant to print important statistics related to the train/test data */
   def printStatistics(): Unit = {
     // the size of the salience cache
@@ -358,7 +379,49 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
       case (score, constituents) => (score, constituents.size)
     }.toList.sortBy { case (score, _) => score }
     scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
+
+
+    // get distribution over pos tags
+//    val a = expandedDataModel.sensors.allQuestions.flatMap{ q =>
+//      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
+//      val pos = q.questionTextAnnotation.getView(ViewNames.POS).getConstituents.asScala
+//      pos.map{ c =>
+//        c.getLabel -> essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
+//      }
+//    }.filter(_._2 == Constants.IMPORTANT_LABEL)
+//      .groupBy(_._1).map(a => a._1 -> a._2.length)
+//    println(a.mkString("\n"))
+
+    val a1 = expandedDataModel.sensors.allQuestions.flatMap{ q =>
+      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
+      val pos = q.questionTextAnnotation.getView(ViewNames.POS).getConstituents.asScala
+      pos.map{ c =>
+        c.getLabel -> essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
+      }
+    }.groupBy(c => c._1).map{ case (pos, list) =>
+      val a1 = list.count(_._2 == Constants.IMPORTANT_LABEL)
+      val a2 = list.count(_._2 == Constants.UNIMPORTANT_LABEL)
+      (pos, a1, a2, a1.toDouble/a2)
+    }
+    println(a1.mkString("\n"))
+
+    // get distribution over ner tags
+
+
+    // get ratio over sentence length
+    val listOfRatios = expandedDataModel.sensors.allQuestions.map { q =>
+      val tokens = q.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala
+      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
+      val allCons = tokens.map{c =>
+        essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
+      }
+      val essentialCons = allCons.filter(_ == Constants.IMPORTANT_LABEL)
+      essentialCons.length.toDouble / allCons.length
+    }
+
+    println("Average ratios: " + listOfRatios.sum / listOfRatios.length)
   }
+
 }
 
 /** An EssentialTermsApp companion object with main() method. */
@@ -422,8 +485,9 @@ object EvaluationApp extends Logging {
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.tuneClassifierThreshold(arg2)
       case "11" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
-        essentialTermsApp.printStatistics()
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "SVM")
+        //essentialTermsApp.printStatistics()
+        essentialTermsApp.findAgreement()
       case "12" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testClassifierAcrossThresholds(arg2)
