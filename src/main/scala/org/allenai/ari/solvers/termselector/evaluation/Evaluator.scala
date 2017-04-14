@@ -130,7 +130,12 @@ class Evaluator(learner: IllinoisLearner, sensors: Sensors) extends Logging {
 
   def printRankingMeasures(): Unit = {
     val goldLabel = learner.dataModel.goldLabel
-    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](sensors.testSentences)
+    val seenSurfaceForms = sensors.trainSentences.flatten.map(_.getSurfaceForm).toSet
+    val testSentencesFitered = sensors.testSentences.map(_.filter(c => !seenSurfaceForms.contains(c.getSurfaceForm))).filter(_.nonEmpty)//.filter(_.exists(c => c.getLabel == Constants.IMPORTANT_LABEL))
+    val testReader = new IterableToLBJavaParser[Iterable[Constituent]](testSentencesFitered)
+
+    println("sensors.testSentences.flatten.size: " + sensors.testSentences.flatten.size)
+    println("testSentencesFitered.flatten.size: " + testSentencesFitered.flatten.size)
 
     // ranking-based measures
     val averagePrecisionList = testReader.data.map { consIt =>
@@ -171,59 +176,63 @@ class Evaluator(learner: IllinoisLearner, sensors: Sensors) extends Logging {
     writer.write(recall.mkString("\t") + "\n")
     writer.close()
 
+    println("Per-token average precision: " + precision.sum / precision.length)
+
+
     // visualize the the PR-curve; inactive by default to keep things fast
-    val visualizePRCurves = false
-    if (visualizePRCurves) {
-      Highcharts.areaspline(recall, precision)
-      Highcharts.xAxis("Recall")
-      Highcharts.yAxis("Precision")
-    }
+//    val visualizePRCurves = false
+//    if (visualizePRCurves) {
+//      Highcharts.areaspline(recall, precision)
+//      Highcharts.xAxis("Recall")
+//      Highcharts.yAxis("Precision")
+//    }
 
     // per sentence
-    val (perSenPList, perSenRList, perSenYList) = testReader.data.map { consIt =>
-      val scoreLabelPairs = consIt.toList.map { cons =>
-        val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
-        val predScore = learner.predictProbOfBeingEssential(cons)
-        (predScore, goldBinaryLabel)
-      }
-      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-      val (precision, recall, yyield) = rankedPrecisionRecallYield(rankedGold).unzip3
-      (precision, recall, yyield)
-    }.unzip3
+//    val (perSenPList, perSenRList, perSenYList) = testReader.data.map { consIt =>
+//      val scoreLabelPairs = consIt.toList.map { cons =>
+//        val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
+//        val predScore = learner.predictProbOfBeingEssential(cons)
+//        (predScore, goldBinaryLabel)
+//      }
+//      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+//      val (precision, recall, yyield) = rankedPrecisionRecallYield(rankedGold).unzip3
+//      (precision, recall, yyield)
+//    }.unzip3
 
-    val averagePList = perSenPList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-    val averageRList = perSenRList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-    val averageYList = perSenYList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
-    assert(averagePList.length == averageRList.length)
-    assert(averagePList.length == averageYList.length)
-
-    logger.info("Per sentence: ")
-    logger.info(averageRList.mkString(", "))
-    logger.info(averagePList.mkString(", "))
-    logger.info(averageYList.mkString(", "))
+//    val averagePList = perSenPList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+//    val averageRList = perSenRList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+//    val averageYList = perSenYList.reduceRight[Seq[Double]] { case (a, b) => avgList(a, b) }
+//    assert(averagePList.length == averageRList.length)
+//    assert(averagePList.length == averageYList.length)
+//
+//    logger.info("Per sentence: ")
+//    logger.info(averageRList.mkString(", "))
+//    logger.info(averagePList.mkString(", "))
+//    logger.info(averageYList.mkString(", "))
 
     // visualize the the PR-curve; inactive by default to keep things fast
-    val visualizePerSentencePRCurves = false
-    if (visualizePerSentencePRCurves) {
-      Highcharts.areaspline(averageRList, averagePList)
-      Highcharts.xAxis("Recall")
-      Highcharts.yAxis("Precision")
-      Thread.sleep(10000L)
-      Highcharts.stopServer
-    }
+//    val visualizePerSentencePRCurves = false
+//    if (visualizePerSentencePRCurves) {
+//      Highcharts.areaspline(averageRList, averagePList)
+//      Highcharts.xAxis("Recall")
+//      Highcharts.yAxis("Precision")
+//      Thread.sleep(10000L)
+//      Highcharts.stopServer
+//    }
 
     // mean average precision
-    val avgPList = testReader.data.map { consIt =>
-      val scoreLabelPairs = consIt.toList.map { cons =>
-        val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
-        val predScore = learner.predictProbOfBeingEssential(cons)
-        (predScore, goldBinaryLabel)
-      }
-      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
-      meanAverageRankOfPositive(rankedGold)
-    }
-    val map = avgPList.sum / avgPList.size
-    logger.info(s"Mean Average Precision: $map")
+//    val avgPList = testReader.data.map { consIt =>
+//      val scoreLabelPairs = consIt.toList.map { cons =>
+//        val goldBinaryLabel = convertToZeroOne(goldLabel(cons))
+//        val predScore = learner.predictProbOfBeingEssential(cons)
+//        (predScore, goldBinaryLabel)
+//      }
+//      val rankedGold = scoreLabelPairs.sortBy(-_._1).map(_._2)
+//      meanAverageRankOfPositive(rankedGold)
+//    }
+//    println("avgPList.size: " + avgPList.size)
+//    val map = avgPList.sum / avgPList.size
+//    logger.info(s"Mean Average Precision: $map")
   }
 
   /** gold is a vector of 1/0, where the elements are sorted according to their prediction scores

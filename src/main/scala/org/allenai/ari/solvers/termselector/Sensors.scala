@@ -114,8 +114,19 @@ class Sensors(val serviceParams: ServiceParams)(implicit actorSystem: ActorSyste
     // different hashcode than the test constituents
     trainSentences.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("trainidx", s"$idx") }
     testSentences.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("testidx", s"${9999 + idx}") }
+
+    // drop everything that's been observed in the train
+//    val trainSurfaceForms = trainSentences.flatten.map(_.getSurfaceForm).toSet
+//    println("trainSurfaceForms.size: " + trainSurfaceForms.size)
+//    println("trainSurfaceForms.flatten.size: " + trainSurfaceForms.flatten.size)
+//    println("testSentences.size: " + testSentences.size)
+//    println("testSentences.flatten.size: " + testSentences.flatten.size)
+//    val testSentencesFiltered = testSentences.map(_.filter( c => !trainSurfaceForms.contains(c.getSurfaceForm) )).filter(_.nonEmpty)
+//    println("testSentencesFiltered.size: " + testSentencesFiltered.size)
+//    println("testSentencesFiltered.flatten.size: " + testSentencesFiltered.flatten.size)
+
     devSentences.flatten.zipWithIndex.foreach { case (c, idx) => c.addAttribute("devidx", s"${999999 + idx}") }
-    (filteredTrainSen.flatten, testSentences.flatten, devSentences.flatten, filteredTrainSen, testSentences, devSentences)
+    (filteredTrainSen.flatten, testSentences.flatten, devSentences.flatten, filteredTrainSen, testSentences , devSentences)
   }
 
   lazy val allConstituents = trainConstituents ++ testConstituents ++ devConstituents

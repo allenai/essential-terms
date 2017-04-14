@@ -65,12 +65,19 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
   }
 
   def loadAndTestExpandedLearner(): Unit = {
-    testLearner(baselineLearnersDev.surfaceForm, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearnersDev.lemma, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearnersDev.posConjLemma, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearnersDev.wordFormConjNer, test = true, testWithRankingMeasures = false)
-    testLearner(baselineLearnersDev.wordFormConjNerConjPos, test = true, testWithRankingMeasures = false)
-    testLearner(expandedLearner, test = true, testWithRankingMeasures = true)
+    println("------------------ \n baselineLearnersDev.surfaceForm: ")
+    testLearner(baselineLearnersDev.surfaceForm, test = false, testWithRankingMeasures = true, threshold = Constants.LEMMA_BASELINE_THRESHOLD)
+    println("------------------ \n baselineLearnersDev.lemma: ")
+    testLearner(baselineLearnersDev.lemma, test = false, testWithRankingMeasures = true, threshold = Constants.LEMMA_BASELINE_THRESHOLD)
+//    //testLearner(baselineLearnersDev.posConjLemma, test = true, testWithRankingMeasures = false)
+//    //testLearner(baselineLearnersDev.wordFormConjNer, test = true, testWithRankingMeasures = false)
+//    //testLearner(baselineLearnersDev.wordFormConjNerConjPos, test = true, testWithRankingMeasures = false)
+    println("------------------ \n salienceLearners.max: ")
+    testLearner(salienceLearners.max, test = false, testWithRankingMeasures = true, threshold = Constants.MAX_SALIENCE_THRESHOLD)
+    println("------------------ \n salienceLearners.sum: ")
+    testLearner(salienceLearners.sum, test = false, testWithRankingMeasures = true, threshold = Constants.SUM_SALIENCE_THRESHOLD)
+    println("------------------ \n expandedLearner: ")
+    testLearner(expandedLearner, test = false, testWithRankingMeasures = true, threshold = Constants.EXPANDED_LEARNER_THRESHOLD)
   }
 
   def testSalienceLearner(salienceType: String): Unit = {
@@ -165,6 +172,7 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
     learner: IllinoisLearner,
     test: Boolean,
     testWithRankingMeasures: Boolean,
+    threshold: Double = 0.0,
     testOnTraining: Boolean = false
   ): Unit = {
     val dataModel = learner.dataModel
@@ -174,16 +182,41 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
     val constituents = if (testOnTraining) sensors.trainConstituents else sensors.testConstituents
 
     // test
-    if (test) {
-      logger.debug(s"Testing learner ${learner.getSimpleName}")
-      learner.test(constituents)
+//    if (test) {
+//      logger.debug(s"Testing learner ${learner.getSimpleName}")
+//      learner.test(constituents)
+//    }
+//    // microAvgTest(baselineLearner)
+//    if (testWithRankingMeasures) {
+//      logger.debug(s"Testing learner ${learner.getSimpleName} with ranking measures")
+//      val evaluator = new Evaluator(learner, sensors)
+//      evaluator.printRankingMeasures()
+//    }
+
+    // per-token accuracy and f1:
+//    val seenSurfaceForms = sensors.trainSentences.flatten.map(_.getSurfaceForm).toSet
+//    val testSentencesFitered = sensors.testSentences.map(_.filter(c => !seenSurfaceForms.contains(c.getSurfaceForm))).filter(_.nonEmpty)//.filter(_.exists(c => c.getLabel == Constants.IMPORTANT_LABEL))
+
+    val results = sensors.testConstituents.map{ c =>
+      val gold = if (c.getLabel == Constants.IMPORTANT_LABEL) 1.0 else 0.0
+      val predicted = if(learner.predictLabel(c, threshold) == Constants.IMPORTANT_LABEL) 1.0 else 0.0
+      gold -> predicted
     }
-    // microAvgTest(baselineLearner)
-    if (testWithRankingMeasures) {
-      logger.debug(s"Testing learner ${learner.getSimpleName} with ranking measures")
-      val evaluator = new Evaluator(learner, sensors)
-      evaluator.printRankingMeasures()
-    }
+
+
+    val accuracy = results.count(r => r._1 == r._2).toDouble / results.size
+    val positive = results.filter(r => r._1 == 1.0)
+    val negative = results.filter(r => r._1 == 0.0)
+    val truePositive = positive.filter(r => r._2 == 1.0)
+    val falseNegative = negative.filter(r => r._2 == 1.0)
+
+    println("Accuracy: " + accuracy)
+    val p = truePositive.size.toDouble / positive.size
+    val r = truePositive.size.toDouble / (truePositive.size + falseNegative.size)
+    val f1 = 2 * p * r / (p + r)
+    println("Precision: " + p)
+    println("Recall: " + r)
+    println("F1: " + f1)
   }
 
   def printAllFeatures() = {
@@ -344,9 +377,9 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
     // the size of the salience cache
     println(sensors.salienceMap.size)
     // total number of questions (train and test)
-    println(sensors.allQuestions.size)
+    println("sensors.allQuestions: " + sensors.allQuestions.size)
     // total number of constituents (train and test)
-    println(sensors.allConstituents.size)
+    println("sensors.allConstituents: " + sensors.allConstituents.size)
     // distribution of questions across different number of annotations
     println(sensors.allQuestions.map { _.numAnnotators.get }.toSet)
     // number of questions with 10 annotators
@@ -363,8 +396,10 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
     println(sensors.allQuestions.count { _.numAnnotators.get == 2 })
     // size of train and test sentences, respectively
     println("all test questions = " + sensors.testSentences.size)
+    println("all dev questions = " + sensors.devSentences.size)
     println("all train questions = " + sensors.trainSentences.size)
     println("all test constituents = " + sensors.testConstituents.size)
+    println("all dev constituents = " + sensors.devConstituents.size)
     println("all train constituents = " + sensors.trainConstituents.size)
     // size of: what questions, which questions, where questions, when questions, how questions, nonWh questions
     println("whatQuestions = " + sensors.whatQuestions.size)
@@ -374,11 +409,13 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
     println("howQuestions = " + sensors.howQuestions.size)
     println("nonWhQuestions = " + sensors.nonWhQuestions.size)
 
+    println("expandedDataModel.allProperties.length: " + expandedDataModel.allProperties.length)
+
     // group together the constituents with the same scores
-    val scoreSizePairs = sensors.allConstituents.toList.groupBy { _.getConstituentScore }.map {
-      case (score, constituents) => (score, constituents.size)
-    }.toList.sortBy { case (score, _) => score }
-    scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
+//    val scoreSizePairs = sensors.allConstituents.toList.groupBy { _.getConstituentScore }.map {
+//      case (score, constituents) => (score, constituents.size)
+//    }.toList.sortBy { case (score, _) => score }
+//    scoreSizePairs.foreach { case (score, size) => print(score + "\t" + size + "\n") }
 
 
     // get distribution over pos tags
@@ -392,35 +429,99 @@ class EvaluationApp(loadModelType: LoadType, classifierModel: String)(implicit a
 //      .groupBy(_._1).map(a => a._1 -> a._2.length)
 //    println(a.mkString("\n"))
 
-    val a1 = expandedDataModel.sensors.allQuestions.flatMap{ q =>
-      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
-      val pos = q.questionTextAnnotation.getView(ViewNames.POS).getConstituents.asScala
-      pos.map{ c =>
-        c.getLabel -> essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
-      }
-    }.groupBy(c => c._1).map{ case (pos, list) =>
-      val a1 = list.count(_._2 == Constants.IMPORTANT_LABEL)
-      val a2 = list.count(_._2 == Constants.UNIMPORTANT_LABEL)
-      (pos, a1, a2, a1.toDouble/a2)
-    }
-    println(a1.mkString("\n"))
+//    val a1 = expandedDataModel.sensors.allQuestions.flatMap{ q =>
+//      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
+//      val pos = q.questionTextAnnotation.getView(ViewNames.POS).getConstituents.asScala
+//      pos.map{ c =>
+//        c.getLabel -> essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
+//      }
+//    }.groupBy(c => c._1).map{ case (pos, list) =>
+//      val a1 = list.count(_._2 == Constants.IMPORTANT_LABEL)
+//      val a2 = list.count(_._2 == Constants.UNIMPORTANT_LABEL)
+//      (pos, a1, a2, a1.toDouble/a2)
+//    }
+//    println(a1.mkString("\n"))
+//
+//    // get ratio over sentence length
+//    val listOfRatios = expandedDataModel.sensors.allQuestions.map { q =>
+//      val tokens = q.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala
+//      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
+//      val allCons = tokens.map{c =>
+//        essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
+//      }
+//      val essentialCons = allCons.filter(_ == Constants.IMPORTANT_LABEL)
+//      essentialCons.length.toDouble / allCons.length
+//    }
+//
+//    println("Average ratios: " + listOfRatios.sum / listOfRatios.length)
 
-    // get distribution over ner tags
 
 
-    // get ratio over sentence length
+    // ratio compared to non-stopwords
     val listOfRatios = expandedDataModel.sensors.allQuestions.map { q =>
-      val tokens = q.questionTextAnnotation.getView(ViewNames.TOKENS).getConstituents.asScala
-      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel).toMap
-      val allCons = tokens.map{c =>
-        essentialityCons.getOrElse(c.getSurfaceForm, Constants.UNIMPORTANT_LABEL)
-      }
+      val allCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(_.getLabel)
       val essentialCons = allCons.filter(_ == Constants.IMPORTANT_LABEL)
       essentialCons.length.toDouble / allCons.length
     }
-
     println("Average ratios: " + listOfRatios.sum / listOfRatios.length)
+
+
+    // get overlap with science terms
+    lazy val scienceTerms: Set[String] = {
+      val file = Utils.getDatastoreFileAsSource("datastore://public/org.allenai.nlp.resources/science_terms-v1.txt")
+      val terms = file.getLines().filterNot(_.startsWith("#")).toSet
+      file.close()
+      terms
+    }
+
+    println("scienceTerms: " + scienceTerms.size)
+
+//    val totalScienceTerm = expandedDataModel.sensors.allQuestions.flatMap{ q =>
+//      val essentialityCons = q.questionTextAnnotation.getView(Constants.VIEW_NAME).getConstituents.asScala.map(c => c.getSurfaceForm -> c.getLabel)
+//      essentialityCons.filter{ case (l, e) =>
+//        scienceTerms.contains(l.toLowerCase())
+//      }
+//    }
+//    val totalEssentials = totalScienceTerm.count(_._2 == Constants.IMPORTANT_LABEL)
+//    println("totalScienceTerm: " + totalScienceTerm.length)
+//    println("totalEssentials: " + totalEssentials)
+//    println("ratio: " + totalEssentials / totalScienceTerm.length.toDouble)
+
+    // is it clsoe to the end of the question?
+    val diatanceToEnd= expandedDataModel.sensors.allConstituents.filter{_.getLabel == Constants.IMPORTANT_LABEL}.map { q =>
+      1.0 * (q.getSentenceId + 1) / q.getTextAnnotation.getNumberOfSentences
+    }.toList
+    println("How close to end: " + diatanceToEnd.sum / diatanceToEnd.length)
+
+    def median(s: Seq[Double]) = {
+      val (lower, upper) = s.sortWith(_<_).splitAt(s.size / 2)
+      if (s.size % 2 == 0) (lower.last + upper.head) / 2.0 else upper.head
+    }
+
+    val sentenceIds = expandedDataModel.sensors.allConstituents.filter{_.getLabel == Constants.IMPORTANT_LABEL}.map(_.getSentenceId.toDouble + 1.0).toList
+    println("Mean: " + sentenceIds.sum / sentenceIds.size)
+    println("Median: " + median(sentenceIds))
+
+    val sentenceLength = expandedDataModel.sensors.allSentences.map(_.head.getTextAnnotation.getNumberOfSentences.toDouble).toList
+    println("Mean sentence length: " + sentenceLength.sum / sentenceLength.size)
+    println("Median sentence length: " + median(sentenceLength))
+    println(sentenceLength.groupBy(c => c).map(a => a._1 -> a._2.size).mkString("\n"))
+
+
+    val (first, second, ratios) = expandedDataModel.sensors.allSentences.filter(_.head.getTextAnnotation.getNumberOfSentences == 2).map{ list =>
+      val firstSentence = list.filter{_.getLabel == Constants.IMPORTANT_LABEL}.filter(_.getSentenceId == 0).toList
+      val secondSentence = list.filter{_.getLabel == Constants.IMPORTANT_LABEL}.filter(_.getSentenceId == 1).toList
+      (firstSentence.length, secondSentence.length , secondSentence.length  / firstSentence.length.toDouble)
+    }.toList.unzip3
+
+    println("Ratios: " + ratios.sum / ratios.length)
+    println("Avg first: " + first.sum.toDouble / first.length)
+    println("Avg 2nd: " + second.sum.toDouble / second.length)
+    println("2nd / 1st: " + second.sum.toDouble / first.sum )
+
+
   }
+
 
 }
 
@@ -454,7 +555,7 @@ object EvaluationApp extends Logging {
         val essentialTermsApp = new EvaluationApp(loadModelType = TrainModel, arg1)
         essentialTermsApp.trainAndTestExpandedLearner(testOnSentences = false)
       case "2" =>
-        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
+        val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "SVM")
         essentialTermsApp.loadAndTestExpandedLearner()
       case "3" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = TrainModel, "")
@@ -486,8 +587,8 @@ object EvaluationApp extends Logging {
         essentialTermsApp.tuneClassifierThreshold(arg2)
       case "11" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, "SVM")
-        //essentialTermsApp.printStatistics()
-        essentialTermsApp.findAgreement()
+        essentialTermsApp.printStatistics()
+        //essentialTermsApp.findAgreement()
       case "12" =>
         val essentialTermsApp = new EvaluationApp(loadModelType = LoadFromDatastore, arg1)
         essentialTermsApp.testClassifierAcrossThresholds(arg2)
