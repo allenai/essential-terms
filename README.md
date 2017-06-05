@@ -1,6 +1,7 @@
+# Data 
 This is the dataset accompanying the following paper:
 
-	Learning What is Essential in Questions, CoNLL-2017. 
+ - Daniel Khashabi, Tushar Khot, Ashish Sabharwal and Dan Roth, "Learning What is Essential in Questions", CoNLL-2017. 
 
 The .tsv file contains the questions and their annotations. 
 Each line has one single question, followed by its number of annotators and the essentiality scores of its constituents. 
