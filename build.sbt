@@ -28,7 +28,7 @@ libraryDependencies ++= Seq(
 )
 
 val ai2PublicReleases = Resolver.bintrayRepo("allenai", "maven")
-val cogcompReleases = Resolver.ssh("CogcompSoftwareRepo", "bilbo.cs.illinois.edu", "/mounts/bilbo/disks/0/www/cogcomp/html/m2repo/")
+val cogcompReleases = "CogcompSoftware" at "http://cogcomp.cs.illinois.edu/m2repo/"
 
 resolvers ++= Seq(ai2PublicReleases, cogcompReleases)
 

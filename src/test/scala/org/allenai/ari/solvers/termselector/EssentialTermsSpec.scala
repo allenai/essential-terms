@@ -12,7 +12,7 @@ import org.scalatest.OneInstancePerTest
 /** Test overall functionality of the TableILP solver */
 class EssentialTermsSpec extends ActorSpec(ActorSystem("essential-terms-spec")) with OneInstancePerTest {
   lazy val lookupLearnerService = EssentialTermsService("Lookup")
-  lazy val commonSensors = lookupLearnerService.sensors
+  lazy val commonSensors: Sensors = lookupLearnerService.sensors
 
   def getServiceF1GivenLearnerType(classifierType: String, classifierModel: String = ""): Double = {
     val learnerService = EssentialTermsService(classifierType, classifierModel, commonSensors)
