@@ -19,7 +19,6 @@ libraryDependencies ++= Seq(
   excludeWekaStable("edu.illinois.cs.cogcomp" % "saul_2.11" % "0.4"),
   excludeWekaStable("edu.illinois.cs.cogcomp" % "LBJava" % "1.2.20"),
   "net.debasishg" %% "redisclient" % "3.0",
-  "org.allenai.aristo" %% "rephrase-core" % "0.0.6",
   stanfordCorenlp331,  // different version than included in allenAiCommon
   stanfordModels331,  // different version than included in allenAiCommon
   ("com.medallia.word2vec" % "Word2VecJava" % "0.10.3").exclude("edu.stanford.nlp", "stanford-corenlp"),

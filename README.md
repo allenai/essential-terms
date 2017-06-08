@@ -1,4 +1,6 @@
 # Essential Term Selector 
+[![Build Status](http://morgoth.cs.illinois.edu:5800/app/rest/builds/buildType:(id:EssentialTerms_Build)/statusIcon)](morgoth.cs.illinois.edu:5800)
+
 
 ## About 
 
