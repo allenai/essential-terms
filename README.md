@@ -1,6 +1,4 @@
 # Essential Term Selector 
-[![Build Status](http://morgoth.cs.illinois.edu:5800/app/rest/builds/buildType:(id:EssentialTerms_Build)/statusIcon)](morgoth.cs.illinois.edu:5800)
-
 
 ## About 
 
@@ -20,16 +18,20 @@ To see more comprehensive analysis on our classifier and its usages
 in other QA systems, have a brief look at [1]. 
 
 ## Dataset 
-Checkout the []dataset folder](data). 
+Checkout the [dataset folder](data). 
 
 ## Using it in your system 
 Here we explain two popular ways of calling our this system in your code; 
+
+If you want to compile the code, the first step is to [downloads the dependencies](https://drive.google.com/open?id=0B1SliOO1bMINanlYc082NnEteGs) and put them in the `lib/` folder.
+Alternatively if you don't really care about compiling the code and just want to use this in your system, 
+you can use [this fat jar](https://drive.google.com/open?id=0B1SliOO1bMINdXhySzg2ZUo5Z0U), which includes this project and all of its dependencies. 
 
 ### Using it as a service via `Injector` library
 If you want to use Google's injector library, many of the minor details will automatically be taken care of. 
 You just need to inject the service defined in `EssentialTermsService`. 
 
-```sbt 
+```scala 
 val essentialTermService = ... // injected essential-terms service
  
 // first decompose question 
