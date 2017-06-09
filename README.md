@@ -24,8 +24,6 @@ Checkout the [dataset folder](data).
 Here we explain two popular ways of calling our this system in your code; 
 
 If you want to compile the code, the first step is to [downloads the dependencies](https://drive.google.com/open?id=0B1SliOO1bMINanlYc082NnEteGs) and put them in the `lib/` folder.
-Alternatively if you don't really care about compiling the code and just want to use this in your system, 
-you can use [this fat jar](https://drive.google.com/open?id=0B1SliOO1bMINdXhySzg2ZUo5Z0U), which includes this project and all of its dependencies. 
 
 ### Using it as a service via `Injector` library
 If you want to use Google's injector library, many of the minor details will automatically be taken care of. 

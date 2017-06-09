@@ -54,7 +54,7 @@ class EssentialTermsSpec extends ActorSpec(ActorSystem("essential-terms-spec")) 
     val evaluator = new Evaluator(baselineLearnersTrain.lemma, commonSensors)
     val scoreMap = evaluator.test(commonSensors.testConstituents, Constants.LEMMA_BASELINE_THRESHOLD, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be(0.74 +- 0.02)
+    f1Score should be(0.78 +- 0.02)
   }
 
   "Salience baseline " should "correctly work and have at least 67 F1" in {
@@ -80,7 +80,7 @@ class EssentialTermsSpec extends ActorSpec(ActorSystem("essential-terms-spec")) 
     val evaluator = new Evaluator(expandedLearner, commonSensors)
     val scoreMap = evaluator.test(commonSensors.testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be(0.80 +- 0.02)
+    f1Score should be(0.82 +- 0.02)
   }
 
   it should "correctly work for direct answer questions and have at least 79.5 F1" in {
@@ -97,6 +97,6 @@ class EssentialTermsSpec extends ActorSpec(ActorSystem("essential-terms-spec")) 
     val evaluator = new Evaluator(expandedLearner, commonSensors)
     val scoreMap = evaluator.test(commonSensors.testConstituents, Constants.EXPANDED_LEARNER_THRESHOLD_DIRECT_ANSWER, 1.0)
     val f1Score = scoreMap(Constants.IMPORTANT_LABEL)._1
-    f1Score should be(0.795 +- 0.02)
+    f1Score should be(0.84 +- 0.02)
   }
 }
