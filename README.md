@@ -20,10 +20,20 @@ in other QA systems, have a brief look at [1].
 ## Dataset 
 Checkout the [dataset folder](data). 
 
-## Using it in your system 
-Here we explain two popular ways of calling our this system in your code; 
+## Compiling the code 
+To compile the code: 
+```
+ > sbt compile
+```
 
-If you want to compile the code, the first step is to [downloads the dependencies](https://drive.google.com/open?id=0B1SliOO1bMINanlYc082NnEteGs) and put them in the `lib/` folder.
+## Using it in your system 
+First you have to include it as a dependency in your project. Here is how it's done for an sbt project: 
+
+```sbt
+resolvers += "CogcompSoftware" at "http://cogcomp.cs.illinois.edu/m2repo/"
+libraryDependencies += "org.allenai.ari" %% "essential-terms" % "1."
+```
+Next we show how to use it in your program: 
 
 ### Using it as a service via `Injector` library
 If you want to use Google's injector library, many of the minor details will automatically be taken care of. 
